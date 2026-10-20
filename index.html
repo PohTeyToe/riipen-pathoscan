@@ -4,12 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
-    <meta name="description" content="A browser tube reader for colorimetric LAMP runs: calls each tube against the run's own controls and holds the ones it can't tell. Built by Abdallah Safi for PathoScan's Level UP project." />
+    <meta name="description" content="A tube reader for colorimetric LAMP runs. It scores each tube against its own run's controls, flags a positive control that reads weaker than the samples, and holds in-between tubes for a look by eye. Built by Abdallah Safi for PathoScan's Level UP project." />
     <meta property="og:title" content="Tube Reader" />
-    <meta property="og:description" content="Drag the light, the run's pH and the decision band, and watch a naive and a calibrated reader call 10-tube LAMP runs. Synthetic runs plus 27 CC0 real photos." />
-    <meta name="theme-color" content="#f6f5f1" />
+    <meta property="og:description" content="A weak positive control fools a midpoint rule. This reader flags it. Synthetic LAMP runs, an eval on 16,000 samples, and 27 CC0 real photos." />
+    <meta name="theme-color" content="#0b2fa0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Tube Reader</title>
+    <style>#root:empty{min-height:100vh;background:#0b2fa0}</style>
   </head>
   <body>
     <div id="root"></div>

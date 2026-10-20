@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { emptyConfusion, fitCut, fitLogistic, readSynthetic, score } from './evaluate'
 import { discRegion, findRegions, measure, readingOrder, type Features } from './find'
 import { readByGroup, readCalibrated, readMidpoint, readNaive, QC } from './readers'
-import { relight } from './relight'
 import { makeRun, render, type Img, type Role } from './synth'
 
 const model = { w0: -3.7, w1: 7.8 }
@@ -116,10 +115,6 @@ describe('finding and measuring', () => {
     expect(f.glare).toBeGreaterThan(0)
     expect(f.raw).toEqual([230, 200, 60])
     expect(measure(img, discRegion(20, 20, 10, 5), [0.9, 0.9, 0.9])!.glare).toBe(0)
-  })
-  it('relighting at neutral light and 0 stops changes nothing', () => {
-    const img = render(makeRun(1), 0.2)
-    expect(relight(img, 5500, 0)).toBe(img)
   })
 })
 

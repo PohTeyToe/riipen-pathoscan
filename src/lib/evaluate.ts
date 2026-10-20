@@ -1,5 +1,5 @@
-// Turning synthetic runs into scored reads. The eval script and the page's live check share this file, so
-// the numbers on the page and in data/eval.json come from the same code path.
+// Turning synthetic runs into scored reads. The eval script and the page share this file, so the runs on the
+// page and the numbers in data/eval.json come from the same code path.
 
 import { findRegions, measure, type Features } from './find'
 import { readCalibrated, readNaive, type Band, type Call, type Model } from './readers'
@@ -29,9 +29,6 @@ export function readSynthetic(spec: RunSpec, scale: number): ReadRun {
   const { feats } = readSyntheticFull(spec, scale)
   return { spec, roles: spec.tubes.map((t) => t.role), feats, missed: feats.filter((f) => !f).length }
 }
-
-/** The page's live check: this many runs, drawn at this scale, from these seeds. */
-export const LIVE = { firstSeed: 500001, runs: 48, scale: 0.5, chunk: 6 }
 
 export type Confusion = Record<Truth, Record<Call, number>>
 export const emptyConfusion = (): Confusion => ({ pos: { pos: 0, held: 0, neg: 0 }, neg: { pos: 0, held: 0, neg: 0 } })

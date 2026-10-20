@@ -168,7 +168,7 @@ const A_ACID: RGB = [0.02, 0.18, 1.35]
 export const CAST_LEFT = 0.65
 
 // Paper grain on a 2-unit grid, and a pool of camera noise (sum of two uniforms, centred). Tables, because
-// the per-pixel loop is the hot path of the live check.
+// the per-pixel loop is the hot path of the eval.
 const TEX_W = W / 2
 const TEX = (() => {
   const r = rng(424242)

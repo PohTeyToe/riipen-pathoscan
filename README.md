@@ -8,15 +8,15 @@ Live: https://riipen-pathoscan.vercel.app
 
 ## What you can do on the page
 
-The first screen is a synthetic 10-tube run (positive control, negative control, 8 samples) being read.
+The page calls the calibrated reader **Tube Reader** and the naive one **Fixed cut**. The rest of this README keeps "calibrated" and "naive".
 
-- Flip between the **Naive** and **Calibrated** readers. The chips under the tubes, the scale and the confusion matrix all switch.
-- Drag **light colour**, **exposure** and **run pH shift**. The run redraws, and the live check re-reads 48 more synthetic runs (384 samples) under the same conditions, so the confusion matrix fills in as you watch. Light colour barely moves either reader; drag the pH shift toward pink to see the fixed cut break.
-- Drag the **decision cut** (naive) or the two edges of the **held band** (calibrated) on the scale. Calls and the matrix update at once.
-- Pick a scenario: weak positive control, acidic extract, glare, a bubble, low volume.
-- Open **Real photos** to run the same readers on 27 real photos, scored against the paper's results.
-- Open **Your photo** to drop in your own. It finds the coloured liquid, takes the first two tubes as the controls (you can change that), and lets you place tubes by hand if it misses. Mark what each tube really was and the matrix scores both readers on your photo. The photo never leaves the browser.
-- Tap any tube for what the camera saw, the colour with the paper made white, and what each reader decided and why.
+1. **The first screen** reads one synthetic run in three steps: the positive control came out weak, a midpoint rule calls two in-between negatives positive, and the calibrated reader flags the control and holds those two for a look. The steps play once on their own, with a Pause button. If the browser asks for reduced motion they wait for a tap. The run is seed 176 of the weak-control scenario, the first one where the midpoint rule makes two wrong calls, the calibrated reader none, and the control reads weaker than three samples. That is the pattern measured in PathoScan's photo (below). Every caption is computed from the run, and `src/page.test.ts` checks both the captions and the seed rule.
+2. **The case-study photo** as a chart: the hue of each tube, its handwritten call, the midpoint between the controls and the positive control's hue. The numbers come from `data/case-study.json`.
+3. **The lab.** A typical run (seed 7, the first that matches the eval's per-run averages) with a row of lights under the tubes for each reader. Pick run pH shift, light colour or exposure and drag the slider: the run redraws and both readers re-read it. The slider steps through the points of the eval's sweeps, and the chart and counts beside it are those sweeps from `data/eval.json`, so the numbers on screen are the eval's, not a fresh sample. Light colour barely moves either reader; a shift toward pink breaks the fixed cut. Scenarios (weak positive control, acidic extract, glare, a bubble, low volume) and New run change the run. Tap a light for what the camera saw, the colour with the paper made white, and what each rule decided and why.
+4. **The eval**: both readers on the 16,000 held-out samples, as unit charts (one square is 16 samples) with the exact counts.
+5. **Real photos**: the same readers on 27 real photos, scored against the paper's results. It opens on the first photo whose plate has both controls for every assay. Switch reader, drag the cut or the edges of the held band, pick a well from the list or the photo, and see the matrix for that photo. **Your photo** takes your own: it finds the coloured liquid, takes the first two tubes as the controls (you can change that), and lets you place tubes by hand if it misses. Mark what each tube really was and the matrix scores both readers. The photo never leaves the browser.
+
+Synthetic runs are labelled as such. The SYBR Green I note sits with the real photos and in the footer.
 
 ## Data, and what is real
 
@@ -70,6 +70,7 @@ The fair comparison covers 664 sample wells whose assay has both controls on the
 - 208 more scored wells have no pair of controls on their plate. The calibrated reader holds all of them.
 - The paper's calls are better on the wells both of us read. Its cut was set for this assay and these plates. This reader saw neither before.
 - The scores use the labelled well positions. Run on the same photos, the automatic finder covers 730 of the 996 wells read here. It also returns 21 regions on wells the scores skip or on a well it already found, and 11 on no well at all.
+- The page decodes the photos with the browser, `scripts/eval-real.ts` with jpeg-js. Hues near the fixed cut can land on the other side, so a single photo's counts on the page can differ a little from a recount in Node. On the Supp. Fig. 5a plate that Zenodo labels SuppFig5_d, the fixed cut gets 31 of 45 wrong in Chrome and 25 in Node. The totals above are from Node.
 
 ## PathoScan's published photo: what the tool measures
 
@@ -93,7 +94,7 @@ So the line for any message is: "Your positive control reads less yellow than al
 3. **Scale** (`src/lib/readers.ts`). The calibrated reader puts each sample on a line from the negative control's Lab hue (0) to the positive control's (1). With several positive controls it uses the one that turned furthest and flags any that didn't turn. Several negative controls are averaged if they agree. If they don't, one may be contaminated, and it holds the group. A one-feature logistic model maps the position to p. A plate with two assays is read as two groups, each against its own controls.
 4. **Call or hold.** p ≥ 0.8 is positive and p ≤ 0.2 is negative. Anything in between is held. It also holds tubes with fewer than 25 clear pixels or too little colour. It holds the whole run when the controls are under 20° apart, and it flags a positive control that reads weaker than samples.
 
-The "model" is a two-parameter logistic regression. I don't call it AI. All of it runs in the browser in milliseconds. The live check runs in a Web Worker.
+The "model" is a two-parameter logistic regression. I don't call it AI. All of it runs in the browser in milliseconds.
 
 ## What it can't tell you
 
@@ -116,6 +117,7 @@ npm run eval         # refit and rescore the synthetic eval, writes data/eval.js
 npm run eval:real    # score the real photos, writes data/real-eval.json
 npx tsx scripts/case-study-check.ts <photo.png>   # the PathoScan photo check above
 npm run measure -- <photo> [names] ["x:y:r;..."]  # any photo, found or hand-placed
+npx tsx scripts/thumbs.ts                          # redraw the photo picker's thumbnails
 ```
 
 The site is static (Vite, React, TypeScript) with no backend. `vercel.json` sends `X-Robots-Tag: noindex` and caches hashed assets. `.npmrc` sets `legacy-peer-deps` because npm 10.8 trips on Vite 8's optional peers.
@@ -124,9 +126,11 @@ The site is static (Vite, React, TypeScript) with no backend. `vercel.json` send
 
 ```
 src/lib/        colour maths, synthetic renderer, finder, readers, eval, real-photo reader, tests
-src/components/ stage, scale strip, confusion matrix, tube detail, eval section
-src/worker.ts   the live check
+src/run.ts      a synthetic run as the page shows it: drawn, found, measured, read by all three rules
+src/caseStudy.ts the case-study numbers the page charts
+src/components/ hero story, rack and lights, case-study chart, lab, sweep chart, eval, real-photo bench, stage, scale strip, matrix, tube detail
+src/page.test.ts checks the page's runs and numbers against what it says about them
 scripts/        eval, real-photo eval, photo measurement, image IO for Node
 data/           eval.json, real-eval.json, real/labels.json
-public/real/    the 27 CC0 photos, downscaled
+public/real/    the 27 CC0 photos, downscaled, and thumbs/ for the picker
 ```
