@@ -69,7 +69,7 @@ The fair comparison covers 664 sample wells whose assay has both controls on the
 - Most of the calibrated reader's held wells sit on four plates whose controls are 14° to 19° apart. That's under the 20° minimum I set on synthetic runs. At 10° it would hold 45 and still get 23 wrong. I kept 20°, because changing it after seeing these results would be tuning on the test set.
 - 208 more scored wells have no pair of controls on their plate. The calibrated reader holds all of them.
 - The paper's calls are better on the wells both of us read. Its cut was set for this assay and these plates. This reader saw neither before.
-- The scores use the labelled well positions. Run on the same photos, the automatic finder covers 730 of the 996 wells read here. It also returns 21 regions on wells the scores skip or on a well it already found, and 11 on no well at all.
+- The scores use the labelled well positions. Run on the same photos, the automatic finder covers 731 of the 996 wells read here. It also returns 20 regions on wells the scores skip or on a well it already found, and 11 on no well at all.
 
 ## PathoScan's published photo: what the tool measures
 
