@@ -97,6 +97,8 @@ describe('finding and measuring', () => {
     expect(readingOrder(slant).map((r) => r.cx)).toEqual([20, 40, 60, 80, 100])
     const plate = [box(30, 20), box(10, 21), box(10, 40), box(30, 41)]
     expect(readingOrder(plate).map((r) => [r.cx, r.cy])).toEqual([[10, 21], [30, 20], [10, 40], [30, 41]])
+    const tiltedRows = [box(10, 20), box(30, 23), box(10, 30), box(30, 33)].map((b) => ({ ...b, y0: b.cy - 4.5, y1: b.cy + 4.5 }))
+    expect(readingOrder(tiltedRows).map((r) => [r.cx, r.cy])).toEqual([[10, 20], [30, 23], [10, 30], [30, 33]])
   })
   it('matches every tube in clean runs', () => {
     for (const seed of [1, 2, 3, 4, 5]) expect(readSynthetic(makeRun(seed, 'typical', { ev: 0 }), 0.5).missed).toBe(0)

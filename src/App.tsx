@@ -78,9 +78,10 @@ export default function App() {
   const [realError, setRealError] = useState('')
   const [retry, setRetry] = useState(0)
   useEffect(() => {
+    // Any error belongs to the photo it came from; switching photos clears it.
+    setRealError('')
     if (source !== 'real' || !realImage || realBase?.file === realImage.file) return
     let live = true
-    setRealError('')
     setBusy('Loading photo…')
     loadImage(realSrc(realImage.file))
       .then((img) => {

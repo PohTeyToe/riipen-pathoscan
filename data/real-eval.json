@@ -457,9 +457,9 @@
  ],
  "finder": {
   "expected": 996,
-  "found": 731,
-  "onOtherWells": 20,
+  "found": 730,
+  "onOtherWells": 21,
   "offWells": 11
  },
- "seconds": 7
+ "seconds": 3
 }

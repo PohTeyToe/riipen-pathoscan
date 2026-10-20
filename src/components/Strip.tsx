@@ -57,12 +57,14 @@ export function Strip({ domain, unit, gradient, ticks, dots, handles, spans, sel
   const dense = dots.length > 16
   const dotPx = dense ? 12 : 26
   const gap = ((dotPx + 2) / width) * (d1 - d0)
+  // Dots past either end are drawn at the end, so pack them where they're drawn.
   const placed = dots
     .filter((d) => d.x !== null)
-    .sort((a, b) => a.x! - b.x!)
-    .reduce<{ dot: StripDot; lane: number }[]>((acc, dot) => {
+    .map((d) => ({ ...d, px: Math.min(d1, Math.max(d0, d.x!)) }))
+    .sort((a, b) => a.px - b.px)
+    .reduce<{ dot: StripDot & { px: number }; lane: number }[]>((acc, dot) => {
       let lane = 0
-      while (acc.some((p) => p.lane === lane && Math.abs(p.dot.x! - dot.x!) < gap)) lane++
+      while (acc.some((p) => p.lane === lane && Math.abs(p.dot.px - dot.px) < gap)) lane++
       acc.push({ dot, lane })
       return acc
     }, [])

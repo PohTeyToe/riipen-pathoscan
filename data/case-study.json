@@ -1,0 +1,166 @@
+{
+ "source": "PathoScan greenhouse case study PDF, page 4 photo (810x296), Nov 24 visit. Photo not in this repo.",
+ "url": "https://www.pathoscan.com/s/PathoScan-Greenhouse-Trial-Case-Study-1.pdf",
+ "tips": [
+  [
+   165,
+   185
+  ],
+  [
+   210,
+   187
+  ],
+  [
+   277,
+   180
+  ],
+  [
+   320,
+   179
+  ],
+  [
+   370,
+   188
+  ],
+  [
+   422,
+   195
+  ],
+  [
+   500,
+   203
+  ],
+  [
+   573,
+   204
+  ],
+  [
+   627,
+   213
+  ],
+  [
+   712,
+   234
+  ]
+ ],
+ "centrePlacementRadius4": [
+  {
+   "tube": "PC",
+   "rawHue": 25.6,
+   "clearPixels": 38,
+   "hand": "control",
+   "naive": "pos",
+   "midpoint": "pos",
+   "calibrated": "pos"
+  },
+  {
+   "tube": "NC",
+   "rawHue": -3.8,
+   "clearPixels": 14,
+   "hand": "control",
+   "naive": "neg",
+   "midpoint": "neg",
+   "calibrated": "neg"
+  },
+  {
+   "tube": "PS162",
+   "rawHue": 32.4,
+   "clearPixels": 11,
+   "hand": "pos",
+   "naive": "pos",
+   "midpoint": "pos",
+   "calibrated": "held"
+  },
+  {
+   "tube": "PS163",
+   "rawHue": 11.5,
+   "clearPixels": 18,
+   "hand": "neg",
+   "naive": "neg",
+   "midpoint": "pos",
+   "calibrated": "held"
+  },
+  {
+   "tube": "PS164",
+   "rawHue": 6,
+   "clearPixels": 9,
+   "hand": "neg",
+   "naive": "neg",
+   "midpoint": "neg",
+   "calibrated": "held"
+  },
+  {
+   "tube": "PS165",
+   "rawHue": 37.6,
+   "clearPixels": 30,
+   "hand": "pos",
+   "naive": "pos",
+   "midpoint": "pos",
+   "calibrated": "pos"
+  },
+  {
+   "tube": "PS166",
+   "rawHue": 40,
+   "clearPixels": 37,
+   "hand": "pos",
+   "naive": "pos",
+   "midpoint": "pos",
+   "calibrated": "pos"
+  },
+  {
+   "tube": "PS167",
+   "rawHue": 40,
+   "clearPixels": 44,
+   "hand": "pos",
+   "naive": "pos",
+   "midpoint": "pos",
+   "calibrated": "pos"
+  },
+  {
+   "tube": "PS168",
+   "rawHue": 20,
+   "clearPixels": 16,
+   "hand": "neg",
+   "naive": "neg",
+   "midpoint": "pos",
+   "calibrated": "held"
+  },
+  {
+   "tube": "PS169",
+   "rawHue": 16.2,
+   "clearPixels": 3,
+   "hand": "neg",
+   "naive": "neg",
+   "midpoint": "pos",
+   "calibrated": "held"
+  },
+  {
+   "midpointRule": "Midpoint 10.9°",
+   "calibratedFlags": [
+    "A control has very few clear pixels, so the scale itself is uncertain.",
+    "The positive control is weaker than 3 samples. Check it before trusting the run."
+   ]
+  }
+ ],
+ "over27Placements": {
+  "positivesMoreYellowThanPC": {
+   "4": 27
+  },
+  "midpointDisagreesWithHand": {
+   "PS168+PS169": 15,
+   "PS163+PS168+PS169": 11,
+   "PS163+PS164+PS168+PS169": 1
+  },
+  "naiveAgreesWithHandOf8": {
+   "7": 1,
+   "8": 26
+  },
+  "calibrated": {
+   "162:held 163:held 164:held 165:held 166:held 167:held 168:held 169:held": 1,
+   "162:held 163:held 164:held 165:held 166:held 167:pos 168:held 169:held": 6,
+   "162:held 163:held 164:held 165:held 166:pos 167:held 168:held 169:held": 2,
+   "162:held 163:held 164:held 165:held 166:pos 167:pos 168:held 169:held": 10,
+   "162:held 163:held 164:held 165:pos 166:pos 167:pos 168:held 169:held": 8
+  }
+ }
+}

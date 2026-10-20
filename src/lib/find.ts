@@ -200,16 +200,26 @@ export function findRegions(img: Img): { regions: Region[]; paper: RGB } {
 }
 
 /**
- * Rows top to bottom, then left to right. A new row starts where the centres jump down by more than most of
- * a region's height, so a slightly slanted line of tubes stays one row while plate rows split.
+ * Rows top to bottom, then left to right. If every centre sits close to one straight line (a row of tubes
+ * photographed at a slant), it is one row. Otherwise a new row starts where the centres jump down by more
+ * than half a region's height.
  */
 export function readingOrder(regions: Region[]): Region[] {
   if (regions.length === 0) return regions
   const hMed = median(regions.map((r) => r.y1 - r.y0 + 1))
+  const byX = [...regions].sort((a, b) => a.cx - b.cx)
+  if (regions.length >= 3) {
+    const n = regions.length
+    const mx = regions.reduce((a, r) => a + r.cx, 0) / n
+    const my = regions.reduce((a, r) => a + r.cy, 0) / n
+    const sxx = regions.reduce((a, r) => a + (r.cx - mx) ** 2, 0)
+    const slope = sxx > 0 ? regions.reduce((a, r) => a + (r.cx - mx) * (r.cy - my), 0) / sxx : 0
+    if (Math.abs(slope) < 1 && regions.every((r) => Math.abs(r.cy - (my + slope * (r.cx - mx))) < 0.5 * hMed)) return byX
+  }
   const byY = [...regions].sort((a, b) => a.cy - b.cy)
   const rows: Region[][] = [[byY[0]]]
   for (let i = 1; i < byY.length; i++) {
-    if (byY[i].cy - byY[i - 1].cy > 0.8 * hMed) rows.push([byY[i]])
+    if (byY[i].cy - byY[i - 1].cy > 0.5 * hMed) rows.push([byY[i]])
     else rows[rows.length - 1].push(byY[i])
   }
   return rows.flatMap((row) => row.sort((a, b) => a.cx - b.cx))
