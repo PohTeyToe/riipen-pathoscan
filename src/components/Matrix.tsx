@@ -54,20 +54,17 @@ export function Matrix({ s, caption, showHeld = true }: { s: Scores; caption?: s
       </table>
       <figcaption className="metrics">
         <span>
-          <b>{s.wrong}</b> wrong
-        </span>
-        {showHeld && (
-          <span>
-            <b>{s.held}</b> held
-          </span>
-        )}
-        <span>
-          sensitivity <b>{pct(s.sensitivity)}</b>
+          decided <b>{pct(s.samples ? 1 - s.held / s.samples : NaN)}</b>
         </span>
         <span>
-          specificity <b>{pct(s.specificity)}</b>
+          correct on <b>{pct(s.accuracyCalled, 1)}</b> of those
         </span>
-        <span className="muted">of {s.samples} samples</span>
+        <span>
+          held <b>{pct(s.samples ? s.held / s.samples : NaN)}</b>
+        </span>
+        <span className="muted">
+          {s.wrong} wrong of {s.samples} samples
+        </span>
       </figcaption>
     </figure>
   )

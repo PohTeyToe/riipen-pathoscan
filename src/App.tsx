@@ -20,7 +20,10 @@ type Source = 'synthetic' | 'real' | 'upload'
 type Reader = 'naive' | 'calibrated'
 
 const STAGE_SCALE = 0.8
-const DEFAULT_SEED = 608
+// The first typical-run seed (searching up from 1, at 5500 K, 0 stops, no pH shift) whose read matches the eval's
+// per-run averages: one sample held, no calibrated mistakes, one naive mistake, no run flags. The eval holds
+// about 10% of samples and the naive reader gets about 8% wrong, so about one of eight samples each.
+const DEFAULT_SEED = 7
 const MODEL: Model = evalData.params.model
 const KIND_WORD: Record<Kind, string> = {
   control: 'control',
