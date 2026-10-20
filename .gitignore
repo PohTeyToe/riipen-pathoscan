@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.vercel/
+_review_screenshots/
+data/private/
+*.log
+.env
+.env.*
+*.tsbuildinfo
+REVIEW.md

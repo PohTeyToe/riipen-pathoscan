@@ -1,0 +1,1065 @@
+{
+ "generated": "2026-10-20",
+ "note": "Synthetic runs only. Every number here comes from scripts/eval.ts on the code in src/lib.",
+ "setup": {
+  "scale": 0.5,
+  "imageSize": [
+   500,
+   210
+  ],
+  "prior": {
+   "pPos": 0.4,
+   "posYellow": 0.79,
+   "posOrange": 0.145,
+   "negAcidic": 0.08
+  },
+  "driftRange": [
+   -0.2,
+   0.2
+  ],
+  "lightRange": {
+   "kelvin": [
+    2700,
+    6500
+   ],
+   "ev": [
+    -1,
+    1
+   ]
+  },
+  "scenarioMix": "half typical runs, a tenth each of the five hard cases",
+  "train": {
+   "runs": 600,
+   "seeds": [
+    1,
+    600
+   ],
+   "samples": 4800
+  },
+  "test": {
+   "runs": 2000,
+   "seeds": [
+    100001,
+    102000
+   ],
+   "samples": 16000
+  },
+  "sweep": {
+   "runsPerPoint": 40,
+   "seeds": [
+    300001,
+    300040
+   ],
+   "fixed": {
+    "kelvin": 5500,
+    "ev": 0,
+    "drift": 0
+   }
+  }
+ },
+ "params": {
+  "cut": 23.5,
+  "model": {
+   "w0": -3.7114988534225657,
+   "w1": 7.7838015010648585
+  },
+  "band": {
+   "lo": 0.2,
+   "hi": 0.8
+  }
+ },
+ "test": {
+  "naive": {
+   "confusion": {
+    "pos": {
+     "pos": 5357,
+     "held": 0,
+     "neg": 1071
+    },
+    "neg": {
+     "pos": 177,
+     "held": 0,
+     "neg": 9395
+    }
+   },
+   "samples": 16000,
+   "wrong": 1248,
+   "held": 0,
+   "sensitivity": 0.8333851897946484,
+   "specificity": 0.9815085666527371,
+   "accuracyCalled": 0.922
+  },
+  "calibrated": {
+   "confusion": {
+    "pos": {
+     "pos": 5328,
+     "held": 694,
+     "neg": 406
+    },
+    "neg": {
+     "pos": 82,
+     "held": 927,
+     "neg": 8563
+    }
+   },
+   "samples": 16000,
+   "wrong": 488,
+   "held": 1621,
+   "sensitivity": 0.8288736776602365,
+   "specificity": 0.8945883827831175,
+   "accuracyCalled": 0.9660616176368315
+  },
+  "finderMissed": 0,
+  "byScenario": {
+   "typical": {
+    "naive": {
+     "confusion": {
+      "pos": {
+       "pos": 2678,
+       "held": 0,
+       "neg": 559
+      },
+      "neg": {
+       "pos": 55,
+       "held": 0,
+       "neg": 4708
+      }
+     },
+     "samples": 8000,
+     "wrong": 614,
+     "held": 0,
+     "sensitivity": 0.8273092369477911,
+     "specificity": 0.9884526558891455,
+     "accuracyCalled": 0.92325
+    },
+    "calibrated": {
+     "confusion": {
+      "pos": {
+       "pos": 2641,
+       "held": 367,
+       "neg": 229
+      },
+      "neg": {
+       "pos": 6,
+       "held": 308,
+       "neg": 4449
+      }
+     },
+     "samples": 8000,
+     "wrong": 235,
+     "held": 675,
+     "sensitivity": 0.8158789002162496,
+     "specificity": 0.9340751627125761,
+     "accuracyCalled": 0.9679180887372013
+    }
+   },
+   "weak-pc": {
+    "naive": {
+     "confusion": {
+      "pos": {
+       "pos": 511,
+       "held": 0,
+       "neg": 88
+      },
+      "neg": {
+       "pos": 7,
+       "held": 0,
+       "neg": 994
+      }
+     },
+     "samples": 1600,
+     "wrong": 95,
+     "held": 0,
+     "sensitivity": 0.8530884808013356,
+     "specificity": 0.993006993006993,
+     "accuracyCalled": 0.940625
+    },
+    "calibrated": {
+     "confusion": {
+      "pos": {
+       "pos": 562,
+       "held": 16,
+       "neg": 21
+      },
+      "neg": {
+       "pos": 59,
+       "held": 21,
+       "neg": 921
+      }
+     },
+     "samples": 1600,
+     "wrong": 80,
+     "held": 37,
+     "sensitivity": 0.9382303839732888,
+     "specificity": 0.9200799200799201,
+     "accuracyCalled": 0.9488163787587972
+    }
+   },
+   "acidic": {
+    "naive": {
+     "confusion": {
+      "pos": {
+       "pos": 543,
+       "held": 0,
+       "neg": 103
+      },
+      "neg": {
+       "pos": 97,
+       "held": 0,
+       "neg": 857
+      }
+     },
+     "samples": 1600,
+     "wrong": 200,
+     "held": 0,
+     "sensitivity": 0.8405572755417957,
+     "specificity": 0.8983228511530398,
+     "accuracyCalled": 0.875
+    },
+    "calibrated": {
+     "confusion": {
+      "pos": {
+       "pos": 535,
+       "held": 74,
+       "neg": 37
+      },
+      "neg": {
+       "pos": 14,
+       "held": 415,
+       "neg": 525
+      }
+     },
+     "samples": 1600,
+     "wrong": 51,
+     "held": 489,
+     "sensitivity": 0.8281733746130031,
+     "specificity": 0.550314465408805,
+     "accuracyCalled": 0.9540954095409541
+    }
+   },
+   "glare": {
+    "naive": {
+     "confusion": {
+      "pos": {
+       "pos": 556,
+       "held": 0,
+       "neg": 111
+      },
+      "neg": {
+       "pos": 7,
+       "held": 0,
+       "neg": 926
+      }
+     },
+     "samples": 1600,
+     "wrong": 118,
+     "held": 0,
+     "sensitivity": 0.8335832083958021,
+     "specificity": 0.992497320471597,
+     "accuracyCalled": 0.92625
+    },
+    "calibrated": {
+     "confusion": {
+      "pos": {
+       "pos": 546,
+       "held": 82,
+       "neg": 39
+      },
+      "neg": {
+       "pos": 1,
+       "held": 65,
+       "neg": 867
+      }
+     },
+     "samples": 1600,
+     "wrong": 40,
+     "held": 147,
+     "sensitivity": 0.8185907046476761,
+     "specificity": 0.9292604501607717,
+     "accuracyCalled": 0.9724707501720579
+    }
+   },
+   "bubble": {
+    "naive": {
+     "confusion": {
+      "pos": {
+       "pos": 536,
+       "held": 0,
+       "neg": 108
+      },
+      "neg": {
+       "pos": 4,
+       "held": 0,
+       "neg": 952
+      }
+     },
+     "samples": 1600,
+     "wrong": 112,
+     "held": 0,
+     "sensitivity": 0.8322981366459627,
+     "specificity": 0.99581589958159,
+     "accuracyCalled": 0.93
+    },
+    "calibrated": {
+     "confusion": {
+      "pos": {
+       "pos": 525,
+       "held": 87,
+       "neg": 32
+      },
+      "neg": {
+       "pos": 0,
+       "held": 64,
+       "neg": 892
+      }
+     },
+     "samples": 1600,
+     "wrong": 32,
+     "held": 151,
+     "sensitivity": 0.8152173913043478,
+     "specificity": 0.9330543933054394,
+     "accuracyCalled": 0.9779158040027606
+    }
+   },
+   "low-volume": {
+    "naive": {
+     "confusion": {
+      "pos": {
+       "pos": 533,
+       "held": 0,
+       "neg": 102
+      },
+      "neg": {
+       "pos": 7,
+       "held": 0,
+       "neg": 958
+      }
+     },
+     "samples": 1600,
+     "wrong": 109,
+     "held": 0,
+     "sensitivity": 0.8393700787401575,
+     "specificity": 0.9927461139896373,
+     "accuracyCalled": 0.931875
+    },
+    "calibrated": {
+     "confusion": {
+      "pos": {
+       "pos": 519,
+       "held": 68,
+       "neg": 48
+      },
+      "neg": {
+       "pos": 2,
+       "held": 54,
+       "neg": 909
+      }
+     },
+     "samples": 1600,
+     "wrong": 50,
+     "held": 122,
+     "sensitivity": 0.8173228346456692,
+     "specificity": 0.9419689119170984,
+     "accuracyCalled": 0.9661705006765899
+    }
+   }
+  },
+  "byKind": {
+   "yellow": {
+    "naive": {
+     "confusion": {
+      "pos": {
+       "pos": 5078,
+       "held": 0,
+       "neg": 21
+      },
+      "neg": {
+       "pos": 0,
+       "held": 0,
+       "neg": 0
+      }
+     },
+     "samples": 5099,
+     "wrong": 21,
+     "held": 0,
+     "sensitivity": 0.995881545401059,
+     "specificity": null,
+     "accuracyCalled": 0.995881545401059
+    },
+    "calibrated": {
+     "confusion": {
+      "pos": {
+       "pos": 5091,
+       "held": 8,
+       "neg": 0
+      },
+      "neg": {
+       "pos": 0,
+       "held": 0,
+       "neg": 0
+      }
+     },
+     "samples": 5099,
+     "wrong": 0,
+     "held": 8,
+     "sensitivity": 0.9984310649146891,
+     "specificity": null,
+     "accuracyCalled": 1
+    }
+   },
+   "orange": {
+    "naive": {
+     "confusion": {
+      "pos": {
+       "pos": 279,
+       "held": 0,
+       "neg": 638
+      },
+      "neg": {
+       "pos": 0,
+       "held": 0,
+       "neg": 0
+      }
+     },
+     "samples": 917,
+     "wrong": 638,
+     "held": 0,
+     "sensitivity": 0.3042529989094875,
+     "specificity": null,
+     "accuracyCalled": 0.3042529989094875
+    },
+    "calibrated": {
+     "confusion": {
+      "pos": {
+       "pos": 237,
+       "held": 673,
+       "neg": 7
+      },
+      "neg": {
+       "pos": 0,
+       "held": 0,
+       "neg": 0
+      }
+     },
+     "samples": 917,
+     "wrong": 7,
+     "held": 673,
+     "sensitivity": 0.2584514721919302,
+     "specificity": null,
+     "accuracyCalled": 0.9713114754098361
+    }
+   },
+   "unchanged": {
+    "naive": {
+     "confusion": {
+      "pos": {
+       "pos": 0,
+       "held": 0,
+       "neg": 412
+      },
+      "neg": {
+       "pos": 0,
+       "held": 0,
+       "neg": 0
+      }
+     },
+     "samples": 412,
+     "wrong": 412,
+     "held": 0,
+     "sensitivity": 0,
+     "specificity": null,
+     "accuracyCalled": 0
+    },
+    "calibrated": {
+     "confusion": {
+      "pos": {
+       "pos": 0,
+       "held": 13,
+       "neg": 399
+      },
+      "neg": {
+       "pos": 0,
+       "held": 0,
+       "neg": 0
+      }
+     },
+     "samples": 412,
+     "wrong": 399,
+     "held": 13,
+     "sensitivity": 0,
+     "specificity": null,
+     "accuracyCalled": 0
+    }
+   },
+   "clear-neg": {
+    "naive": {
+     "confusion": {
+      "pos": {
+       "pos": 0,
+       "held": 0,
+       "neg": 0
+      },
+      "neg": {
+       "pos": 0,
+       "held": 0,
+       "neg": 8443
+      }
+     },
+     "samples": 8443,
+     "wrong": 0,
+     "held": 0,
+     "sensitivity": null,
+     "specificity": 1,
+     "accuracyCalled": 1
+    },
+    "calibrated": {
+     "confusion": {
+      "pos": {
+       "pos": 0,
+       "held": 0,
+       "neg": 0
+      },
+      "neg": {
+       "pos": 0,
+       "held": 9,
+       "neg": 8434
+      }
+     },
+     "samples": 8443,
+     "wrong": 0,
+     "held": 9,
+     "sensitivity": null,
+     "specificity": 0.9989340281890323,
+     "accuracyCalled": 1
+    }
+   },
+   "acidic": {
+    "naive": {
+     "confusion": {
+      "pos": {
+       "pos": 0,
+       "held": 0,
+       "neg": 0
+      },
+      "neg": {
+       "pos": 177,
+       "held": 0,
+       "neg": 952
+      }
+     },
+     "samples": 1129,
+     "wrong": 177,
+     "held": 0,
+     "sensitivity": null,
+     "specificity": 0.8432240921169176,
+     "accuracyCalled": 0.8432240921169176
+    },
+    "calibrated": {
+     "confusion": {
+      "pos": {
+       "pos": 0,
+       "held": 0,
+       "neg": 0
+      },
+      "neg": {
+       "pos": 82,
+       "held": 918,
+       "neg": 129
+      }
+     },
+     "samples": 1129,
+     "wrong": 82,
+     "held": 918,
+     "sensitivity": null,
+     "specificity": 0.11426040744021258,
+     "accuracyCalled": 0.6113744075829384
+    }
+   }
+  }
+ },
+ "sweeps": {
+  "kelvin": [
+   {
+    "x": 2500,
+    "naive": {
+     "wrong": 25,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 9,
+     "held": 30,
+     "samples": 320
+    },
+    "missed": 0
+   },
+   {
+    "x": 3000,
+    "naive": {
+     "wrong": 26,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 9,
+     "held": 30,
+     "samples": 320
+    },
+    "missed": 0
+   },
+   {
+    "x": 3500,
+    "naive": {
+     "wrong": 26,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 9,
+     "held": 30,
+     "samples": 320
+    },
+    "missed": 0
+   },
+   {
+    "x": 4000,
+    "naive": {
+     "wrong": 26,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 9,
+     "held": 30,
+     "samples": 320
+    },
+    "missed": 0
+   },
+   {
+    "x": 4500,
+    "naive": {
+     "wrong": 26,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 9,
+     "held": 31,
+     "samples": 320
+    },
+    "missed": 0
+   },
+   {
+    "x": 5000,
+    "naive": {
+     "wrong": 26,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 9,
+     "held": 30,
+     "samples": 320
+    },
+    "missed": 0
+   },
+   {
+    "x": 5500,
+    "naive": {
+     "wrong": 25,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 9,
+     "held": 30,
+     "samples": 320
+    },
+    "missed": 0
+   },
+   {
+    "x": 6000,
+    "naive": {
+     "wrong": 25,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 9,
+     "held": 30,
+     "samples": 320
+    },
+    "missed": 0
+   },
+   {
+    "x": 6500,
+    "naive": {
+     "wrong": 24,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 9,
+     "held": 30,
+     "samples": 320
+    },
+    "missed": 0
+   },
+   {
+    "x": 7000,
+    "naive": {
+     "wrong": 26,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 9,
+     "held": 30,
+     "samples": 320
+    },
+    "missed": 0
+   },
+   {
+    "x": 7500,
+    "naive": {
+     "wrong": 25,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 9,
+     "held": 30,
+     "samples": 320
+    },
+    "missed": 0
+   },
+   {
+    "x": 8000,
+    "naive": {
+     "wrong": 25,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 9,
+     "held": 30,
+     "samples": 320
+    },
+    "missed": 0
+   }
+  ],
+  "ev": [
+   {
+    "x": -2,
+    "naive": {
+     "wrong": 25,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 9,
+     "held": 30,
+     "samples": 320
+    },
+    "missed": 0
+   },
+   {
+    "x": -1.5,
+    "naive": {
+     "wrong": 26,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 9,
+     "held": 30,
+     "samples": 320
+    },
+    "missed": 0
+   },
+   {
+    "x": -1,
+    "naive": {
+     "wrong": 25,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 9,
+     "held": 30,
+     "samples": 320
+    },
+    "missed": 0
+   },
+   {
+    "x": -0.5,
+    "naive": {
+     "wrong": 25,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 9,
+     "held": 30,
+     "samples": 320
+    },
+    "missed": 0
+   },
+   {
+    "x": 0,
+    "naive": {
+     "wrong": 25,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 9,
+     "held": 30,
+     "samples": 320
+    },
+    "missed": 0
+   },
+   {
+    "x": 0.5,
+    "naive": {
+     "wrong": 26,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 9,
+     "held": 30,
+     "samples": 320
+    },
+    "missed": 0
+   },
+   {
+    "x": 1,
+    "naive": {
+     "wrong": 25,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 12,
+     "held": 27,
+     "samples": 320
+    },
+    "missed": 0
+   },
+   {
+    "x": 1.5,
+    "naive": {
+     "wrong": 26,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 19,
+     "held": 18,
+     "samples": 320
+    },
+    "missed": 11
+   },
+   {
+    "x": 2,
+    "naive": {
+     "wrong": 30,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 4,
+     "held": 168,
+     "samples": 320
+    },
+    "missed": 93
+   }
+  ],
+  "drift": [
+   {
+    "x": -0.3,
+    "naive": {
+     "wrong": 87,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 8,
+     "held": 41,
+     "samples": 320
+    },
+    "missed": 0
+   },
+   {
+    "x": -0.25,
+    "naive": {
+     "wrong": 71,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 8,
+     "held": 33,
+     "samples": 320
+    },
+    "missed": 0
+   },
+   {
+    "x": -0.2,
+    "naive": {
+     "wrong": 44,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 8,
+     "held": 32,
+     "samples": 320
+    },
+    "missed": 0
+   },
+   {
+    "x": -0.15,
+    "naive": {
+     "wrong": 33,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 8,
+     "held": 31,
+     "samples": 320
+    },
+    "missed": 0
+   },
+   {
+    "x": -0.1,
+    "naive": {
+     "wrong": 29,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 9,
+     "held": 31,
+     "samples": 320
+    },
+    "missed": 0
+   },
+   {
+    "x": -0.05,
+    "naive": {
+     "wrong": 25,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 9,
+     "held": 31,
+     "samples": 320
+    },
+    "missed": 0
+   },
+   {
+    "x": 0,
+    "naive": {
+     "wrong": 25,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 9,
+     "held": 30,
+     "samples": 320
+    },
+    "missed": 0
+   },
+   {
+    "x": 0.05,
+    "naive": {
+     "wrong": 24,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 9,
+     "held": 32,
+     "samples": 320
+    },
+    "missed": 0
+   },
+   {
+    "x": 0.1,
+    "naive": {
+     "wrong": 25,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 9,
+     "held": 32,
+     "samples": 320
+    },
+    "missed": 0
+   },
+   {
+    "x": 0.15,
+    "naive": {
+     "wrong": 24,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 9,
+     "held": 30,
+     "samples": 320
+    },
+    "missed": 0
+   },
+   {
+    "x": 0.2,
+    "naive": {
+     "wrong": 26,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 9,
+     "held": 32,
+     "samples": 320
+    },
+    "missed": 0
+   },
+   {
+    "x": 0.25,
+    "naive": {
+     "wrong": 25,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 9,
+     "held": 30,
+     "samples": 320
+    },
+    "missed": 0
+   },
+   {
+    "x": 0.3,
+    "naive": {
+     "wrong": 21,
+     "held": 0,
+     "samples": 320
+    },
+    "calibrated": {
+     "wrong": 9,
+     "held": 32,
+     "samples": 320
+    },
+    "missed": 0
+   }
+  ]
+ },
+ "seconds": 57
+}
