@@ -16,7 +16,7 @@ const all = { naive: emptyConfusion(), calibrated: emptyConfusion(), paper: empt
 const ctl = { naive: emptyConfusion(), calibrated: emptyConfusion(), paper: emptyConfusion() }
 const word: Record<Call, string> = { pos: 'positive', neg: 'negative', held: 'held' }
 const misses: object[] = []
-const finder = { expected: 0, found: 0, extra: 0 }
+const finder = { expected: 0, found: 0, onOtherWells: 0, offWells: 0 }
 let images = 0
 let wellsRead = 0
 let noControls = 0
@@ -93,7 +93,13 @@ for (const image of labels.images) {
       finder.found++
     }
   }
-  finder.extra += regions.length - used.size
+  // Regions left over: on a well the scores skip (or a second hit on a matched one), or on no well at all.
+  regions.forEach((g, j) => {
+    if (used.has(j)) return
+    const onWell = image.wells.some((w) => w.x * img.width >= g.x0 && w.x * img.width <= g.x1 && w.y * img.height >= g.y0 && w.y * img.height <= g.y1)
+    if (onWell) finder.onOtherWells++
+    else finder.offWells++
+  })
 }
 
 const s = (c: Confusion) => score(c)

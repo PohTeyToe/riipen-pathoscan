@@ -96,22 +96,29 @@ export function readCalibrated(feats: (Features | null)[], roles: Role[], model:
     flags.push(`Can't find ${missing}, so there's no scale to read against.`)
     return { flags, tubes: feats.map(() => held(flags[0])) }
   }
-  // Several positive controls: read against the one that turned furthest, and say if another didn't.
-  // A failed positive control is a known failure; a negative control that turned is contamination, so
-  // negative controls are averaged and any problem shows in the gap check below.
+  // Several positive controls: read against the one that turned furthest, and say if another didn't. A
+  // positive control that fails to turn is a known failure mode. A negative control that turned is
+  // contamination, which puts every call in its group in doubt, so negative controls that disagree hold
+  // the group instead of being averaged.
   const pcHues = pcs.map((f) => f.labHue)
+  const ncHues = ncs.map((f) => f.labHue)
   const hPc = Math.max(...pcHues)
-  const hNc = mean(ncs.map((f) => f.labHue))
+  const hNc = mean(ncHues)
   const cRef = mean([...pcs, ...ncs].map(chroma))
   const scale = { nc: hNc, pc: hPc }
-  if (hPc - hNc < QC.minControlGap) {
-    flags.push(
+  const notRead = (flag: string): RunRead => {
+    flags.push(flag)
+    return { flags, scale, tubes: feats.map((_, i) => (roles[i] === 'sample' ? held(flag) : controlRead(roles[i]))) }
+  }
+  const ncSpread = Math.max(...ncHues) - Math.min(...ncHues)
+  if (ncs.length > 1 && ncSpread >= (hPc - Math.min(...ncHues)) / 2)
+    return notRead(`The negative controls disagree (${ncSpread.toFixed(0)}° apart); one may be contaminated. Run not read; check them.`)
+  if (hPc - hNc < QC.minControlGap)
+    return notRead(
       hPc <= hNc
         ? 'The positive control is pinker than the negative one. Run not read; check the controls.'
         : `The controls are only ${(hPc - hNc).toFixed(0)}° apart, too close to read against. Run not read.`,
     )
-    return { flags, scale, tubes: feats.map((_, i) => (roles[i] === 'sample' ? held(flags[0]) : controlRead(roles[i]))) }
-  }
 
   if ([...pcs, ...ncs].some((f) => f.clear < QC.minClear)) flags.push('A control has very few clear pixels, so the scale itself is uncertain.')
   if (pcHues.some((h) => h - hNc < (hPc - hNc) / 2))

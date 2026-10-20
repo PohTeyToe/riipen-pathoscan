@@ -1032,3 +1032,34 @@ h1 {
   width: 100%;
   max-height: none;
 }
+.strip-track.dense {
+  height: calc(46px + var(--lanes) * 14px);
+}
+.strip-track.dense .dot {
+  top: calc(36px + var(--lane) * 14px);
+  width: 12px;
+  height: 12px;
+  border-width: 1.5px;
+}
+.strip-track.dense .dot.pc,
+.strip-track.dense .dot.nc {
+  border-radius: 2px;
+}
+.pick {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.pick select {
+  min-width: 0;
+  flex: 1;
+  max-width: 320px;
+  padding: 5px 8px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--ink);
+}

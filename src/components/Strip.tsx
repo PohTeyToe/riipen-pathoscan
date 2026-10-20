@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Call } from '../lib/readers'
 import type { Role } from '../lib/synth'
 
@@ -45,14 +45,24 @@ export function Strip({ domain, unit, gradient, ticks, dots, handles, spans, sel
     return d0 + ((clientX - r.left) / r.width) * (d1 - d0)
   }
 
-  // Stack dots that would overlap into lanes.
+  // Stack dots that would overlap into lanes, using their rendered width. Dense plates get small dots.
+  const [width, setWidth] = useState(600)
+  useEffect(() => {
+    const el = track.current
+    if (!el) return
+    const ro = new ResizeObserver(([e]) => setWidth(e.contentRect.width || 600))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const dense = dots.length > 16
+  const dotPx = dense ? 12 : 26
+  const gap = ((dotPx + 2) / width) * (d1 - d0)
   const placed = dots
     .filter((d) => d.x !== null)
     .sort((a, b) => a.x! - b.x!)
     .reduce<{ dot: StripDot; lane: number }[]>((acc, dot) => {
-      const gap = (d1 - d0) * 0.028
       let lane = 0
-      while (acc.some((p) => p.lane === lane && Math.abs(p.dot.x! - dot.x!) < gap) && lane < 5) lane++
+      while (acc.some((p) => p.lane === lane && Math.abs(p.dot.x! - dot.x!) < gap)) lane++
       acc.push({ dot, lane })
       return acc
     }, [])
@@ -61,7 +71,7 @@ export function Strip({ domain, unit, gradient, ticks, dots, handles, spans, sel
 
   return (
     <div className="strip" role="group" aria-label={label}>
-      <div className="strip-track" ref={track} style={{ '--lanes': lanes } as React.CSSProperties}>
+      <div className={`strip-track${dense ? ' dense' : ''}`} ref={track} style={{ '--lanes': lanes } as React.CSSProperties}>
         <div className="strip-gradient" style={{ background: gradient }} />
         {spans.map((s, k) => (
           <div key={k} className={`strip-span ${s.kind}`} style={{ left: at(s.from), width: `calc(${at(s.to)} - ${at(s.from)})` }} />
@@ -80,7 +90,7 @@ export function Strip({ domain, unit, gradient, ticks, dots, handles, spans, sel
             onClick={() => onSelect(dot.i)}
             aria-label={`${dot.label}: ${dot.x!.toFixed(2)} ${unit}, ${dot.call === 'held' ? 'held' : dot.call === 'pos' ? 'positive' : 'negative'}`}
           >
-            <span>{dot.label}</span>
+            {!dense && <span>{dot.label}</span>}
           </button>
         ))}
         {handles.map((h, k) => (

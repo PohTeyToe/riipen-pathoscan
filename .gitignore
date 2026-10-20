@@ -8,3 +8,5 @@ data/private/
 .env.*
 *.tsbuildinfo
 REVIEW.md
+
+.vercel

@@ -26,7 +26,7 @@ export interface RealEval {
   hindsightCut: Scores & { cut: number }
   gapWhatIf: { minControlGap: number; calibrated: Scores }
   misses: Miss[]
-  finder: { expected: number; found: number; extra: number }
+  finder: { expected: number; found: number; onOtherWells: number; offWells: number }
 }
 
 const found = import.meta.glob<{ default: RealEval }>('../../data/real-eval.json', { eager: true })
@@ -42,8 +42,9 @@ export function RealResults() {
       <h2 className="sub-h">On the real photos</h2>
       <p className="lede-sm">
         {r.scored} sample wells with a known result in {r.images} CC0 photos of SARS-CoV-2 RT-LAMP plates (Bokelmann et al. 2021). The truth is the paper's
-        RT-qPCR or sample-set status, never the colour. One more photo was taken before incubation and isn't scored. These aren't plant samples or tubes on
-        paper, so read this as a check that the method carries over, not as a score. <span className="tag inline real">Real</span>
+        RT-qPCR or sample-set status, never the colour. One more photo was taken before incubation and isn't scored. These reactions are read with SYBR
+        Green I mixed in after the run, which turns them from orange to yellow. It's a different colour chemistry from phenol red, on plates, not plant
+        tubes on paper. Read this as a check on real photos of the same reading problem, not as a score. <span className="tag inline real">Real</span>
       </p>
       <p className="read">
         The matrices count the {w.scored} wells whose assay has both a positive and a negative control on the same plate. The calibrated reader can't read
@@ -77,8 +78,9 @@ export function RealResults() {
           for this assay; this reader never saw these plates before.
         </li>
         <li>
-          The scores use the labelled well positions. Run on the same photos, the automatic finder covers {r.finder.found} of {r.finder.expected} labelled
-          wells and adds {r.finder.extra} regions that aren't wells.
+          The scores use the labelled well positions. Run on the same photos, the automatic finder covers {r.finder.found} of the {r.finder.expected} wells
+          read here. It also returns {r.finder.onOtherWells} regions on wells these scores skip or on a well it already found, and {r.finder.offWells} on no
+          well at all.
         </li>
       </ul>
       {calWrong.length > 0 && (

@@ -199,16 +199,18 @@ export function findRegions(img: Img): { regions: Region[]; paper: RGB } {
   return { regions: readingOrder(regions), paper }
 }
 
-/** Rows top to bottom, then left to right. A row is regions whose centres sit within ~half a height. */
+/**
+ * Rows top to bottom, then left to right. A new row starts where the centres jump down by more than most of
+ * a region's height, so a slightly slanted line of tubes stays one row while plate rows split.
+ */
 export function readingOrder(regions: Region[]): Region[] {
   if (regions.length === 0) return regions
   const hMed = median(regions.map((r) => r.y1 - r.y0 + 1))
   const byY = [...regions].sort((a, b) => a.cy - b.cy)
-  const rows: Region[][] = []
-  for (const r of byY) {
-    const row = rows[rows.length - 1]
-    if (row && Math.abs(r.cy - row[0].cy) < 0.6 * hMed) row.push(r)
-    else rows.push([r])
+  const rows: Region[][] = [[byY[0]]]
+  for (let i = 1; i < byY.length; i++) {
+    if (byY[i].cy - byY[i - 1].cy > 0.8 * hMed) rows.push([byY[i]])
+    else rows[rows.length - 1].push(byY[i])
   }
   return rows.flatMap((row) => row.sort((a, b) => a.cx - b.cx))
 }

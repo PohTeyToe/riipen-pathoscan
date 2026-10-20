@@ -26,7 +26,7 @@ const KIND_WORD: Record<Kind, string> = {
   control: 'control',
   yellow: 'positive that turned yellow',
   orange: 'weak positive that only reached orange',
-  unchanged: 'positive that never changed colour (inhibited)',
+  unchanged: 'positive whose colour never changed enough to see',
   'clear-neg': 'negative that stayed pink',
   acidic: 'negative turned orange by an acidic extract',
 }
@@ -74,19 +74,30 @@ export default function App() {
   const params: ReaderParams = { cut, model: MODEL, band }
   const realImage = labels?.images[realIdx] ?? null
 
-  // Load the chosen real photo.
+  // Load the chosen real photo. A failed load keeps its message and offers a retry.
+  const [realError, setRealError] = useState('')
+  const [retry, setRetry] = useState(0)
   useEffect(() => {
     if (source !== 'real' || !realImage || realBase?.file === realImage.file) return
     let live = true
+    setRealError('')
     setBusy('Loading photo…')
     loadImage(realSrc(realImage.file))
-      .then((img) => live && setRealBase({ file: realImage.file, img }))
-      .catch(() => live && setBusy('Could not load that photo.'))
-      .finally(() => live && setBusy(''))
+      .then((img) => {
+        if (!live) return
+        setRealBase({ file: realImage.file, img })
+        setBusy('')
+      })
+      .catch(() => {
+        if (!live) return
+        setBusy('')
+        setRealError(`Could not load ${realImage.file}.`)
+      })
     return () => {
       live = false
+      setBusy('')
     }
-  }, [source, realImage, realBase])
+  }, [source, realImage, realBase, retry])
 
   // What's on the stage: an image and its tubes, measured.
   const view = useMemo((): { img: Img; tubes: ViewTube[]; groups: string[]; alt: string } | null => {
@@ -216,28 +227,33 @@ export default function App() {
       }
     }) ?? []
 
+  // Only the latest upload may land: a slow decode of an earlier file must not replace a newer one.
+  const uploadReq = useRef(0)
   const onFile = useCallback(async (file: File) => {
+    const id = ++uploadReq.current
     setBusy('Reading your photo…')
+    let base: Img
     try {
-      const base = await loadImage(file)
-      const { regions } = findRegions(base)
-      const tubes = regions.slice(0, 40).map((region, i) => ({ region, role: (i === 0 ? 'pc' : i === 1 ? 'nc' : 'sample') as Role, truth: null }))
-      setUpload({
-        name: file.name,
-        base,
-        tubes,
-        note:
-          regions.length === 0
-            ? 'Found no pink, orange or yellow liquid. Tap each tube to place it by hand.'
-            : `Found ${regions.length} region${regions.length > 1 ? 's' : ''}${regions.length > 40 ? ' (kept the first 40)' : ''}. The first two in reading order are taken as the positive and negative control; tap any to change it.`,
-      })
-      setPlacing(regions.length === 0)
-      setSource('upload')
-      setSelected(null)
+      base = await loadImage(file)
     } catch {
-      setBusy('That file did not open as an image.')
+      if (id === uploadReq.current) setBusy('That file did not open as an image.')
       return
     }
+    if (id !== uploadReq.current) return
+    const { regions } = findRegions(base)
+    const tubes = regions.slice(0, 40).map((region, i) => ({ region, role: (i === 0 ? 'pc' : i === 1 ? 'nc' : 'sample') as Role, truth: null }))
+    setUpload({
+      name: file.name,
+      base,
+      tubes,
+      note:
+        regions.length === 0
+          ? 'Found no pink, orange or yellow liquid. Tap each tube to place it by hand.'
+          : `Found ${regions.length} region${regions.length > 1 ? 's' : ''}${regions.length > 40 ? ' (kept the first 40)' : ''}. The first two in reading order are taken as the positive and negative control; tap any to change it.`,
+    })
+    setPlacing(regions.length === 0)
+    setSource('upload')
+    setSelected(null)
     setBusy('')
   }, [])
 
@@ -269,7 +285,8 @@ export default function App() {
         </div>
         <p className="wrap disclaimer">
           Independent demo by Abdallah Safi from public information. Not made or endorsed by PathoScan. Synthetic runs are drawn by code and say so; the
-          real photos are CC0 lab images of SARS-CoV-2 RT-LAMP, not plant samples. It makes calls on colour, not diagnoses.
+          real photos are CC0 lab images of SARS-CoV-2 RT-LAMP plates read with SYBR Green I, not phenol red, and not plant samples. It makes calls on
+          colour, not diagnoses.
         </p>
       </header>
 
@@ -311,6 +328,14 @@ export default function App() {
               setPlacing={setPlacing}
             />
             {busy && <p className="busy">{busy}</p>}
+            {source === 'real' && realError && (
+              <p className="busy" role="alert">
+                {realError}{' '}
+                <button className="link-btn" onClick={() => setRetry((n) => n + 1)}>
+                  Try again
+                </button>
+              </p>
+            )}
             {view ? (
               <Stage
                 img={view.img}
@@ -462,7 +487,8 @@ export default function App() {
         {source === 'real' && realImage && labels && (
           <p className="credit">
             {realImage.figure}, {realImage.file}. {realImage.what} From Bokelmann et al., Nature Communications 2021, photos on{' '}
-            <a href={labels.source.zenodo}>Zenodo</a> under CC0. Well positions, roles and truth are my labels from the paper; see the README.
+            <a href={labels.source.zenodo}>Zenodo</a> under CC0. These reactions turn orange to yellow with SYBR Green I added after the run, not
+            with phenol red. Well positions, roles and truth are my labels from the paper; see the README.
           </p>
         )}
 
@@ -757,13 +783,16 @@ function HowItWorks() {
           Phenol red reads pH, not DNA. An acidic plant extract can turn a negative orange with no amplification. Reading against the controls helps; comparing
           each tube with its own colour at the start of the run would help more.
         </li>
-        <li>A positive that never changed colour (an inhibited reaction) looks negative to any colour reader. They're in the eval and they count as wrong.</li>
+        <li>
+          A positive whose colour never changed enough to see, for example from a low amount of target, looks negative to any colour reader. They're in the
+          eval and they count against both readers.
+        </li>
         <li>
           An end photo can't see when a tube turned, so it can't separate a late, non-specific turn from a real one. A frame a minute from the box would.
         </li>
         <li>
-          Colour isn't severity. LAMP saturates. A field's call should come from how many of its tubes are positive, which is how PathoScan's 2-of-8 rule
-          already works.
+          Colour isn't severity. LAMP saturates, so how yellow a tube ends up says little about how much target it started with. This reads tubes. It says
+          nothing about a plant or a field.
         </li>
         <li>
           No plant extracts, no PathoBox camera, and no lab results from PathoScan went into any number here. The synthetic runs follow my assumptions, written

@@ -25,14 +25,14 @@ The first screen is a synthetic 10-tube run (positive control, negative control,
 | Assumption | Value | Basis |
 |---|---|---|
 | Share of samples truly positive | 40% | My choice |
-| Positives: yellow / orange / unchanged | 79% / 14.5% / 6.5% | RT-LAMP phenol-red reads against PCR in [PMC8079700](https://pmc.ncbi.nlm.nih.gov/articles/PMC8079700/) |
+| Positives: yellow / orange / colour never changed enough | 79% / 14.5% / 6.5% | RT-LAMP phenol-red reads against PCR in [PMC8079700](https://pmc.ncbi.nlm.nih.gov/articles/PMC8079700/), where the unchanged ones had low viral load |
 | Negatives turned orange by an acidic extract | 8% | Guess. Plant sap can be acidic |
 | Run pH shift (whole run, controls included) | uniform, -0.2 to +0.2 of the way to pink or yellow | Guess. Stands in for master-mix lot and buffer differences |
 | Light | 2700 to 6500 K and -1 to +1 stops. The cast is raised to the power 0.65 to stand in for a phone's partial auto white balance | Guess |
 
 **Real photos.** 27 photos of colorimetric RT-LAMP plates for SARS-CoV-2 from Bokelmann, Nickel, Maricic, Pääbo, Meyer, Borte and Riesenberg, "Point-of-care bulk testing for SARS-CoV-2 by combining hybridization capture with improved colorimetric LAMP", *Nature Communications* 12, 1467 (2021), [doi:10.1038/s41467-021-21627-0](https://doi.org/10.1038/s41467-021-21627-0). The photos are on Zenodo, [record 4476336](https://zenodo.org/records/4476336), released under **CC0**. `public/real/` holds copies downscaled to 1400 px.
 
-The labels in `data/real/labels.json` are mine. Claude read the paper's figure legends, Supplementary Tables 3 and 4 and the Source Data spreadsheet, then placed each well with code and checked the placement on overlays. Truth is the paper's RT-qPCR result, the sample set's known status, or the control's role. It never comes from the colour. The file records the basis for every well. 998 documented wells are read; 18 wells whose content the paper doesn't document are skipped. Supp. Fig. 2 is shown but not scored, because it was taken before incubation. The source data has some problems, noted in the file: Source Data column headers swapped against the photos, two Zenodo file names swapped against their in-image labels, and one control label that contradicts the data. These are plates of a human-virus assay from above. They're not plant samples or tubes on paper.
+The labels in `data/real/labels.json` are mine. Claude read the paper's figure legends, Supplementary Tables 3 and 4 and the Source Data spreadsheet, then placed each well with code and checked the placement on overlays. Truth is the paper's RT-qPCR result, the sample set's known status, or the control's role. It never comes from the colour. The file records the basis for every well. 996 wells are read. Skipped: 18 wells whose content the paper doesn't document, and 2 control wells (Supp. Fig. 5c, C8 and D8) whose labels the Source Data contradicts. A disputed control can't anchor the scale. Supp. Fig. 2 is shown but not scored, because it was taken before incubation. The source data has some problems, noted in the file: Source Data column headers swapped against the photos, two Zenodo file names swapped against their in-image labels, and one control label that contradicts the data. These are plates of a human-virus assay seen from above, not plant samples or tubes on paper. They also use a different colour chemistry. The paper adds SYBR Green I after the reaction, and that turns positives from orange or red to yellow. It doesn't use phenol red's pH change. So the photos test the same reading problem on real images, not phenol red itself.
 
 **Not used:** any PathoScan photo, data, model or lab result.
 
@@ -49,26 +49,27 @@ All numbers come from the scripts below, run on the code in `src/lib`.
 | Naive | 1,248 | 0 | 92.2% |
 | Calibrated | 488 | 1,621 (10%) | 96.6% |
 
-412 of the wrong calls on each side are positives that never changed colour. No colour reader gets those. The naive reader's losses are mostly the orange middle: it calls 638 of 917 weak positives negative. The calibrated reader holds 673 of those and gets 7 wrong.
+412 positives never changed colour enough to see. They are all 412 of the naive reader's misses in that group. The calibrated reader gets 399 of them wrong and holds the other 13. No colour reader gets them right. The naive reader's losses are mostly the orange middle: it calls 638 of 917 weak positives negative. The calibrated reader holds 673 of those and gets 7 wrong.
 
 What surprised me: **light colour doesn't break the fixed cut** in this model. A warm cast squeezes hues together, and the best cut sits near the hue that moves least. What breaks it is a pH shift shared by the whole run. At -0.3 the naive reader makes 87 wrong calls per 320 samples against 25 with no shift, while the calibrated reader stays at 8 to 9. Blown-out photos (+2 stops) hurt both readers. The finder loses 93 of 400 tubes, and the calibrated reader holds 168 samples rather than guess.
 
 ### Real photos (`npm run eval:real`, `data/real-eval.json`)
 
-The fair comparison covers 664 sample wells whose assay has both controls on the same plate. Only 26 of them are positive, so this is a check that the method carries over, not a benchmark.
+The fair comparison covers 664 sample wells whose assay has both controls on the same plate. Only 26 of them are positive, and the chemistry differs (above), so this is a check on real photos, not a benchmark.
 
 | | Wrong | Held |
 |---|---|---|
 | Naive (cut learned on synthetic) | 301 | 0 |
 | Naive, best cut for these wells picked with hindsight (48.5°) | 18 | 0 |
-| Calibrated, nothing retuned | 21 | 272 |
+| Calibrated, nothing retuned | 23 | 233 |
 | The paper's own hue calls (on the 438 of these wells it reports) | 7 | 0 |
 | Calibrated, on those same 438 wells | 8 | 152 |
 
 - A fixed cut doesn't travel. On these plates the negatives read orange, not pink.
-- Most of the calibrated reader's held wells sit on four plates whose controls are 12° to 19° apart. That's under the 20° minimum I set on synthetic runs. At 10° it would hold 40 and still get 21 wrong. I kept 20°, because changing it after seeing these results would be tuning on the test set.
+- Most of the calibrated reader's held wells sit on four plates whose controls are 14° to 19° apart. That's under the 20° minimum I set on synthetic runs. At 10° it would hold 45 and still get 23 wrong. I kept 20°, because changing it after seeing these results would be tuning on the test set.
 - 208 more scored wells have no pair of controls on their plate. The calibrated reader holds all of them.
-- The scores use the labelled well positions. The automatic finder, run on the same photos, covers 732 of the 998 wells and adds 30 regions that aren't wells.
+- The paper's calls are better on the wells both of us read. Its cut was set for this assay and these plates. This reader saw neither before.
+- The scores use the labelled well positions. Run on the same photos, the automatic finder covers 730 of the 996 wells read here. It also returns 21 regions on wells the scores skip or on a well it already found, and 11 on no well at all.
 
 ## PathoScan's published photo: what the tool measures
 
@@ -89,7 +90,7 @@ So the line for any message is: "Your positive control reads less yellow than al
 
 1. **Find** (`src/lib/find.ts`). Make the brightest third of the photo, the paper, neutral. Keep pixels that are clearly pink, orange or yellow. Join pieces that a glare streak or bubble splits, and sort the regions into reading order. A placed or labelled disc skips this step. Both readers get the same regions and pixels.
 2. **Measure.** Take the per-channel median of the liquid pixels. The naive reader uses that colour's HSV hue. The calibrated reader divides it by the median of pale, neutral pixels in a ring around the tube, so the nearby paper becomes white, then converts to CIELAB.
-3. **Scale** (`src/lib/readers.ts`). The calibrated reader puts each sample on a line from the negative control's Lab hue (0) to the positive control's (1). With several positive controls it uses the one that turned furthest and flags any that didn't turn. A one-feature logistic model maps the position to p.
+3. **Scale** (`src/lib/readers.ts`). The calibrated reader puts each sample on a line from the negative control's Lab hue (0) to the positive control's (1). With several positive controls it uses the one that turned furthest and flags any that didn't turn. Several negative controls are averaged if they agree. If they don't, one may be contaminated, and it holds the group. A one-feature logistic model maps the position to p. A plate with two assays is read as two groups, each against its own controls.
 4. **Call or hold.** p ≥ 0.8 is positive and p ≤ 0.2 is negative. Anything in between is held. It also holds tubes with fewer than 25 clear pixels or too little colour. It holds the whole run when the controls are under 20° apart, and it flags a positive control that reads weaker than samples.
 
 The "model" is a two-parameter logistic regression. I don't call it AI. All of it runs in the browser in milliseconds. The live check runs in a Web Worker.
@@ -97,9 +98,9 @@ The "model" is a two-parameter logistic regression. I don't call it AI. All of i
 ## What it can't tell you
 
 - Phenol red reads pH, not DNA. An acidic plant extract can turn a negative orange with no amplification. Reading against the controls helps. Comparing each tube with its own colour at the start of the run would help more.
-- A positive that never changed colour, an inhibited reaction, looks negative to any colour reader.
+- A positive whose colour never changed enough to see, for example from a low amount of target, looks negative to any colour reader.
 - An end photo can't see when a tube turned, so it can't tell a late, non-specific turn from a real one. A frame a minute from the box could.
-- Colour isn't severity. LAMP saturates. A field call should come from how many tubes are positive, which is how PathoScan's 2-of-8 rule already works.
+- Colour isn't severity. LAMP saturates, so how yellow a tube ends up says little about how much target it started with. This tool reads tubes. It says nothing about a plant or a field.
 - The synthetic numbers depend on my assumptions above. The real photos are a different assay in a different format. None of this has been checked on PathoBox images.
 
 ## Run it

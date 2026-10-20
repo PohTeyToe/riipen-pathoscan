@@ -10,7 +10,7 @@ type Point = { x: number; naive: { wrong: number; held: number; samples: number 
 const KINDS = [
   ['yellow', 'Positive, turned yellow'],
   ['orange', 'Positive, only reached orange'],
-  ['unchanged', 'Positive, never changed (inhibited)'],
+  ['unchanged', 'Positive, colour never changed enough to see'],
   ['clear-neg', 'Negative, stayed pink'],
   ['acidic', 'Negative, acidic extract turned it orange'],
 ] as const
@@ -18,7 +18,7 @@ const KINDS = [
 export function EvalSection() {
   const e = evalData
   const t = e.test
-  const unchanged = t.byKind.unchanged.naive.samples
+  const unchanged = t.byKind.unchanged
   const drift0 = e.sweeps.drift.find((p) => p.x === 0)!
   const driftMin = e.sweeps.drift[0]
   const evMax = e.sweeps.ev[e.sweeps.ev.length - 1]
@@ -42,8 +42,9 @@ export function EvalSection() {
       </div>
       <p className="read">
         The calibrated reader makes {t.calibrated.wrong} wrong calls to the naive reader's {t.naive.wrong}, and holds {t.calibrated.held} tubes (
-        {pct(t.calibrated.held / t.calibrated.samples)}) for a look. {unchanged} of the wrong calls on both sides are positives that never changed colour; no colour
-        reader gets those. Of the calls it does make, the calibrated reader gets {pct(t.calibrated.accuracyCalled, 1)} right; the naive one,{' '}
+        {pct(t.calibrated.held / t.calibrated.samples)}) for a look. Positives whose colour never changed enough to see account for {unchanged.naive.wrong} of the naive
+        reader's wrong calls and {unchanged.calibrated.wrong} of the calibrated reader's (it holds the other {unchanged.calibrated.held}). No colour reader gets
+        those right. Of the calls it does make, the calibrated reader gets {pct(t.calibrated.accuracyCalled, 1)} right; the naive one,{' '}
         {pct(t.naive.accuracyCalled, 1)}. The finder missed {t.finderMissed} of {e.setup.test.runs * 10} tubes.
       </p>
 

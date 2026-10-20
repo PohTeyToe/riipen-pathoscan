@@ -5,7 +5,7 @@
  "excluded": [
   "LAMP10_SuppFig2_a.jpg"
  ],
- "wells": 998,
+ "wells": 996,
  "scored": 872,
  "withControls": {
   "scored": 664,
@@ -37,17 +37,17 @@
      "neg": 5
     },
     "neg": {
-     "pos": 16,
-     "held": 263,
-     "neg": 359
+     "pos": 18,
+     "held": 224,
+     "neg": 396
     }
    },
    "samples": 664,
-   "wrong": 21,
-   "held": 272,
+   "wrong": 23,
+   "held": 233,
    "sensitivity": 0.46153846153846156,
-   "specificity": 0.5626959247648903,
-   "accuracyCalled": 0.9464285714285714
+   "specificity": 0.6206896551724138,
+   "accuracyCalled": 0.9466357308584686
   },
   "paper": {
    "confusion": {
@@ -100,17 +100,17 @@
      "neg": 5
     },
     "neg": {
-     "pos": 16,
-     "held": 298,
-     "neg": 359
+     "pos": 18,
+     "held": 259,
+     "neg": 396
     }
    },
    "samples": 872,
-   "wrong": 21,
-   "held": 480,
+   "wrong": 23,
+   "held": 441,
    "sensitivity": 0.06030150753768844,
-   "specificity": 0.5334323922734027,
-   "accuracyCalled": 0.9464285714285714
+   "specificity": 0.5884101040118871,
+   "accuracyCalled": 0.9466357308584686
   }
  },
  "noControls": 208,
@@ -187,17 +187,17 @@
      "neg": 5
     },
     "neg": {
-     "pos": 16,
-     "held": 32,
-     "neg": 590
+     "pos": 18,
+     "held": 37,
+     "neg": 583
     }
    },
    "samples": 664,
-   "wrong": 21,
-   "held": 40,
+   "wrong": 23,
+   "held": 45,
    "sensitivity": 0.5,
-   "specificity": 0.9247648902821317,
-   "accuracyCalled": 0.9663461538461539
+   "specificity": 0.9137931034482759,
+   "accuracyCalled": 0.962843295638126
   }
  },
  "misses": [
@@ -323,6 +323,28 @@
    "paper": "not reported"
   },
   {
+   "file": "LAMP13_SuppFig5_c_cv15-20.jpg",
+   "figure": "Supp. Fig. 5a (Zenodo label SuppFig5_c)",
+   "well": "F1 (CV15-20)",
+   "truth": "neg",
+   "naive": "positive",
+   "calibrated": "positive",
+   "reason": "81% like the positive control.",
+   "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
+   "paper": "not reported"
+  },
+  {
+   "file": "LAMP13_SuppFig5_c_cv15-20.jpg",
+   "figure": "Supp. Fig. 5a (Zenodo label SuppFig5_c)",
+   "well": "E4 (CV15-20)",
+   "truth": "neg",
+   "naive": "positive",
+   "calibrated": "positive",
+   "reason": "86% like the positive control.",
+   "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
+   "paper": "not reported"
+  },
+  {
    "file": "LAMP14_SuppFig5_d_cv1-6.jpg",
    "figure": "Supp. Fig. 5a (Zenodo label SuppFig5_d)",
    "well": "A2 (CV1-6)",
@@ -434,9 +456,10 @@
   }
  ],
  "finder": {
-  "expected": 998,
-  "found": 732,
-  "extra": 30
+  "expected": 996,
+  "found": 731,
+  "onOtherWells": 20,
+  "offWells": 11
  },
- "seconds": 3
+ "seconds": 7
 }

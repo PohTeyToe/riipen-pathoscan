@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { emptyConfusion, fitCut, fitLogistic, readSynthetic, score } from './evaluate'
-import { discRegion, findRegions, measure, type Features } from './find'
+import { discRegion, findRegions, measure, readingOrder, type Features } from './find'
 import { readByGroup, readCalibrated, readMidpoint, readNaive, QC } from './readers'
 import { relight } from './relight'
 import { makeRun, render, type Img, type Role } from './synth'
@@ -45,6 +45,16 @@ describe('calibrated reader', () => {
     expect(r.flags.some((f) => /barely changed/.test(f))).toBe(true)
     expect(r.tubes[3].call).toBe('pos')
   })
+  it('holds the run when negative controls disagree instead of averaging them', () => {
+    const r = readCalibrated([tube(90), tube(10), tube(90), tube(50)], ['pc', 'nc', 'nc', 'sample'], model, band)
+    expect(r.tubes[3].call).toBe('held')
+    expect(r.flags[0]).toMatch(/negative controls disagree/)
+  })
+  it('averages negative controls that agree', () => {
+    const r = readCalibrated([tube(90), tube(10), tube(14), tube(88)], ['pc', 'nc', 'nc', 'sample'], model, band)
+    expect(r.scale?.nc).toBe(12)
+    expect(r.tubes[3].call).toBe('pos')
+  })
   it('holds tubes with too few clear pixels and says why', () => {
     const r = readCalibrated([tube(90), tube(10), tube(95, 45, QC.minClear - 1)], roles(1), model, band)
     expect(r.tubes[2]).toMatchObject({ call: 'held', reason: expect.stringMatching(/clear pixels/) })
@@ -80,6 +90,13 @@ describe('finding and measuring', () => {
     expect(regions).toHaveLength(10)
     const xs = regions.map((r) => r.cx)
     expect([...xs].sort((a, b) => a - b)).toEqual(xs)
+  })
+  it('keeps a slanted line of tubes as one row and splits plate rows', () => {
+    const box = (cx: number, cy: number) => ({ x0: cx - 4, x1: cx + 4, y0: cy - 4, y1: cy + 4, cx, cy })
+    const slant = [0, 1, 2, 3, 4].map((i) => box(100 - i * 20, 50 + i * 3))
+    expect(readingOrder(slant).map((r) => r.cx)).toEqual([20, 40, 60, 80, 100])
+    const plate = [box(30, 20), box(10, 21), box(10, 40), box(30, 41)]
+    expect(readingOrder(plate).map((r) => [r.cx, r.cy])).toEqual([[10, 21], [30, 20], [10, 40], [30, 41]])
   })
   it('matches every tube in clean runs', () => {
     for (const seed of [1, 2, 3, 4, 5]) expect(readSynthetic(makeRun(seed, 'typical', { ev: 0 }), 0.5).missed).toBe(0)

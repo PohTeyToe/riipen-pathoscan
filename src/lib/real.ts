@@ -41,8 +41,11 @@ export interface Labels {
   summary: { exclude_suggested: string[] }
 }
 
-/** Wells the reader reads: everything but wells whose content the paper doesn't document. */
-export const readable = (img: RealImage) => img.wells.filter((w) => w.role !== 'other')
+/**
+ * Wells the reader reads. Skipped: wells whose content the paper doesn't document, and control wells whose
+ * label the paper contradicts (truth "unknown"), since a disputed control can't anchor the scale.
+ */
+export const readable = (img: RealImage) => img.wells.filter((w) => w.role !== 'other' && !(w.role !== 'sample' && w.truth === 'unknown'))
 export const wellRole = (w: Well): Role => (w.role === 'ntc' ? 'nc' : w.role === 'other' ? 'sample' : w.role)
 export const assayName = (w: Well) => (w.assay ? w.assay.replace(/ \(.*\)/, '') : '')
 

@@ -71,8 +71,13 @@ export function Stage({ img, tubes, selected, onSelect, chips, placing, onPlace,
                   onSelect(sel ? null : i)
                 }}
                 role="button"
-                tabIndex={-1}
-                aria-label={`${t.label}`}
+                tabIndex={labels ? 0 : -1}
+                aria-label={`${t.label}: ${t.role === 'sample' ? CALL_WORD[t.call] : 'control'}`}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter' && e.key !== ' ') return
+                  e.preventDefault()
+                  onSelect(sel ? null : i)
+                }}
               >
                 {shape}
                 {(labels || sel) && !chips && (
@@ -85,6 +90,20 @@ export function Stage({ img, tubes, selected, onSelect, chips, placing, onPlace,
           })}
         </svg>
       </div>
+      {!chips && tubes.length > 0 && (
+        <div className="pick">
+          <span aria-hidden>Inspect a tube</span>
+          <select aria-label="Inspect a tube" value={selected ?? ''} onChange={(e) => onSelect(e.target.value === '' ? null : Number(e.target.value))}>
+            <option value="">Choose…</option>
+            {tubes.map((t, i) => (
+              <option key={i} value={i}>
+                {t.label}: {t.role === 'sample' ? CALL_WORD[t.call] : t.role === 'pc' ? 'positive control' : 'negative control'}
+                {t.wrong ? ' (wrong)' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       {chips && (
         <div className="chips" aria-label="Calls">
           {tubes.map((t, i) => (
