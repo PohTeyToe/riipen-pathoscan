@@ -100,6 +100,7 @@ export function findRegions(img: Img): { regions: Region[]; paper: RGB } {
   const w = Math.max(1, Math.floor(img.width / f))
   const h = Math.max(1, Math.floor(img.height / f))
   const mask = new Uint8Array(w * h)
+  const paperLike = new Uint8Array(w * h)
   // Box-average each work pixel's footprint, then test it.
   for (let y = 0; y < h; y++) {
     const sy0 = Math.floor(y * f)
@@ -120,6 +121,7 @@ export function findRegions(img: Img): { regions: Region[]; paper: RGB } {
           n++
         }
       mask[y * w + x] = isLiquid(r / n, g / n, b / n, paper) ? 1 : 0
+      paperLike[y * w + x] = Math.min(r / n / paper[0], g / n / paper[1], b / n / paper[2]) >= 0.6 ? 1 : 0
     }
   }
 
@@ -153,11 +155,22 @@ export function findRegions(img: Img): { regions: Region[]; paper: RGB } {
     boxes.push(box)
   }
 
-  // A region at the frame is a dark corner, the table or a tube cut off by the crop. None can be read.
+  // A region that runs into the frame is a dark corner, the table or a tube cut off by the crop. None can
+  // be read. One that stops a pixel or two short counts too, unless paper lies between it and the frame.
   // Drop these before joining: a border region's box can span most of the photo and would swallow tubes.
-  const minArea = Math.max(4, w * h * 0.00004)
   const edge = 2
-  let parts = boxes.filter((b) => b.n >= minArea && b.x0 >= edge && b.y0 >= edge && b.x1 < w - edge && b.y1 < h - edge)
+  const paperBetween = (x0: number, x1: number, y0: number, y1: number) => {
+    if (x1 < x0 || y1 < y0) return false
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (!paperLike[y * w + x]) return false
+    return true
+  }
+  const atFrame = (b: Box) =>
+    (b.x0 < edge && !paperBetween(0, b.x0 - 1, b.y0, b.y1)) ||
+    (b.y0 < edge && !paperBetween(b.x0, b.x1, 0, b.y0 - 1)) ||
+    (b.x1 >= w - edge && !paperBetween(b.x1 + 1, w - 1, b.y0, b.y1)) ||
+    (b.y1 >= h - edge && !paperBetween(b.x0, b.x1, b.y1 + 1, h - 1))
+  const minArea = Math.max(4, w * h * 0.00004)
+  let parts = boxes.filter((b) => b.n >= minArea && !atFrame(b))
 
   // A glare streak or a bubble can cut one liquid region in two. Join parts that nearly touch.
   const parent = parts.map((_, i) => i)
@@ -203,9 +216,10 @@ export function findRegions(img: Img): { regions: Region[]; paper: RGB } {
 }
 
 /**
- * Rows top to bottom, then left to right. If every centre sits close to one straight line (a row of tubes
- * photographed at a slant), it is one row. Otherwise a new row starts where the centres jump down by more
- * than half a region's height.
+ * Rows top to bottom, then left to right. It is one row if every centre sits close to one straight line (a
+ * row of tubes photographed at a slant), or if the centres, taken left to right, never share a column and
+ * never step up or down by more than one and a half regions' height (a row laid in a gentle curve).
+ * Otherwise a new row starts where the centres jump down by more than half a region's height.
  */
 export function readingOrder(regions: Region[]): Region[] {
   if (regions.length === 0) return regions
@@ -217,11 +231,13 @@ export function readingOrder(regions: Region[]): Region[] {
     const my = regions.reduce((a, r) => a + r.cy, 0) / n
     const sxx = regions.reduce((a, r) => a + (r.cx - mx) ** 2, 0)
     const slope = sxx > 0 ? regions.reduce((a, r) => a + (r.cx - mx) * (r.cy - my), 0) / sxx : 0
-    // Liquid blobs are short, so a gently curved row can stray more than half a blob from the line.
-    // Tubes side by side also allow a third of their spacing; a second row sits much further off.
-    const gap = median(byX.slice(1).map((r, i) => r.cx - byX[i].cx))
-    const tol = Math.max(0.5 * hMed, 0.33 * gap)
-    if (Math.abs(slope) < 1 && regions.every((r) => Math.abs(r.cy - (my + slope * (r.cx - mx))) < tol)) return byX
+    const onLine = regions.every((r) => Math.abs(r.cy - (my + slope * (r.cx - mx))) < 0.5 * hMed)
+    // Staggered rows also zigzag left to right, but each step jumps a full row; aligned rows share columns.
+    const wMed = median(regions.map((r) => r.x1 - r.x0 + 1))
+    const chain = byX
+      .slice(1)
+      .every((r, i) => r.cx - byX[i].cx > 0.5 * wMed && Math.abs(r.cy - byX[i].cy) < 1.5 * hMed)
+    if (Math.abs(slope) < 1 && (onLine || chain)) return byX
   }
   const byY = [...regions].sort((a, b) => a.cy - b.cy)
   const rows: Region[][] = [[byY[0]]]

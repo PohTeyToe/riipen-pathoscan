@@ -99,8 +99,36 @@ describe('finding and measuring', () => {
     const tiltedRows = [box(10, 20), box(30, 23), box(10, 30), box(30, 33)].map((b) => ({ ...b, y0: b.cy - 4.5, y1: b.cy + 4.5 }))
     expect(readingOrder(tiltedRows).map((r) => [r.cx, r.cy])).toEqual([[10, 20], [30, 23], [10, 30], [30, 33]])
     // Short liquid blobs on a gently curved line, as in real phone photos: one row, left to right.
-    const curved = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => box(100 + i * 100, 360 + (i < 2 ? 25 : i > 5 ? -15 : 0)))
+    const curved = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => box(100 + i * 100, 360 + 25 * ((i * 100 - 350) / 350) ** 2))
     expect(readingOrder([...curved].reverse()).map((r) => r.cx)).toEqual(curved.map((r) => r.cx))
+    // Staggered rows zigzag left to right too, but each step jumps a whole row: two rows.
+    const staggered = [box(10, 20), box(110, 20), box(210, 20), box(60, 40), box(160, 40), box(260, 40)].map((b) => ({ ...b, y0: b.cy - 4.5, y1: b.cy + 4.5 }))
+    expect(readingOrder(staggered).map((r) => [r.cx, r.cy])).toEqual([[10, 20], [110, 20], [210, 20], [60, 40], [160, 40], [260, 40]])
+  })
+  it('keeps a whole tube that sits a pixel from the frame on paper', () => {
+    const w = 300
+    const h = 150
+    const data = new Uint8ClampedArray(w * h * 4).fill(255)
+    const patch = (x0: number, rgb: number[]) => {
+      for (let y = 60; y < 84; y++) for (let x = x0; x < x0 + 24; x++) data.set([...rgb, 255], (y * w + x) * 4)
+    }
+    patch(1, [235, 180, 40])
+    patch(100, [225, 80, 120])
+    patch(200, [235, 180, 40])
+    expect(findRegions({ width: w, height: h, data }).regions.map((r) => r.x0)).toEqual([1, 100, 200])
+  })
+  it('drops a warm patch that stops just short of a dark frame edge', () => {
+    const img = render(makeRun(608, 'typical', { kelvin: 5500, ev: 0, drift: 0 }), 0.5)
+    const { regions: clean } = findRegions(img)
+    const t = clean[3]
+    const o = (Math.round(t.cy) * img.width + Math.round(t.cx)) * 4
+    const tube = img.data.slice(o, o + 4)
+    // One row of dark vignette at the top edge, the warm patch right below it.
+    for (let y = 0; y < 9; y++) for (let x = 40; x < 80; x++) img.data.set(y < 1 ? [30, 25, 20, 255] : tube, (y * img.width + x) * 4)
+    expect(findRegions(img).regions.map((r) => r.cx)).toEqual(clean.map((r) => r.cx))
+    // The same patch with white paper above it is a whole tube, so it stays.
+    for (let x = 40; x < 80; x++) img.data.set([255, 255, 255, 255], x * 4)
+    expect(findRegions(img).regions).toHaveLength(clean.length + 1)
   })
   it('ignores a warm patch at the edge of the frame', () => {
     const img = render(makeRun(608, 'typical', { kelvin: 5500, ev: 0, drift: 0 }), 0.5)
