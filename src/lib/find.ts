@@ -153,8 +153,11 @@ export function findRegions(img: Img): { regions: Region[]; paper: RGB } {
     boxes.push(box)
   }
 
+  // A region at the frame is a dark corner, the table or a tube cut off by the crop. None can be read.
+  // Drop these before joining: a border region's box can span most of the photo and would swallow tubes.
   const minArea = Math.max(4, w * h * 0.00004)
-  let parts = boxes.filter((b) => b.n >= minArea)
+  const edge = 2
+  let parts = boxes.filter((b) => b.n >= minArea && b.x0 >= edge && b.y0 >= edge && b.x1 < w - edge && b.y1 < h - edge)
 
   // A glare streak or a bubble can cut one liquid region in two. Join parts that nearly touch.
   const parent = parts.map((_, i) => i)
@@ -184,9 +187,7 @@ export function findRegions(img: Img): { regions: Region[]; paper: RGB } {
       m.sy += b.sy
     }
   })
-  // A region at the frame is a dark corner, the table or a tube cut off by the crop. None can be read.
-  const m = 2
-  parts = [...merged.values()].filter((b) => b.x0 >= m && b.y0 >= m && b.x1 < w - m && b.y1 < h - m)
+  parts = [...merged.values()]
   const medArea = median(parts.map((b) => b.n))
   parts = parts.filter((b) => b.n >= 0.12 * medArea)
 

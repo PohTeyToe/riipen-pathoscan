@@ -111,6 +111,17 @@ describe('finding and measuring', () => {
     for (let y = 0; y < 12; y++) for (let x = 0; x < 30; x++) img.data.set(tube, (y * img.width + x) * 4)
     expect(findRegions(img).regions.map((r) => r.cx)).toEqual(clean.map((r) => r.cx))
   })
+  it('keeps the tubes when a warm border runs along two edges of the frame', () => {
+    // A wooden table showing down one side and across the top: one region whose box covers the whole photo.
+    const img = render(makeRun(608, 'typical', { kelvin: 5500, ev: 0, drift: 0 }), 0.5)
+    const { regions: clean } = findRegions(img)
+    const t = clean[3]
+    const o = (Math.round(t.cy) * img.width + Math.round(t.cx)) * 4
+    const warm = img.data.slice(o, o + 4)
+    for (let y = 0; y < img.height; y++)
+      for (let x = 0; x < img.width; x++) if (x < 12 || y < 12) img.data.set(warm, (y * img.width + x) * 4)
+    expect(findRegions(img).regions.map((r) => r.cx)).toEqual(clean.map((r) => r.cx))
+  })
   it('matches every tube in clean runs', () => {
     for (const seed of [1, 2, 3, 4, 5]) expect(readSynthetic(makeRun(seed, 'typical', { ev: 0 }), 0.5).missed).toBe(0)
   })
