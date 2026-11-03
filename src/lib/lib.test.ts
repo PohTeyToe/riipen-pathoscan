@@ -116,6 +116,11 @@ describe('finding and measuring', () => {
     patch(100, [225, 80, 120])
     patch(200, [235, 180, 40])
     expect(findRegions({ width: w, height: h, data }).regions.map((r) => r.x0)).toEqual([1, 100, 200])
+    // Shaded or tinted paper in that one-pixel gap is still paper.
+    for (const margin of [[203, 203, 203], [150, 150, 150], [255, 240, 200]]) {
+      for (let y = 60; y < 84; y++) data.set([...margin, 255], y * w * 4)
+      expect(findRegions({ width: w, height: h, data }).regions.map((r) => r.x0)).toEqual([1, 100, 200])
+    }
   })
   it('drops a warm patch that stops just short of a dark frame edge', () => {
     const img = render(makeRun(608, 'typical', { kelvin: 5500, ev: 0, drift: 0 }), 0.5)

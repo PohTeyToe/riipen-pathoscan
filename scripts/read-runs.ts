@@ -10,13 +10,13 @@
 // calibrated reader reads each group against that group's own controls. Groups may share controls.
 // The output holds a lab's measurements, so it must be written outside this repo.
 import { readFileSync, writeFileSync } from 'node:fs'
-import { isAbsolute, relative, resolve } from 'node:path'
+import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import evalData from '../data/eval.json'
 import { median } from '../src/lib/color'
 import { discRegion, findRegions, measure } from '../src/lib/find'
 import { readNaive } from '../src/lib/readers'
-import { matchPoints, readGroups, type Group } from './batch'
+import { checkOutput, matchPoints, readGroups, type Group } from './batch'
 import { readImage } from './io'
 
 interface Entry {
@@ -28,12 +28,7 @@ interface Entry {
 
 const [manifestPath, outPath] = process.argv.slice(2)
 if (!manifestPath || !outPath) throw new Error('usage: read-runs.ts <manifest.json> <out.json>')
-const repo = resolve(fileURLToPath(new URL('..', import.meta.url)))
-const out = resolve(outPath)
-if (out === resolve(manifestPath)) throw new Error('The output path is the manifest. Pick another file.')
-const rel = relative(repo, out)
-if (rel && !rel.startsWith('..') && !isAbsolute(rel))
-  throw new Error(`Write the output outside this repo (${repo}); it holds a lab's measurements.`)
+checkOutput(manifestPath, outPath, fileURLToPath(new URL('..', import.meta.url)))
 
 const entries: Entry[] = JSON.parse(readFileSync(manifestPath, 'utf8'))
 const { cut, model, band } = evalData.params
@@ -75,5 +70,5 @@ const photos = entries.map((e) => {
     })),
   }
 })
-writeFileSync(out, JSON.stringify({ params: { cut, model, band }, photos }, null, 1))
-console.log(`read ${photos.length} photos, wrote ${out}`)
+writeFileSync(resolve(outPath), JSON.stringify({ params: { cut, model, band }, photos }, null, 1))
+console.log(`read ${photos.length} photos, wrote ${resolve(outPath)}`)

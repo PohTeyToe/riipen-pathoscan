@@ -100,7 +100,7 @@ export function findRegions(img: Img): { regions: Region[]; paper: RGB } {
   const w = Math.max(1, Math.floor(img.width / f))
   const h = Math.max(1, Math.floor(img.height / f))
   const mask = new Uint8Array(w * h)
-  const paperLike = new Uint8Array(w * h)
+  const lum = new Float32Array(w * h)
   // Box-average each work pixel's footprint, then test it.
   for (let y = 0; y < h; y++) {
     const sy0 = Math.floor(y * f)
@@ -121,7 +121,7 @@ export function findRegions(img: Img): { regions: Region[]; paper: RGB } {
           n++
         }
       mask[y * w + x] = isLiquid(r / n, g / n, b / n, paper) ? 1 : 0
-      paperLike[y * w + x] = Math.min(r / n / paper[0], g / n / paper[1], b / n / paper[2]) >= 0.6 ? 1 : 0
+      lum[y * w + x] = (0.2126 * r + 0.7152 * g + 0.0722 * b) / n
     }
   }
 
@@ -155,20 +155,24 @@ export function findRegions(img: Img): { regions: Region[]; paper: RGB } {
     boxes.push(box)
   }
 
-  // A region that runs into the frame is a dark corner, the table or a tube cut off by the crop. None can
-  // be read. One that stops a pixel or two short counts too, unless paper lies between it and the frame.
-  // Drop these before joining: a border region's box can span most of the photo and would swallow tubes.
+  // A region that reaches the frame is a dark corner, the table or a tube cut off by the crop. None can be
+  // read. So is one that stops a pixel or two short with only dark pixels (under a quarter of the paper's light)
+  // between it and the frame: a vignette or a table that faded out. Paper in that gap, even shaded or
+  // tinted, means a whole tube. Drop these before joining: a border region's box can span most of the
+  // photo and would swallow tubes.
   const edge = 2
-  const paperBetween = (x0: number, x1: number, y0: number, y1: number) => {
-    if (x1 < x0 || y1 < y0) return false
-    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (!paperLike[y * w + x]) return false
-    return true
+  const paperLum = 0.2126 * paper[0] + 0.7152 * paper[1] + 0.0722 * paper[2]
+  const darkGap = (x0: number, x1: number, y0: number, y1: number) => {
+    if (x1 < x0 || y1 < y0) return true // touches the frame
+    let sum = 0
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) sum += lum[y * w + x]
+    return sum / ((x1 - x0 + 1) * (y1 - y0 + 1)) < 0.25 * paperLum
   }
   const atFrame = (b: Box) =>
-    (b.x0 < edge && !paperBetween(0, b.x0 - 1, b.y0, b.y1)) ||
-    (b.y0 < edge && !paperBetween(b.x0, b.x1, 0, b.y0 - 1)) ||
-    (b.x1 >= w - edge && !paperBetween(b.x1 + 1, w - 1, b.y0, b.y1)) ||
-    (b.y1 >= h - edge && !paperBetween(b.x0, b.x1, b.y1 + 1, h - 1))
+    (b.x0 < edge && darkGap(0, b.x0 - 1, b.y0, b.y1)) ||
+    (b.y0 < edge && darkGap(b.x0, b.x1, 0, b.y0 - 1)) ||
+    (b.x1 >= w - edge && darkGap(b.x1 + 1, w - 1, b.y0, b.y1)) ||
+    (b.y1 >= h - edge && darkGap(b.x0, b.x1, b.y1 + 1, h - 1))
   const minArea = Math.max(4, w * h * 0.00004)
   let parts = boxes.filter((b) => b.n >= minArea && !atFrame(b))
 
@@ -218,8 +222,11 @@ export function findRegions(img: Img): { regions: Region[]; paper: RGB } {
 /**
  * Rows top to bottom, then left to right. It is one row if every centre sits close to one straight line (a
  * row of tubes photographed at a slant), or if the centres, taken left to right, never share a column and
- * never step up or down by more than one and a half regions' height (a row laid in a gentle curve).
- * Otherwise a new row starts where the centres jump down by more than half a region's height.
+ * never step up or down by more than one and a half regions' height (a row laid in a gentle curve; real
+ * phone photos step up to about 1.3). Otherwise a new row starts where the centres jump down by more than
+ * half a region's height. Known limit: rows offset by half a column and closer than 1.5 regions' height
+ * (staggered wells) look like one wavy row and are read as one. Tubes in a rack sit far further apart, and
+ * the page lets you set the controls or place tubes by hand.
  */
 export function readingOrder(regions: Region[]): Region[] {
   if (regions.length === 0) return regions
