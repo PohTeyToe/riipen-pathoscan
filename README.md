@@ -117,7 +117,7 @@ npm run eval         # refit and rescore the synthetic eval, writes data/eval.js
 npm run eval:real    # score the real photos, writes data/real-eval.json
 npx tsx scripts/case-study-check.ts <photo.png>   # the PathoScan photo check above
 npm run measure -- <photo> [names] ["x:y:r;..."]  # any photo, found or hand-placed
-npx tsx scripts/read-runs.ts <manifest.json> <out.json>  # a batch of photos with named tubes and chosen control groups, as JSON
+npx tsx scripts/read-runs.ts <manifest.json> > <out.json>  # a batch of photos with named tubes and control groups, as JSON on stdout
 npx tsx scripts/thumbs.ts                          # redraw the photo picker's thumbnails
 ```
 

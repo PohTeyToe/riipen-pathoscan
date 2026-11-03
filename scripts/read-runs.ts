@@ -1,6 +1,6 @@
 // Reads a batch of tube photos with named tubes and chosen control groups, and writes every tube's
 // measurement and both readers' calls as JSON. For scoring the readers against a lab's own records.
-//   npx tsx scripts/read-runs.ts <manifest.json> <out.json>
+//   npx tsx scripts/read-runs.ts <manifest.json> > <out.json>
 // The manifest is a list of photos:
 //   [{ "id": "run-a", "photo": "path/to/photo.png",
 //      "tubes": { "t1": [x, y], "t2": [x, y], ... },           // a point on each tube's liquid
@@ -8,15 +8,13 @@
 // Each tube is read from the finder region its point falls in (or the nearest one within half a region's
 // size), or from a disc at the point if the finder missed it. The naive reader calls every tube. The
 // calibrated reader reads each group against that group's own controls. Groups may share controls.
-// The output holds a lab's measurements, so it must be written outside this repo.
-import { readFileSync, writeFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+// The JSON goes to standard output. It holds a lab's measurements, so send it somewhere outside this repo.
+import { readFileSync } from 'node:fs'
 import evalData from '../data/eval.json'
 import { median } from '../src/lib/color'
 import { discRegion, findRegions, measure } from '../src/lib/find'
 import { readNaive } from '../src/lib/readers'
-import { checkOutput, matchPoints, readGroups, type Group } from './batch'
+import { matchPoints, readGroups, type Group } from './batch'
 import { readImage } from './io'
 
 interface Entry {
@@ -26,9 +24,8 @@ interface Entry {
   groups: Group[]
 }
 
-const [manifestPath, outPath] = process.argv.slice(2)
-if (!manifestPath || !outPath) throw new Error('usage: read-runs.ts <manifest.json> <out.json>')
-checkOutput(manifestPath, outPath, fileURLToPath(new URL('..', import.meta.url)))
+const [manifestPath] = process.argv.slice(2)
+if (!manifestPath) throw new Error('usage: read-runs.ts <manifest.json> > <out.json>')
 
 const entries: Entry[] = JSON.parse(readFileSync(manifestPath, 'utf8'))
 const { cut, model, band } = evalData.params
@@ -70,5 +67,5 @@ const photos = entries.map((e) => {
     })),
   }
 })
-writeFileSync(resolve(outPath), JSON.stringify({ params: { cut, model, band }, photos }, null, 1))
-console.log(`read ${photos.length} photos, wrote ${resolve(outPath)}`)
+process.stdout.write(JSON.stringify({ params: { cut, model, band }, photos }, null, 1) + '\n')
+console.error(`read ${photos.length} photos`)

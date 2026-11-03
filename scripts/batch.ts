@@ -1,6 +1,4 @@
 // The logic behind read-runs.ts, kept apart from file IO so it can be tested.
-import { existsSync, realpathSync } from 'node:fs'
-import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import type { Features, Region } from '../src/lib/find'
 import { readCalibrated, type Band, type Model, type RunRead, type TubeRead } from '../src/lib/readers'
 import type { Role } from '../src/lib/synth'
@@ -86,24 +84,4 @@ export function readGroups(
     out.flags.push(...r.flags.map((f) => `group ${k + 1}: ${f}`))
   })
   return out
-}
-
-const LONG = /^\\\\\?\\/ // Windows' \\?\ prefix
-
-/** A path's real location: links and junctions resolved, the \\?\ prefix dropped, case folded where the file system ignores it. */
-export function realPath(p: string): string {
-  const full = resolve(p.replace(LONG, ''))
-  const parent = existsSync(full) ? full : dirname(full)
-  const r = realpathSync.native(parent).replace(LONG, '')
-  const path = parent === full ? r : join(r, basename(full))
-  return process.platform === 'win32' || process.platform === 'darwin' ? path.toLowerCase() : path
-}
-
-/** Throws unless the output is a new place outside the repo: results hold a lab's measurements. */
-export function checkOutput(manifest: string, output: string, repo: string) {
-  const out = realPath(output)
-  if (out === realPath(manifest)) throw new Error('The output path is the manifest. Pick another file.')
-  const rel = relative(realPath(repo), out)
-  if (rel !== '..' && !rel.startsWith('..' + sep) && !isAbsolute(rel))
-    throw new Error(`Write the output outside this repo (${repo}); it holds a lab's measurements.`)
 }
