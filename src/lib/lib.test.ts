@@ -98,6 +98,18 @@ describe('finding and measuring', () => {
     expect(readingOrder(plate).map((r) => [r.cx, r.cy])).toEqual([[10, 21], [30, 20], [10, 40], [30, 41]])
     const tiltedRows = [box(10, 20), box(30, 23), box(10, 30), box(30, 33)].map((b) => ({ ...b, y0: b.cy - 4.5, y1: b.cy + 4.5 }))
     expect(readingOrder(tiltedRows).map((r) => [r.cx, r.cy])).toEqual([[10, 20], [30, 23], [10, 30], [30, 33]])
+    // Short liquid blobs on a gently curved line, as in real phone photos: one row, left to right.
+    const curved = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => box(100 + i * 100, 360 + (i < 2 ? 25 : i > 5 ? -15 : 0)))
+    expect(readingOrder([...curved].reverse()).map((r) => r.cx)).toEqual(curved.map((r) => r.cx))
+  })
+  it('ignores a warm patch at the edge of the frame', () => {
+    const img = render(makeRun(608, 'typical', { kelvin: 5500, ev: 0, drift: 0 }), 0.5)
+    const { regions: clean } = findRegions(img)
+    const t = clean[3]
+    const o = (Math.round(t.cy) * img.width + Math.round(t.cx)) * 4
+    const tube = img.data.slice(o, o + 4)
+    for (let y = 0; y < 12; y++) for (let x = 0; x < 30; x++) img.data.set(tube, (y * img.width + x) * 4)
+    expect(findRegions(img).regions.map((r) => r.cx)).toEqual(clean.map((r) => r.cx))
   })
   it('matches every tube in clean runs', () => {
     for (const seed of [1, 2, 3, 4, 5]) expect(readSynthetic(makeRun(seed, 'typical', { ev: 0 }), 0.5).missed).toBe(0)

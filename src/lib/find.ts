@@ -184,7 +184,9 @@ export function findRegions(img: Img): { regions: Region[]; paper: RGB } {
       m.sy += b.sy
     }
   })
-  parts = [...merged.values()]
+  // A region at the frame is a dark corner, the table or a tube cut off by the crop. None can be read.
+  const m = 2
+  parts = [...merged.values()].filter((b) => b.x0 >= m && b.y0 >= m && b.x1 < w - m && b.y1 < h - m)
   const medArea = median(parts.map((b) => b.n))
   parts = parts.filter((b) => b.n >= 0.12 * medArea)
 
@@ -214,7 +216,11 @@ export function readingOrder(regions: Region[]): Region[] {
     const my = regions.reduce((a, r) => a + r.cy, 0) / n
     const sxx = regions.reduce((a, r) => a + (r.cx - mx) ** 2, 0)
     const slope = sxx > 0 ? regions.reduce((a, r) => a + (r.cx - mx) * (r.cy - my), 0) / sxx : 0
-    if (Math.abs(slope) < 1 && regions.every((r) => Math.abs(r.cy - (my + slope * (r.cx - mx))) < 0.5 * hMed)) return byX
+    // Liquid blobs are short, so a gently curved row can stray more than half a blob from the line.
+    // Tubes side by side also allow a third of their spacing; a second row sits much further off.
+    const gap = median(byX.slice(1).map((r, i) => r.cx - byX[i].cx))
+    const tol = Math.max(0.5 * hMed, 0.33 * gap)
+    if (Math.abs(slope) < 1 && regions.every((r) => Math.abs(r.cy - (my + slope * (r.cx - mx))) < tol)) return byX
   }
   const byY = [...regions].sort((a, b) => a.cy - b.cy)
   const rows: Region[][] = [[byY[0]]]
