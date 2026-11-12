@@ -1,6 +1,8 @@
 import { execSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { expect, test, type Page } from '@playwright/test'
+import { PNG } from 'pngjs'
+import { makeRun, render } from '../src/lib/synth'
 
 const secondsLeft = async (page: Page) => {
   const [m, s] = (await page.getByRole('timer').textContent())!.split(':').map(Number)
@@ -91,6 +93,83 @@ test('the field app installs its service worker, works offline and keeps a timer
   await expect(light).toHaveAttribute('aria-pressed', 'true')
   await expect(page.locator('label[for="lab-slider"]')).toContainText('Light colour')
   expect(errors).toEqual([])
+})
+
+/** A synthetic run from the demo's own renderer, as a camera file. Seed 4: two positives and one tube the reader holds. */
+function syntheticPhoto() {
+  const img = render(makeRun(4), 1)
+  const png = new PNG({ width: img.width, height: img.height })
+  png.data = Buffer.from(img.data.buffer)
+  return { name: 'tubes.png', mimeType: 'image/png', buffer: PNG.sync.write(png) }
+}
+
+test('a run goes from the guide to a photo, rings, control taps and a saved result that opens offline', async ({ page, context }) => {
+  await page.goto('/app.html')
+  await page.evaluate(() => navigator.serviceWorker.ready)
+  await page.getByRole('link', { name: 'New run' }).click()
+  await page.getByLabel('Field name').fill('Synthetic')
+  await page.getByRole('button', { name: 'Start run' }).click()
+  for (let i = 1; i <= 8; i++) {
+    await expect(page.getByText(`Step ${i} of 8`)).toBeVisible()
+    if (await page.getByRole('button', { name: 'Start timer' }).isVisible()) await page.getByRole('button', { name: 'Start timer' }).click()
+    await page.getByRole('button', { name: 'Done' }).click()
+  }
+
+  await expect(page.getByRole('heading', { name: 'Take photo' })).toBeVisible()
+  await page.locator('input[type=file]').setInputFiles(syntheticPhoto())
+  await expect(page.getByRole('heading', { name: '10 tubes' })).toBeVisible()
+  const rings = page.locator('.shot ellipse')
+  // The photo takes the tap; a ring is only drawn on it.
+  const centre = async (i: number) => {
+    const b = (await rings.nth(i).boundingBox())!
+    return [b.x + b.width / 2, b.y + b.height / 2] as const
+  }
+  const tapRing = async (i: number) => page.mouse.click(...(await centre(i)))
+  const continueBtn = page.getByRole('button', { name: 'Continue' })
+  await expect(continueBtn).toBeEnabled()
+
+  // A tap on empty paper adds an eleventh ring and Continue locks; a tap on that ring removes it.
+  const photo = (await page.locator('.shot svg').boundingBox())!
+  await page.mouse.click(photo.x + photo.width / 2, photo.y + photo.height * 0.99)
+  await expect(page.getByRole('heading', { name: '11 of 10 tubes' })).toBeVisible()
+  await expect(continueBtn).toBeDisabled()
+  await page.mouse.click(photo.x + photo.width / 2, photo.y + photo.height * 0.99)
+  await expect(page.getByRole('heading', { name: '10 tubes' })).toBeVisible()
+  await tapRing(4)
+  await expect(page.getByRole('heading', { name: '9 of 10 tubes' })).toBeVisible()
+  await expect(continueBtn).toBeDisabled()
+  await page.reload() // the photo was saved: the rings come back as found
+  await expect(page.getByRole('heading', { name: '10 tubes' })).toBeVisible()
+  await continueBtn.click()
+
+  await expect(page.getByRole('heading', { name: 'Tap the positive control' })).toBeVisible()
+  await tapRing(0)
+  await expect(page.getByRole('heading', { name: 'Tap the negative control' })).toBeVisible()
+  await tapRing(1)
+
+  // Two positives, one held tube: no advice until the grower calls it.
+  await expect(page.getByRole('heading', { name: '2 of 8 positive' })).toBeVisible()
+  await expect(page.getByText('Call the held tubes below.')).toBeVisible()
+  const held = page.getByRole('listitem').filter({ hasText: 'Look again: yellow or pink?' })
+  await expect(held).toHaveCount(1)
+  await held.getByRole('button', { name: 'Yellow' }).click()
+  await expect(page.getByRole('heading', { name: '3 of 8 positive' })).toBeVisible()
+  await expect(page.getByText('Enough positives to treat.')).toBeVisible()
+  await expect(page.getByText('1 of the 3 positives are your calls.')).toBeVisible()
+
+  // Saved: a reload opens the same result, and so does the list, offline.
+  await page.reload()
+  await expect(page.getByRole('heading', { name: '3 of 8 positive' })).toBeVisible()
+  await expect(held.getByRole('button', { name: 'Yellow' })).toHaveAttribute('aria-pressed', 'true')
+  await context.setOffline(true)
+  await page.goto('/app.html')
+  await expect(page.getByRole('listitem').filter({ hasText: 'Synthetic' })).toContainText('Treat')
+  await page.getByRole('link', { name: /Synthetic/ }).click()
+  await expect(page.getByRole('heading', { name: '3 of 8 positive' })).toBeVisible()
+  await expect(page.locator('.shot img')).toHaveJSProperty('complete', true)
+  expect(await page.locator('.shot img').evaluate((el: HTMLImageElement) => el.naturalWidth)).toBe(1000)
+  await expect(rings).toHaveCount(10)
+  await context.setOffline(false)
 })
 
 // Runs last: it rebuilds dist under the running preview server.
