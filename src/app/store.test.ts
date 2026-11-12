@@ -133,6 +133,13 @@ describe('the read and the taps', () => {
     expect(await (await getPhoto(second))!.text()).toBe('second')
   })
 
+  it('deletes the photo it saved when the run update fails', async () => {
+    // A run deleted meanwhile makes the update reject, as a full disk (QuotaExceededError) would.
+    await expect(takePhoto('id-gone', jpeg('orphan'))).rejects.toThrow()
+    const saved = await keys(createStore('pathoscan-photos', 'photos'))
+    expect(saved.filter((k) => String(k).startsWith('id-gone/'))).toEqual([])
+  })
+
   it('stores the read with its count and outcome, and the first read wins', async () => {
     const key = await readRun('read', 7100)
     expect(await saveRead('id-read', key, regions, roles, read(Array(8).fill('pos')), 3)).toBe(false)

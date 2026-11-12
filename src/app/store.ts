@@ -44,18 +44,24 @@ export const startTimer = (id: string, i: number, at: number) =>
 
 /**
  * Saves a photo under a new key and points the run at it, replacing (and deleting) the photo before. A run
- * that's already read keeps its photo: the new one is deleted and null comes back.
+ * that's already read keeps its photo: the new one is deleted and null comes back. If the run can't be
+ * updated, the new photo is deleted too.
  */
 export async function takePhoto(id: string, jpeg: Blob): Promise<string | null> {
   const key = `${id}/${crypto.randomUUID()}`
   await set(key, jpeg, photos())
   let old: string | undefined
   let taken = false
-  await change(id, (run) => {
-    if (run.read) return run
-    ;[old, taken] = [run.photoKey, true]
-    return { ...run, photoKey: key }
-  })
+  try {
+    await change(id, (run) => {
+      if (run.read) return run
+      ;[old, taken] = [run.photoKey, true]
+      return { ...run, photoKey: key }
+    })
+  } catch (e) {
+    await del(key, photos())
+    throw e
+  }
   if (taken && old) await del(old, photos())
   if (!taken) await del(key, photos())
   return taken ? key : null
