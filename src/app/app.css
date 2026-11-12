@@ -1,0 +1,276 @@
+/* PathoScan Field. The demo's blue ink on paper, pushed to full contrast for a phone in the sun. */
+
+:root {
+  --paper: oklch(0.985 0.004 95);
+  --rule: oklch(0.74 0.02 264);
+  --ink: oklch(0.2 0.06 266);
+  --ink-2: oklch(0.36 0.05 266);
+  --ultra: oklch(0.37 0.2 264);
+  --ultra-deep: oklch(0.27 0.15 266);
+  --on-ultra: oklch(0.985 0.006 95);
+  --alert: oklch(0.45 0.18 30);
+  --sans: 'Archivo Variable', 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --pad: 20px;
+  --tap: 64px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html {
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 1.125rem;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+h1,
+p {
+  margin: 0;
+}
+:focus-visible {
+  outline: 3px solid var(--ultra);
+  outline-offset: 3px;
+}
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  max-width: 560px;
+  margin-inline: auto;
+}
+
+/* Top bar */
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: var(--tap);
+  padding: env(safe-area-inset-top) var(--pad) 0;
+  border-bottom: 2px solid var(--ink);
+}
+.brand {
+  font-stretch: 80%;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.875rem;
+  color: var(--ultra);
+}
+.back {
+  display: flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding-right: 16px;
+  color: var(--ultra);
+  font-weight: 700;
+  text-decoration: none;
+}
+.where {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 0;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  color: var(--ink-2);
+}
+.where .field {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+}
+
+/* Content */
+.body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 28px var(--pad);
+}
+h1 {
+  font-stretch: 108%;
+  font-weight: 800;
+  font-size: 2.25rem;
+  line-height: 1.05;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+.lead {
+  font-size: 1.375rem;
+  font-weight: 500;
+}
+.note {
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.alert {
+  font-weight: 700;
+  color: var(--alert);
+}
+.timer {
+  margin-top: 8px;
+  font-size: clamp(4.5rem, 26vw, 7rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--ultra-deep);
+}
+.timer.up {
+  font-size: 3rem;
+}
+
+/* Bottom actions: one primary, at the thumb */
+.actions {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  gap: 12px;
+  padding: 12px var(--pad) calc(16px + env(safe-area-inset-bottom));
+  background: var(--paper);
+  border-top: 2px solid var(--ink);
+}
+.btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap);
+  padding: 0 20px;
+  border: 3px solid var(--ultra);
+  border-radius: 12px;
+  background: var(--ultra);
+  color: var(--on-ultra);
+  font: inherit;
+  font-size: 1.25rem;
+  font-weight: 750;
+  text-decoration: none;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.btn:active {
+  background: var(--ultra-deep);
+  border-color: var(--ultra-deep);
+}
+.btn.ghost {
+  flex: 0 0 auto;
+  background: transparent;
+  color: var(--ultra);
+}
+.body .btn.ghost {
+  align-self: stretch;
+}
+.btn:disabled:not([data-arming]) {
+  border-color: var(--rule);
+  background: var(--rule);
+  color: var(--ink-2);
+  cursor: not-allowed;
+}
+.link {
+  min-height: 48px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--ultra);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Runs list */
+.runs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 2px solid var(--ink);
+}
+.runs a {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  column-gap: 12px;
+  min-height: 80px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--rule);
+  color: inherit;
+  text-decoration: none;
+}
+.runs .field {
+  font-size: 1.25rem;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+.runs .date {
+  grid-row: 2;
+  font-size: 0.9375rem;
+  color: var(--ink-2);
+}
+.chip {
+  grid-row: 1 / 3;
+  grid-column: 2;
+  padding: 6px 12px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  font-size: 0.9375rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.chip.open {
+  border-style: dashed;
+  color: var(--ink-2);
+}
+.chip.treat {
+  background: var(--ink);
+  color: var(--paper);
+}
+.chip.failed {
+  border-color: var(--alert);
+  color: var(--alert);
+}
+
+/* Form */
+.input {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-weight: 700;
+}
+.input input,
+.input textarea {
+  width: 100%;
+  min-height: var(--tap);
+  padding: 14px 16px;
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 500;
+  font-size: 1.25rem;
+}
+.input textarea {
+  resize: vertical;
+}
+.gps {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
