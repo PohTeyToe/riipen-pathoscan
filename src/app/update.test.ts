@@ -53,6 +53,20 @@ describe('the update bar', () => {
     expect(await offered()).not.toBeNull()
   })
 
+  it('takes a late newer-build answer when the check after it could not read the file', async () => {
+    const b = browser({ controlled: true, serving: __APP_BUILD__ })
+    let answer!: (v: unknown) => void
+    vi.stubGlobal('fetch', vi.fn(() => new Promise((r) => (answer = r))))
+    const { watchForUpdates, offered } = await load()
+    watchForUpdates(b.reg) // check 1 waits
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('offline') }))
+    b.fire('visibilitychange') // check 2 fails at once
+    await flush()
+    answer({ ok: true, json: async () => ({ build: 'newer' }) })
+    await flush()
+    expect(await offered()).not.toBeNull()
+  })
+
   it('offers Reload when another tab already switched this page to a newer build', async () => {
     const b = browser({ controlled: true, serving: 'newer' })
     const { watchForUpdates, offered } = await load()

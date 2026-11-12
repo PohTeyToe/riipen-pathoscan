@@ -28,22 +28,27 @@ async function servingBuild(): Promise<string | null> {
 export function watchForUpdates(reg: ServiceWorkerRegistration) {
   const sw = navigator.serviceWorker
   let asked = false
-  let latest = 0
+  // Checks can finish out of order. Each takes a number; an answer is dropped only if a later
+  // check has already published one. A check that learns nothing publishes nothing.
+  let started = 0
+  let published = 0
+  const publish = (mine: number, f: (() => void) | null) => {
+    if (mine < published) return
+    published = mine
+    set(f)
+  }
   const check = async () => {
-    const mine = ++latest
+    const mine = ++started
     // With no controller this is the first install, not an update.
     if (!sw.controller) return
     const waiting = reg.waiting
     if (waiting)
-      return set(() => {
+      return publish(mine, () => {
         asked = true
         waiting.postMessage({ type: 'SKIP_WAITING' })
       })
     const build = await servingBuild()
-    // A newer check started while this one waited; its answer wins. An unreadable file tells us
-    // nothing, so it leaves the bar as it is.
-    if (mine !== latest || build === null) return
-    set(build !== __APP_BUILD__ ? () => location.reload() : null)
+    if (build !== null) publish(mine, build !== __APP_BUILD__ ? () => location.reload() : null)
   }
   reg.addEventListener('updatefound', () => {
     const next = reg.installing
