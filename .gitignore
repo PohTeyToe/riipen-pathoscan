@@ -11,3 +11,5 @@ REVIEW.md
 
 .vercel
 PRODUCT.md
+test-results/
+playwright-report/

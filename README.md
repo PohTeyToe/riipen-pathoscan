@@ -113,6 +113,7 @@ npm install
 npm run dev          # http://localhost:5102
 npm test             # unit tests (vitest)
 npm run build        # type-check, then a static build in dist/
+npm run e2e          # Playwright: builds, serves on 5112, runs the field app offline and checks the demo (Chromium)
 npm run eval         # refit and rescore the synthetic eval, writes data/eval.json (about a minute)
 npm run eval:real    # score the real photos, writes data/real-eval.json
 npx tsx scripts/case-study-check.ts <photo.png>   # the PathoScan photo check above
@@ -131,6 +132,8 @@ src/run.ts      a synthetic run as the page shows it: drawn, found, measured, re
 src/caseStudy.ts the case-study numbers the page charts
 src/components/ hero story, rack and lights, case-study chart, lab, sweep chart, eval, real-photo bench, stage, scale strip, matrix, tube detail
 src/page.test.ts checks the page's runs and numbers against what it says about them
+app.html, src/app/ the field app (in progress): offline runs on the phone, a step guide with timers. Its service worker covers /app.html only
+e2e/            Playwright test for the field app
 scripts/        eval, real-photo eval, photo measurement, image IO for Node
 data/           eval.json, real-eval.json, real/labels.json
 public/real/    the 27 CC0 photos, downscaled, and thumbs/ for the picker
