@@ -16,32 +16,35 @@ export const REACH_PX = 22
 /** A ring's radius in image pixels. */
 export const radius = (r: Region) => r.r ?? Math.max(r.x1 - r.x0, r.y1 - r.y0) / 2
 
+/** Half a ring's narrow side: a disc this size sits inside the liquid instead of reaching the paper. */
+const inner = (r: Region) => r.r ?? Math.min(r.x1 - r.x0, r.y1 - r.y0) / 2
+
 /** The tubes the finder sees, in reading order. */
 export const findRings = (img: Img): Region[] => findRegions(img).regions
 
 /**
  * The ring a tap at (x, y) lands on: the ring with the nearest centre, if the tap is under half the way to
- * that ring's nearest neighbour (so a tap between two tubes hits neither) and within `reach` of the centre or
- * inside the ring. -1 for none.
+ * that ring's nearest neighbour and under half the row's usual spacing (so a tap between two tubes, or on a
+ * missed tube beside a close neighbour, hits neither), and within `reach` of the centre or inside the ring.
+ * -1 for none.
  */
 export function ringAt(rings: Region[], x: number, y: number, reach: number): number {
   const d = rings.map((r) => Math.hypot(r.cx - x, r.cy - y))
   const i = d.indexOf(Math.min(...d))
   if (i < 0) return -1
-  const r = rings[i]
-  const spacing = Math.min(...rings.map((o, j) => (j === i ? Infinity : Math.hypot(o.cx - r.cx, o.cy - r.cy))))
-  return d[i] < spacing / 2 && d[i] <= Math.max(reach, radius(r)) ? i : -1
+  const nearest = rings.map((r, k) => Math.min(...rings.map((o, j) => (j === k ? Infinity : Math.hypot(o.cx - r.cx, o.cy - r.cy)))))
+  return d[i] < Math.min(nearest[i], median(nearest)) / 2 && d[i] <= Math.max(reach, radius(rings[i])) ? i : -1
 }
 
 /**
  * A tap while fixing rings. On a ring it removes it (a finger, a petal, a pen mark). On empty paper it adds a
- * ring for a tube the finder missed, sized like the median ring, as scripts/read-runs.ts places one. Rings
- * stay in reading order.
+ * ring for a tube the finder missed, as wide as the median ring's narrow side so it sits inside the liquid
+ * (sized by the long side, as scripts/read-runs.ts does, it reads paper as glare). Rings stay in reading order.
  */
 export function tapRings(rings: Region[], x: number, y: number, reach: number): Region[] {
   // Sorted again either way: the finder's order was worked out with the removed ring in it.
   const i = ringAt(rings, x, y, reach)
-  return readingOrder(i >= 0 ? rings.filter((_, j) => j !== i) : [...rings, discRegion(x, y, median(rings.map(radius)) || 12)])
+  return readingOrder(i >= 0 ? rings.filter((_, j) => j !== i) : [...rings, discRegion(x, y, median(rings.map(inner)) || 12)])
 }
 
 /** Roles come only from the grower's two taps, never from position: a photo from the other side flips the row. */

@@ -45,11 +45,18 @@ describe('fixing rings', () => {
     // A missed tube midway between two found rings gets a new ring, not a removal.
     expect(tapRings([box(0, 0, 3), box(54, 0, 3)], 27, 0, 40)).toHaveLength(3)
   })
+  it("adds a ring for a missed tube that sat close to its neighbour, instead of removing the neighbour's ring", () => {
+    // Tubes 30 px apart, the last two only 15 px apart (a real kit photo). The finder missed the one at 120.
+    const rings = [0, 30, 60, 90, 135].map((x) => box(x, 0, 3))
+    expect(ringAt(rings, 120, 0, 40)).toBe(-1)
+    expect(tapRings(rings, 120, 0, 40)).toHaveLength(6)
+  })
   it('counts a tap inside a big ring as on it, whatever the reach', () => {
     expect(ringAt([box(100, 100, 40)], 135, 100, 5)).toBe(0)
   })
-  it('adds a ring sized like the median ring on empty paper, in reading order', () => {
-    const rings = [box(50, 100, 8), box(250, 100, 10), box(350, 100, 30)]
+  it("adds a ring on empty paper inside the liquid: the median ring's narrow side, in reading order", () => {
+    const tall = (cx: number, w: number, h: number): Region => ({ x0: cx - w, y0: 100 - h, x1: cx + w, y1: 100 + h, cx, cy: 100 })
+    const rings = [tall(50, 8, 20), tall(250, 10, 30), tall(350, 30, 40)]
     const out = tapRings(rings, 150, 100, 20)
     expect(out.map((r) => r.cx)).toEqual([50, 150, 250, 350])
     expect(out[1]).toEqual(discRegion(150, 100, 10))
@@ -95,6 +102,26 @@ describe('the photo path on a synthetic run', () => {
     expect(rings).toHaveLength(10)
     expect(status).toBe('ok')
     expect(calls.slice(0, 2)).toEqual(['pos', 'neg'])
+  })
+  it('reads a ring the grower removed and added back on the liquid the same as the ring the finder drew', () => {
+    for (const seed of [4, 7]) {
+      const run = makeRun(seed)
+      const photo = render(run, 1)
+      const rings = findRings(photo)
+      const centre = (i: number) => [liquidCentre(run, i).x, liquidCentre(run, i).y] as [number, number]
+      const calls = (rs: typeof rings) => {
+        const tube = (i: number) => ringAt(rs, ...centre(i), 20)
+        const r = readTubes(photo, rs, rolesFrom(10, tube(0), tube(1)))
+        return run.tubes.map((_, i) => r.tubes[tube(i)].call)
+      }
+      const found = calls(rings)
+      for (let i = 2; i < 10; i++) {
+        const ring = rings[ringAt(rings, ...centre(i), 20)]
+        const readded = tapRings(tapRings(rings, ring.cx, ring.cy, 20), ...centre(i), 20)
+        expect(readded.find((r) => r.r !== undefined)).toBeDefined()
+        expect([seed, i, calls(readded)[i]]).toEqual([seed, i, found[i]])
+      }
+    }
   })
   it('gives every tube the same call on a photo turned 180 degrees once the controls are tapped', () => {
     const upright = read(img, false)
