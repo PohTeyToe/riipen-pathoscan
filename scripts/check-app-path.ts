@@ -1,13 +1,16 @@
 // Runs real photos through the field app's own Photo-screen code, in Chromium: the camera file is re-encoded
 // to the saved JPEG, the saved JPEG is decoded and ringed, hand-placed points stand in for the grower's taps
-// (removing rings on no tube, adding rings on missed tubes, then the two controls), and the run is read.
-// Each sample is also read from a ring removed and added back by a tap, as a missed tube would be.
-// Each photo is also turned 180 degrees at full size, as if taken from the other side, and run again.
+// (removing rings on no tube, adding rings on missed tubes, then every tube in label order), and the run is
+// read. Each sample is also read from a ring removed and added back by a tap, as a missed tube would be.
+// Each photo is also turned 180 degrees at full size, pixel for pixel with no re-encode, as if taken from
+// the other side, and run again with the same taps at the turned points. Per label the calls should match:
+// a borderline tube may go to held, but no tube may go from positive to negative or back.
 //   npx tsx scripts/check-app-path.ts <manifest.json> [overlay-dir] > <out.json>
 // The manifest is a list of photos:
-//   [{ "id": "kit17", "photo": "path/to/camera.jpg", "pc": "+", "nc": "-",
+//   [{ "id": "kit17", "photo": "path/to/camera.jpg", "order": ["+", "-", "1", ..., "8"],
 //      "tubes": { "+": [x, y], "-": [x, y], "1": [x, y], ... } }]   // a point on each tube's liquid
-// Points are in the app's image frame: the photo upright as the browser shows it, longest side 1400.
+// `order` names the tubes in the order of the app's labels: +, −, then 1 to 8. Points are in the app's image
+// frame: the photo upright as the browser shows it, longest side 1400.
 // The JSON goes to standard output. Real photos are a lab's data: keep the manifest, overlays and output
 // outside this repo.
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -18,8 +21,7 @@ import { createServer } from 'vite'
 interface Entry {
   id: string
   photo: string
-  pc: string
-  nc: string
+  order: string[]
   tubes: Record<string, [number, number]>
 }
 
@@ -48,17 +50,19 @@ try {
         const reader: typeof import('../src/app/reader') = await load('/src/app/reader.ts')
         const { encodePhoto }: typeof import('../src/app/camera') = await load('/src/app/camera.ts')
         const { loadImage }: typeof import('../src/lib/photo') = await load('/src/lib/photo.ts')
-        const names = Object.keys(e.tubes)
+        const names = e.order
         const camera = await (await fetch(`/__check/photo/${k}`)).blob()
 
-        // The same scene from the other side: the camera's file turned 180 degrees at full size.
+        // The same scene from the other side: the camera's pixels at full size in reverse order, which is a
+        // half turn, kept as a PNG so nothing is lost before the app's own encode.
         const bitmap = await createImageBitmap(camera)
         const c = new OffscreenCanvas(bitmap.width, bitmap.height)
         const ctx = c.getContext('2d')!
-        ctx.translate(bitmap.width, bitmap.height)
-        ctx.rotate(Math.PI)
         ctx.drawImage(bitmap, 0, 0)
-        const turned = await c.convertToBlob({ type: 'image/jpeg', quality: 0.95 })
+        const px = ctx.getImageData(0, 0, c.width, c.height)
+        new Uint32Array(px.data.buffer).reverse()
+        ctx.putImageData(px, 0, 0)
+        const turned = await c.convertToBlob({ type: 'image/png' })
 
         const run = async (file: Blob, flip: boolean) => {
           const img = await loadImage(await encodePhoto(file)) // the saved file, as the Photo screen reads it
@@ -88,19 +92,20 @@ try {
               rings = reader.tapRings(rings, ...pt(n), reach)
               added++
             }
+          // Every tube tapped in label order, as the grower labels them; the read takes the rings in that order.
+          const label = (rs: typeof rings) => {
+            const order = names.reduce<number[]>((o, n) => reader.tapInOrder(o, reader.ringAt(rs, ...pt(n), reach)), [])
+            return rs.length === names.length && order.length === names.length && !order.includes(-1)
+              ? reader.readTubes(img, order.map((i) => rs[i]), reader.ROLES)
+              : null
+          }
           const h = hits()
-          if (rings.length !== names.length || new Set(h).size !== names.length || h.includes(-1)) return { error: 'taps did not give one ring per tube', found, removed, added }
-          if (!reader.lineOrder(rings)) return { error: 'Lay all 10 tubes in one line.', found, removed, added }
-          if (!reader.pcAtEnd(rings, h[names.indexOf(e.pc)])) return { error: 'Put the positive control at one end of the row.', found, removed, added }
-          const roles = reader.rolesFrom(rings.length, h[names.indexOf(e.pc)], h[names.indexOf(e.nc)])
-          const read = reader.readTubes(img, rings, roles)
-          const label = reader.tubeNames(rings, roles)
+          const read = label(rings)
+          if (!read) return { error: 'taps did not give one ring per tube', found, removed, added }
           // Each sample's ring removed and added back by a tap on its point: the call a placed ring gives.
-          const readded = (n: string) => {
-            const ring = rings[h[names.indexOf(n)]]
-            const rs = reader.tapRings(reader.tapRings(rings, ring.cx, ring.cy, reach), ...pt(n), reach)
-            const at = (m: string) => reader.ringAt(rs, ...pt(m), reach)
-            return reader.readTubes(img, rs, reader.rolesFrom(rs.length, at(e.pc), at(e.nc))).tubes[at(n)].call
+          const readded = (j: number) => {
+            const ring = rings[h[j]]
+            return label(reader.tapRings(reader.tapRings(rings, ring.cx, ring.cy, reach), ...pt(names[j]), reach))?.tubes[j].call
           }
           let overlay: string | undefined
           if (draw) {
@@ -109,11 +114,12 @@ try {
             o.putImageData(new ImageData(new Uint8ClampedArray(img.data), img.width, img.height), 0, 0)
             o.lineWidth = 3
             o.font = `bold ${Math.round(img.width / 40)}px sans-serif`
-            rings.forEach((r, i) => {
-              o.strokeStyle = read.tubes[i].call === 'held' ? '#c00' : '#00f'
+            h.forEach((i, j) => {
+              const r = rings[i]
+              o.strokeStyle = read.tubes[j].call === 'held' ? '#c00' : '#00f'
               o.strokeRect(r.x0, r.y0, r.x1 - r.x0, r.y1 - r.y0)
               o.fillStyle = o.strokeStyle
-              o.fillText(`${label[i]}${{ pos: '+', neg: '-', held: '?' }[read.tubes[i].call]}`, r.x0, r.y0 - 6)
+              o.fillText(`${reader.LABELS[j]}${{ pos: '+', neg: '-', held: '?' }[read.tubes[j].call]}`, r.x0, r.y0 - 6)
             })
             const b = await oc.convertToBlob({ type: 'image/jpeg', quality: 0.85 })
             overlay = btoa(Array.from(new Uint8Array(await b.arrayBuffer()), (x) => String.fromCharCode(x)).join(''))
@@ -125,17 +131,16 @@ try {
             added,
             status: read.status,
             flags: read.flags,
-            held: names.filter((_, j) => roles[h[j]] === 'sample' && read.tubes[h[j]].call === 'held').length,
-            tubes: names.map((n, j) => ({
-              name: n,
+            held: read.tubes.filter((t, j) => reader.ROLES[j] === 'sample' && t.call === 'held').length,
+            tubes: read.tubes.map((t, j) => ({
+              label: reader.LABELS[j],
               ring: h[j] + 1,
-              appLabel: label[h[j]],
               placed: rings[h[j]].r !== undefined,
-              call: read.tubes[h[j]].call,
-              s: read.tubes[h[j]].s,
-              p: read.tubes[h[j]].p,
-              reason: read.tubes[h[j]].reason,
-              readded: roles[h[j]] === 'sample' ? readded(n) : undefined,
+              call: t.call,
+              s: t.s,
+              p: t.p,
+              reason: t.reason,
+              readded: reader.ROLES[j] === 'sample' ? readded(j) : undefined,
             })),
             overlay,
           }
@@ -149,10 +154,14 @@ try {
       if (overlayDir && o.overlay) writeFileSync(join(overlayDir, `${e.id}-${side}.jpg`), Buffer.from(o.overlay, 'base64'))
       delete o.overlay
     }
-    const calls = (s: 'upright' | 'turned') => ('tubes' in out[s] ? out[s].tubes!.map((t) => t.call) : null)
-    const same = JSON.stringify(calls('upright')) === JSON.stringify(calls('turned'))
-    photos.push({ id: e.id, photo: e.photo, sameCallsTurned: calls('upright') !== null && same, ...out })
-    console.error(`${e.id}: ${'error' in out.upright ? out.upright.error : `${out.upright.held} held`}, turned ${same ? 'same' : 'DIFFERENT'}`)
+    // Per label, the upright call then the turned one. Held on one side only is a borderline tube; positive on
+    // one side and negative on the other is a wrong read.
+    const [up, turned] = [out.upright, out.turned].map((o) => ('tubes' in o ? o.tubes! : null))
+    const calls = up && turned ? Object.fromEntries(up.map((t, j) => [t.label, `${t.call} ${turned[j].call}`])) : null
+    const posNeg = calls && Object.keys(calls).filter((l) => ['pos neg', 'neg pos'].includes(calls[l]))
+    photos.push({ id: e.id, photo: e.photo, calls, posNeg, ...out })
+    const same = calls && Object.values(calls).every((c) => c.split(' ')[0] === c.split(' ')[1])
+    console.error(`${e.id}: ${'error' in out.upright ? out.upright.error : `${out.upright.held} held`}, turned ${!calls ? 'not read' : posNeg!.length ? `POS-NEG CHANGE ${posNeg}` : same ? 'same' : 'same but for held'}`)
   }
   process.stdout.write(JSON.stringify({ photos }, null, 1) + '\n')
 } finally {
