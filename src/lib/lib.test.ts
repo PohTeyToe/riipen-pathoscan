@@ -69,6 +69,20 @@ describe('calibrated reader', () => {
     expect(r.tubes[2].call).toBe('pos')
     expect(r.flags.some((f) => f.startsWith('B: '))).toBe(true)
   })
+  it('marks a run failed exactly where it refuses to read it, so callers need not match flag text', () => {
+    const status = (hues: number[], rl: Role[]) => readCalibrated(hues.map((h) => tube(h)), rl, model, band).status
+    expect(status([30, 20, 90], roles(1))).toBe('failed') // controls too close
+    expect(status([10, 90, 50], roles(1))).toBe('failed') // positive control pinker
+    expect(status([90, 10, 90, 50], ['pc', 'nc', 'nc', 'sample'])).toBe('failed') // negative controls disagree
+    expect(status([90, 80], ['sample', 'sample'])).toBe('failed') // no controls
+    expect(status([90, 10, 95, 12, 50], roles(3))).toBe('ok')
+    expect(status([60, 10, 85, 88], roles(2))).toBe('ok') // flagged (weak control) but still read
+    const feats = [tube(90), tube(10), tube(85), tube(30), tube(20), tube(58)]
+    const group = (g: string[]) => readByGroup(g, (idx) => readCalibrated(idx.map((i) => feats[i]), idx.map((i) => roles(1)[i % 3]), model, band)).status
+    expect(group(['A', 'A', 'A', 'B', 'B', 'B'])).toBe('failed') // group B's controls are too close
+    expect(readMidpoint([tube(0, 30), tube(0, 10)], ['sample', 'sample']).status).toBe('failed')
+    expect(readNaive([tube(0, 30)], 23.5).status).toBe('ok')
+  })
 })
 
 describe('naive and midpoint rules', () => {

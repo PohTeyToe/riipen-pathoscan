@@ -19,6 +19,8 @@ export interface TubeRead {
 }
 
 export interface RunRead {
+  /** 'failed' when the reader refused the run: every sample is held and no call can be trusted. */
+  status: 'ok' | 'failed'
   tubes: TubeRead[]
   /** Run-level checks that failed or need a look. */
   flags: string[]
@@ -57,6 +59,7 @@ export const pAt = (model: Model, s: number) => sigmoid(model.w0 + model.w1 * s)
 
 export function readNaive(feats: (Features | null)[], cut: number): RunRead {
   return {
+    status: 'ok',
     flags: [],
     tubes: feats.map((f) =>
       !f
@@ -73,6 +76,7 @@ export function readMidpoint(feats: (Features | null)[], roles: Role[]): RunRead
   const hue = (role: Role) => mean(feats.filter((f, i) => f && roles[i] === role).map((f) => f!.rawHue))
   const mid = (hue('pc') + hue('nc')) / 2
   return {
+    status: Number.isNaN(mid) ? 'failed' : 'ok',
     flags: [],
     tubes: feats.map((f) =>
       !f || Number.isNaN(mid)
@@ -94,7 +98,7 @@ export function readCalibrated(feats: (Features | null)[], roles: Role[], model:
   if (pcs.length === 0 || ncs.length === 0) {
     const missing = pcs.length === 0 && ncs.length === 0 ? 'either control' : pcs.length === 0 ? 'a positive control' : 'a negative control'
     flags.push(`Can't find ${missing}, so there's no scale to read against.`)
-    return { flags, tubes: feats.map(() => held(flags[0])) }
+    return { status: 'failed', flags, tubes: feats.map(() => held(flags[0])) }
   }
   // Several positive controls: read against the one that turned furthest, and say if another didn't. A
   // positive control that fails to turn is a known failure mode. A negative control that turned is
@@ -108,7 +112,7 @@ export function readCalibrated(feats: (Features | null)[], roles: Role[], model:
   const scale = { nc: hNc, pc: hPc }
   const notRead = (flag: string): RunRead => {
     flags.push(flag)
-    return { flags, scale, tubes: feats.map((_, i) => (roles[i] === 'sample' ? held(flag) : controlRead(roles[i]))) }
+    return { status: 'failed', flags, scale, tubes: feats.map((_, i) => (roles[i] === 'sample' ? held(flag) : controlRead(roles[i]))) }
   }
   const ncSpread = Math.max(...ncHues) - Math.min(...ncHues)
   if (ncs.length > 1 && ncSpread >= (hPc - Math.min(...ncHues)) / 2)
@@ -138,7 +142,7 @@ export function readCalibrated(feats: (Features | null)[], roles: Role[], model:
   })
   const past = tubes.filter((t, i) => roles[i] === 'sample' && (t.s ?? 0) > QC.weakControlS).length
   if (past > 0) flags.push(`The positive control is weaker than ${past} sample${past > 1 ? 's' : ''}. Check it before trusting the run.`)
-  return { tubes, flags, scale }
+  return { status: 'ok', tubes, flags, scale }
 }
 
 const controlRead = (role: Role): TubeRead =>
@@ -148,7 +152,8 @@ const pct = (p: number) => `${Math.round(p * 100)}%`
 
 /**
  * Run a control-based reader separately on each group of tubes (a plate can hold two assays, each with its
- * own controls), then put the reads back in the original order. Group names prefix the run flags.
+ * own controls), then put the reads back in the original order. Group names prefix the run flags. The plate
+ * counts as failed if any group failed.
  */
 export function readByGroup(
   groups: string[],
@@ -158,12 +163,14 @@ export function readByGroup(
   const tubes: TubeRead[] = new Array(groups.length)
   const flags: string[] = []
   let scale: RunRead['scale']
+  let status: RunRead['status'] = 'ok'
   for (const g of names) {
     const idx = groups.flatMap((x, i) => (x === g ? [i] : []))
     const r = read(idx)
     idx.forEach((i, k) => (tubes[i] = r.tubes[k]))
     flags.push(...r.flags.map((f) => (names.length > 1 && g ? `${g}: ${f}` : f)))
     scale ??= r.scale
+    if (r.status === 'failed') status = 'failed'
   }
-  return { tubes, flags, scale }
+  return { status, tubes, flags, scale }
 }
