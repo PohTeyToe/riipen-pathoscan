@@ -22,7 +22,11 @@ async function load() {
 
 const flush = () => new Promise((r) => setTimeout(r, 0))
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.clearAllTimers() // the 3 s reload fallback must not fire after its test's stubs are gone
+  vi.useRealTimers()
+  vi.unstubAllGlobals()
+})
 
 describe('the update bar', () => {
   it('keeps a newer offer when an older version check answers late', async () => {
@@ -124,10 +128,11 @@ describe('the update bar', () => {
   })
 
   it('switches a waiting build only on the tap, then reloads when it takes over', async () => {
+    vi.useFakeTimers()
     const b = browser({ controlled: true, waiting: true, serving: __APP_BUILD__ })
     const { watchForUpdates, offered } = await load()
     watchForUpdates(b.reg)
-    await flush()
+    await vi.advanceTimersByTimeAsync(0)
     expect(b.waiting!.postMessage).not.toHaveBeenCalled()
     ;(await offered())!()
     expect(b.waiting!.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING' })
