@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useInstall } from './install'
 import { OUTCOME_LABEL, type Run } from './run'
 import { listRuns } from './store'
+import { useOnVisible } from './visible'
 
 const when = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 
@@ -9,9 +10,9 @@ export function Runs() {
   const [runs, setRuns] = useState<Run[] | null>(null)
   const [failed, setFailed] = useState(false)
   const install = useInstall()
-  useEffect(() => {
-    listRuns().then(setRuns, () => setFailed(true))
-  }, [])
+  const load = useCallback(() => void listRuns().then(setRuns, () => setFailed(true)), [])
+  useEffect(load, [load])
+  useOnVisible(load)
 
   return (
     <div className="screen">

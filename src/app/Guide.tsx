@@ -1,22 +1,23 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { assays } from './assays'
 import type { Step } from './assays/assay'
-import { currentStep, withStep, type Run } from './run'
-import { getRun, saveRun } from './store'
+import { currentStep, type Run } from './run'
+import { getRun, setStepDone, startTimer } from './store'
 import { clock, remainingMs, sessionClock, type SessionClock } from './timer'
+import { useOnVisible } from './visible'
 
 export function Guide({ id }: { id: string }) {
   const [run, setRun] = useState<Run | null>()
   const [failed, setFailed] = useState(false)
   const [time] = useState(sessionClock)
-  useEffect(() => {
-    getRun(id).then((r) => setRun(r ?? null), () => setFailed(true))
-  }, [id])
-  useEffect(() => {
-    const onShow = () => document.visibilityState === 'visible' && time.resync()
-    document.addEventListener('visibilitychange', onShow)
-    return () => document.removeEventListener('visibilitychange', onShow)
-  }, [time])
+  const load = useCallback(() => void getRun(id).then((r) => setRun(r ?? null), () => setFailed(true)), [id])
+  useEffect(load, [load])
+  useOnVisible(
+    useCallback(() => {
+      time.resync()
+      load()
+    }, [time, load]),
+  )
 
   const assay = run && assays[run.assay]
   if (!run || !assay) {
@@ -29,10 +30,11 @@ export function Guide({ id }: { id: string }) {
     )
   }
 
-  const update = async (next: Run) => {
+  // Each tap writes only its own change, then shows the run as stored, which may include another tab's progress.
+  const act = async (write: () => Promise<void>) => {
     try {
-      await saveRun(next)
-      setRun(next)
+      await write()
+      setRun((await getRun(id)) ?? null)
       setFailed(false)
     } catch {
       setFailed(true)
@@ -41,7 +43,7 @@ export function Guide({ id }: { id: string }) {
   const i = currentStep(run)
   const prev = (i === -1 ? run.steps.length : i) - 1
   const back = prev >= 0 && (
-    <Action ghost onClick={() => update(withStep(run, prev, { done: false }))}>
+    <Action ghost onClick={() => act(() => setStepDone(id, prev, false))}>
       Back
     </Action>
   )
@@ -74,8 +76,8 @@ export function Guide({ id }: { id: string }) {
         step={assay.steps[i]}
         startedAt={run.steps[i].timerStartedAt}
         time={time}
-        onStart={() => update(withStep(run, i, { timerStartedAt: time.now() }))}
-        onDone={() => update(withStep(run, i, { done: true }))}
+        onStart={() => act(() => startTimer(id, i, time.now()))}
+        onDone={() => act(() => setStepDone(id, i, true))}
         back={back}
         error={error}
       />

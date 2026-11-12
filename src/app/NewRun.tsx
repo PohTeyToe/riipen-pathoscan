@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { sclerotinia } from './assays/sclerotinia'
 import { newRun, type Run } from './run'
-import { askPersist, saveRun } from './store'
+import { addRun, askPersist } from './store'
 
 const canLocate = 'geolocation' in navigator
 
@@ -31,7 +31,7 @@ export function NewRun() {
     setSaving(true)
     const run = newRun(sclerotinia, { field, notes, gps })
     try {
-      await saveRun(run)
+      await addRun(run)
       void askPersist().catch(() => {})
       location.replace(`#/run/${encodeURIComponent(run.id)}`)
     } catch {
