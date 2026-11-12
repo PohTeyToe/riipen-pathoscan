@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clock, remainingMs } from './timer'
+import { clock, remainingMs, sessionClock } from './timer'
 
 const MIN = 60_000
 
@@ -30,5 +30,31 @@ describe('step timer', () => {
     expect(clock(61_000)).toBe('1:01')
     expect(clock(1)).toBe('0:01')
     expect(clock(0)).toBe('0:00')
+  })
+})
+
+describe('the guide clock', () => {
+  const fake = () => {
+    const t = { wall: 1_700_000_000_000, mono: 500 }
+    return { t, c: sessionClock(() => t.wall, () => t.mono) }
+  }
+
+  it('ignores a change to the phone clock while the guide is open', () => {
+    const { t, c } = fake()
+    const start = c.now()
+    t.mono += 60_000
+    t.wall += 60 * MIN // the clock is moved an hour forward
+    expect(remainingMs(start, 20, c.now())).toBe(19 * MIN)
+    t.wall -= 3 * 60 * MIN // and then back
+    expect(remainingMs(start, 20, c.now())).toBe(19 * MIN)
+  })
+
+  it('takes the wall clock again on resync, for time the phone slept through', () => {
+    const { t, c } = fake()
+    const start = c.now()
+    t.wall += 10 * MIN // asleep: the wall clock moved, the monotonic clock didn't
+    expect(remainingMs(start, 20, c.now())).toBe(20 * MIN)
+    c.resync()
+    expect(remainingMs(start, 20, c.now())).toBe(10 * MIN)
   })
 })

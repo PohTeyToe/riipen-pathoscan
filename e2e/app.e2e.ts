@@ -45,6 +45,13 @@ test('the field app installs its service worker, works offline and keeps a timer
   await page.getByRole('button', { name: 'Start timer' }).click()
   await expect(page.getByRole('button', { name: 'Done' })).toBeVisible()
 
+  // Moving the phone's clock an hour forward while the guide is open doesn't end the timer.
+  await page.clock.setSystemTime(Date.now() + 60 * 60_000)
+  await page.waitForTimeout(1500)
+  await expect(page.getByRole('timer')).not.toHaveText("Time's up")
+  expect(await secondsLeft(page)).toBeGreaterThan(19 * 60)
+  await page.clock.setSystemTime(Date.now())
+
   // Five minutes later the tab is reloaded, still offline: the time left comes from the stored start.
   await page.clock.fastForward('05:00')
   await page.reload()

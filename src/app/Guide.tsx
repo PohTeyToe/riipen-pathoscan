@@ -3,14 +3,20 @@ import { assays } from './assays'
 import type { Step } from './assays/assay'
 import { currentStep, withStep, type Run } from './run'
 import { getRun, saveRun } from './store'
-import { clock, remainingMs } from './timer'
+import { clock, remainingMs, sessionClock, type SessionClock } from './timer'
 
 export function Guide({ id }: { id: string }) {
   const [run, setRun] = useState<Run | null>()
   const [failed, setFailed] = useState(false)
+  const [time] = useState(sessionClock)
   useEffect(() => {
     getRun(id).then((r) => setRun(r ?? null), () => setFailed(true))
   }, [id])
+  useEffect(() => {
+    const onShow = () => document.visibilityState === 'visible' && time.resync()
+    document.addEventListener('visibilitychange', onShow)
+    return () => document.removeEventListener('visibilitychange', onShow)
+  }, [time])
 
   const assay = run && assays[run.assay]
   if (!run || !assay) {
@@ -67,7 +73,8 @@ export function Guide({ id }: { id: string }) {
         key={i}
         step={assay.steps[i]}
         startedAt={run.steps[i].timerStartedAt}
-        onStart={() => update(withStep(run, i, { timerStartedAt: Date.now() }))}
+        time={time}
+        onStart={() => update(withStep(run, i, { timerStartedAt: time.now() }))}
         onDone={() => update(withStep(run, i, { done: true }))}
         back={back}
         error={error}
@@ -95,6 +102,7 @@ function Bar({ field, step }: { field?: string; step?: string }) {
 interface StepProps {
   step: Step
   startedAt?: number
+  time: SessionClock
   onStart: () => void
   onDone: () => void
   back: ReactNode
@@ -102,8 +110,8 @@ interface StepProps {
 }
 
 /** One step. A timed step starts with Start timer; after that, and on every other step, the one action is Done. */
-function StepView({ step, startedAt, onStart, onDone, back, error }: StepProps) {
-  const now = useNow(step.timerMin !== undefined && startedAt !== undefined)
+function StepView({ step, startedAt, time, onStart, onDone, back, error }: StepProps) {
+  const now = useNow(time, step.timerMin !== undefined && startedAt !== undefined)
   const left = step.timerMin === undefined ? 0 : startedAt === undefined ? step.timerMin * 60_000 : remainingMs(startedAt, step.timerMin, now)
 
   return (
@@ -151,14 +159,14 @@ function Action({ onClick, ghost, children }: { onClick: () => void; ghost?: boo
   )
 }
 
-/** Date.now(), refreshed every second while `ticking`. */
-function useNow(ticking: boolean) {
-  const [now, setNow] = useState(Date.now)
+/** The session clock's time, refreshed every second while `ticking`. */
+function useNow(time: SessionClock, ticking: boolean) {
+  const [now, setNow] = useState(time.now)
   useEffect(() => {
     if (!ticking) return
-    setNow(Date.now())
-    const t = setInterval(() => setNow(Date.now()), 1000)
+    setNow(time.now())
+    const t = setInterval(() => setNow(time.now()), 1000)
     return () => clearInterval(t)
-  }, [ticking])
+  }, [time, ticking])
   return now
 }
