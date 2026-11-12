@@ -19,6 +19,8 @@ function buildId(): string {
   }
 }
 
+const BUILD = buildId()
+
 /** Every built file app.html loads: its chunks, their CSS and the fonts that CSS uses. */
 const appFiles = new Set<string>()
 const appGraph: Plugin = {
@@ -37,11 +39,13 @@ const appGraph: Plugin = {
     const entry = Object.values(bundle).find((c) => c.type === 'chunk' && c.isEntry && c.name === 'app')
     if (!entry) this.error('app-graph: no "app" entry chunk')
     visit(entry.fileName)
+    // The build this service worker serves, so an open page can tell it's now older (src/app/update.ts).
+    this.emitFile({ type: 'asset', fileName: 'app-version.json', source: JSON.stringify({ build: BUILD }) })
   },
 }
 
 export default defineConfig({
-  define: { __APP_BUILD__: JSON.stringify(buildId()) },
+  define: { __APP_BUILD__: JSON.stringify(BUILD) },
   plugins: [
     react(),
     appGraph,
@@ -49,7 +53,7 @@ export default defineConfig({
       injectRegister: null,
       manifest: false,
       workbox: {
-        globPatterns: ['app.html', 'app.webmanifest', 'app-icon-*.png', 'assets/*.{js,css,woff2}'],
+        globPatterns: ['app.html', 'app.webmanifest', 'app-version.json', 'app-icon-*.png', 'assets/*.{js,css,woff2}'],
         // Precache only what app.html loads, so the demo's chunks and fonts stay out.
         manifestTransforms: [async (entries) => ({ manifest: entries.filter((e) => !e.url.startsWith('assets/') || appFiles.has(e.url)), warnings: [] })],
         navigateFallback: '/app.html',
