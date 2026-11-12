@@ -4,7 +4,7 @@ import { loadImage } from '../lib/photo'
 import type { Img } from '../lib/synth'
 import type { Assay } from './assays/assay'
 import { encodePhoto } from './camera'
-import { addRing, findRings, lineOrder, pcAtEnd, readTubes, removeRing, ringAt, rolesFrom } from './reader'
+import { addRing, findRings, LABELS, readTubes, removeRing, ringAt, ROLES, tapInOrder } from './reader'
 import type { Run } from './run'
 import { Shot } from './Shot'
 import { getPhoto, saveRead, takePhoto } from './store'
@@ -19,17 +19,18 @@ interface Props {
 }
 
 /**
- * Take the photo, fix the rings, tap the two controls. The last tap reads the run and saves it. Guide gives
- * each stored photo its own instance of this screen, so the rings on show are always the stored photo's.
+ * Take the photo, fix the rings, then label them by tapping the tubes in the order of the labels on the paper.
+ * Roles come only from that order, never from where a tube sits. Continue reads the run and saves it. Guide
+ * gives each stored photo its own instance of this screen, so the rings on show are always the stored photo's.
  */
 export function Photo({ run, assay, act, back, error }: Props) {
   const [shot, setShot] = useState<{ url: string; img: Img }>()
   const [rings, setRings] = useState<Region[]>([])
-  const [stage, setStage] = useState<'rings' | 'pc' | 'nc'>('rings')
-  const [pc, setPc] = useState(-1)
+  const [stage, setStage] = useState<'rings' | 'label'>('rings')
+  /** Ring indices in label order: order[0] is +, order[1] is −, then samples 1 to 8. */
+  const [order, setOrder] = useState<number[]>([])
   const [busy, setBusy] = useState(false)
   const [bad, setBad] = useState(false)
-  const [notEnd, setNotEnd] = useState(false)
 
   // Always from the saved file, so a reload or a reread sees the same pixels.
   useEffect(() => {
@@ -65,19 +66,13 @@ export function Photo({ run, assay, act, back, error }: Props) {
     setBusy(false)
   }
 
-  /** A ring chosen by a tap or a key: removed while fixing rings, else taken as a control. */
-  const pick = (i: number) => {
-    if (stage === 'rings') return setRings(removeRing(rings, i))
-    if (stage === 'pc') {
-      setNotEnd(!pcAtEnd(rings, i))
-      if (!pcAtEnd(rings, i)) return
-      setPc(i)
-      setStage('nc')
-    } else if (i !== pc) {
-      const roles = rolesFrom(rings.length, pc, i)
-      // Refused if the run was read or retaken in another tab meanwhile; the refresh shows what's stored.
-      void act(async () => void (await saveRead(run.id, run.photoKey!, rings, roles, readTubes(shot!.img, rings, roles), assay.treatAt)))
-    }
+  /** A ring chosen by a tap or a key: removed while fixing rings, else labelled or unlabelled. */
+  const pick = (i: number) => (stage === 'rings' ? setRings(removeRing(rings, i)) : setOrder(tapInOrder(order, i)))
+  // Stored in label order, so each tube's role and name is its position.
+  const save = () => {
+    const tubes = order.map((i) => rings[i])
+    // Refused if the run was read or retaken in another tab meanwhile; the refresh shows what's stored.
+    void act(async () => void (await saveRead(run.id, run.photoKey!, tubes, ROLES, readTubes(shot!.img, tubes, ROLES), assay.treatAt)))
   }
   const tap = (x: number, y: number, reach: number) => {
     const i = ringAt(rings, x, y, reach)
@@ -121,40 +116,49 @@ export function Photo({ run, assay, act, back, error }: Props) {
     )
 
   const n = rings.length
-  // Numbering runs along one line of tubes, so ten rings in any other shape can't go on to the controls.
-  const ready = n === assay.tubes && lineOrder(rings) !== null
-  const picked = (i: number) => i === pc && stage === 'nc'
-  const labels = rings.map((region, i) => ({
-    region,
-    label: picked(i) ? '+' : String(i + 1),
-    tone: picked(i) ? ('picked' as const) : undefined,
-    action: stage === 'rings' ? `Ring ${i + 1}, tap to remove` : picked(i) ? 'Positive control' : `Tube ${i + 1}`,
-  }))
+  const next = LABELS[order.length]
+  const labels = rings.map((region, i) => {
+    const label = stage === 'label' ? (LABELS[order.indexOf(i)] ?? '') : ''
+    return {
+      region,
+      label,
+      tone: label ? ('picked' as const) : undefined,
+      action:
+        stage === 'rings'
+          ? `Ring ${i + 1}, tap to remove`
+          : label
+            ? `Ring ${i + 1}, labelled ${label}: tap to undo`
+            : next
+              ? `Ring ${i + 1}: tap to label ${next}`
+              : `Ring ${i + 1}`,
+    }
+  })
   return (
     <div className="screen">
       <Bar field={run.field} step="Photo" />
       <main className="body">
-        <h1>{stage === 'rings' ? (n === assay.tubes ? `${n} tubes` : `${n} of ${assay.tubes} tubes`) : stage === 'pc' ? 'Tap the positive control' : 'Tap the negative control'}</h1>
-        {stage === 'rings' && <p className="note">Tap a tube to ring it. Tap a ring to remove it.</p>}
+        <h1>{stage === 'label' ? `${order.length} of ${n} labelled` : n === assay.tubes ? `${n} tubes` : `${n} of ${assay.tubes} tubes`}</h1>
+        <p className="note">{stage === 'rings' ? 'Tap a tube to ring it. Tap a ring to remove it.' : 'Tap the tubes in order: +, −, then 1 to 8.'}</p>
         <Shot src={shot.url} rings={labels} onTap={tap} onRing={pick} hint={stage === 'rings' ? 'Adding a ring needs a tap on the photo.' : undefined} />
-        {stage === 'rings' && n === assay.tubes && !ready && <p className="alert">Lay all 10 tubes in one line.</p>}
-        {stage === 'pc' && notEnd && <p className="alert">Put the positive control at one end of the row.</p>}
         {status}
         {error}
       </main>
       <footer className="actions">
         {stage === 'rings' ? (
-          <>
-            {camera('Retake', true)}
-            <button type="button" className="btn" disabled={!ready} onClick={() => setStage('pc')}>
-              Continue
-            </button>
-          </>
+          camera('Retake', true)
         ) : (
-          <button type="button" className="btn ghost" onClick={() => (setPc(-1), setNotEnd(false), setStage(stage === 'nc' ? 'pc' : 'rings'))}>
+          <button type="button" className="btn ghost" onClick={() => (setOrder([]), setStage('rings'))}>
             Back
           </button>
         )}
+        <button
+          type="button"
+          className="btn"
+          disabled={stage === 'rings' ? n !== assay.tubes : order.length !== n}
+          onClick={stage === 'rings' ? () => setStage('label') : save}
+        >
+          Continue
+        </button>
       </footer>
     </div>
   )

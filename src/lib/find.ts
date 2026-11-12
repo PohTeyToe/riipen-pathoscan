@@ -230,8 +230,22 @@ export function findRegions(img: Img): { regions: Region[]; paper: RGB } {
  */
 export function readingOrder(regions: Region[]): Region[] {
   if (regions.length === 0) return regions
-  if (oneRow(regions)) return [...regions].sort((a, b) => a.cx - b.cx)
   const hMed = median(regions.map((r) => r.y1 - r.y0 + 1))
+  const byX = [...regions].sort((a, b) => a.cx - b.cx)
+  if (regions.length >= 3) {
+    const n = regions.length
+    const mx = regions.reduce((a, r) => a + r.cx, 0) / n
+    const my = regions.reduce((a, r) => a + r.cy, 0) / n
+    const sxx = regions.reduce((a, r) => a + (r.cx - mx) ** 2, 0)
+    const slope = sxx > 0 ? regions.reduce((a, r) => a + (r.cx - mx) * (r.cy - my), 0) / sxx : 0
+    const onLine = regions.every((r) => Math.abs(r.cy - (my + slope * (r.cx - mx))) < 0.5 * hMed)
+    // Staggered rows also zigzag left to right, but each step jumps a full row; aligned rows share columns.
+    const wMed = median(regions.map((r) => r.x1 - r.x0 + 1))
+    const chain = byX
+      .slice(1)
+      .every((r, i) => r.cx - byX[i].cx > 0.5 * wMed && Math.abs(r.cy - byX[i].cy) < 1.5 * hMed)
+    if (Math.abs(slope) < 1 && (onLine || chain)) return byX
+  }
   const byY = [...regions].sort((a, b) => a.cy - b.cy)
   const rows: Region[][] = [[byY[0]]]
   for (let i = 1; i < byY.length; i++) {
@@ -239,23 +253,6 @@ export function readingOrder(regions: Region[]): Region[] {
     else rows[rows.length - 1].push(byY[i])
   }
   return rows.flatMap((row) => row.sort((a, b) => a.cx - b.cx))
-}
-
-/** Whether three or more regions form one row across the photo, as readingOrder decides it. */
-export function oneRow(regions: Region[]): boolean {
-  if (regions.length < 3) return false
-  const hMed = median(regions.map((r) => r.y1 - r.y0 + 1))
-  const byX = [...regions].sort((a, b) => a.cx - b.cx)
-  const n = regions.length
-  const mx = regions.reduce((a, r) => a + r.cx, 0) / n
-  const my = regions.reduce((a, r) => a + r.cy, 0) / n
-  const sxx = regions.reduce((a, r) => a + (r.cx - mx) ** 2, 0)
-  const slope = sxx > 0 ? regions.reduce((a, r) => a + (r.cx - mx) * (r.cy - my), 0) / sxx : 0
-  const onLine = regions.every((r) => Math.abs(r.cy - (my + slope * (r.cx - mx))) < 0.5 * hMed)
-  // Staggered rows also zigzag left to right, but each step jumps a full row; aligned rows share columns.
-  const wMed = median(regions.map((r) => r.x1 - r.x0 + 1))
-  const chain = byX.slice(1).every((r, i) => r.cx - byX[i].cx > 0.5 * wMed && Math.abs(r.cy - byX[i].cy) < 1.5 * hMed)
-  return Math.abs(slope) < 1 && (onLine || chain)
 }
 
 export const discRegion = (cx: number, cy: number, r: number, r0?: number): Region => ({

@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import type { Assay } from './assays/assay'
-import { tubeNames } from './reader'
+import { LABELS } from './reader'
 import { tapsDecided, type Run, type Tap } from './run'
 import { Shot } from './Shot'
 import { getPhoto, setTap } from './store'
@@ -13,8 +13,7 @@ export function Result({ run, assay, act, error }: { run: Run; assay: Assay; act
   const url = usePhoto(run.photoKey)
   const read = run.read!
   const roles = run.roles!
-  const names = tubeNames(run.regions!, roles)
-  const samples = roles.flatMap((r, i) => (r === 'sample' ? [i] : [])).sort((a, b) => +names[a] - +names[b])
+  const samples = roles.flatMap((r, i) => (r === 'sample' ? [i] : []))
   const failed = run.outcome === 'failed'
   const positives = (run.readerPositives ?? 0) + (run.tappedPositives ?? 0)
   const calls = read.tubes.map((t, i) => (t.call === 'held' && run.taps[i] && !failed ? run.taps[i] : t.call))
@@ -50,12 +49,12 @@ export function Result({ run, assay, act, error }: { run: Run; assay: Assay; act
             <p className="note">{assay.advice.disclaimer}</p>
           </>
         )}
-        <Shot src={url} rings={run.regions!.map((region, i) => ({ region, label: names[i] + (roles[i] === 'sample' ? MARK[calls[i]] : ''), tone: calls[i] }))} />
+        <Shot src={url} rings={run.regions!.map((region, i) => ({ region, label: LABELS[i] + (roles[i] === 'sample' ? MARK[calls[i]] : ''), tone: calls[i] }))} />
         {failed && <p className="note">Your calls are notes. They don't count.</p>}
         <ol className="tubes">
           {samples.map((i) => (
             <li key={i}>
-              <span className="no">{names[i]}</span>
+              <span className="no">{LABELS[i]}</span>
               {read.tubes[i].call === 'held' ? (
                 <span className="pick">
                   <span>Look again: yellow or pink?</span>

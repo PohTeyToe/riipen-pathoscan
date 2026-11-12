@@ -428,9 +428,9 @@ h1 {
   border: 0;
   border-radius: 50%;
   background: transparent;
-  cursor: pointer;
-  pointer-events: auto;
-  touch-action: manipulation;
+  /* Focusable for keys and assistive tech, but a finger's tap goes to the photo, which picks by nearest
+     centre: a button box reaching over a missed neighbour would otherwise swallow the tap that adds it. */
+  pointer-events: none;
 }
 .hits button:focus-visible {
   outline: 3px solid var(--ink);

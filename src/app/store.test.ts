@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { sclerotinia } from './assays/sclerotinia'
 import { currentStep, newRun, withStep } from './run'
 import type { RunRead } from '../lib/readers'
-import { rolesFrom } from './reader'
+import { ROLES } from './reader'
 import { addRun, getPhoto, getRun, listRuns, saveRead, setStepDone, setTap, startTimer, takePhoto } from './store'
 import { remainingMs } from './timer'
 
@@ -103,7 +103,7 @@ describe('the run store', () => {
 })
 
 describe('the read and the taps', () => {
-  const roles = rolesFrom(10, 0, 1)
+  const roles = ROLES
   const read = (samples: ('pos' | 'neg' | 'held')[], status: RunRead['status'] = 'ok'): RunRead => ({
     status,
     flags: [],

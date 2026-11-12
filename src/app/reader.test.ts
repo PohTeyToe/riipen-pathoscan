@@ -3,57 +3,31 @@ import { discRegion, type Region } from '../lib/find'
 import type { RunRead, TubeRead } from '../lib/readers'
 import { liquidCentre, makeRun, render, type Img, type Role } from '../lib/synth'
 import { sclerotinia } from './assays/sclerotinia'
-import { findRings, lineOrder, pcAtEnd, radius, readTubes, ringAt, rolesFrom, tapRings, tubeNames } from './reader'
+import { findRings, LABELS, radius, readTubes, ringAt, ROLES, tapInOrder, tapRings } from './reader'
 import { newRun, tally, tapsDecided, type Run, type Tap } from './run'
 
 const box = (cx: number, cy: number, half: number): Region => ({ x0: cx - half, y0: cy - half, x1: cx + half, y1: cy + half, cx, cy })
 const row = (n: number, half = 10) => Array.from({ length: n }, (_, i) => box(50 + i * 100, 100, half))
 
-describe('control taps', () => {
-  it('make the tapped rings the controls and the other eight samples', () => {
-    const roles = rolesFrom(10, 9, 4)
-    expect(roles[9]).toBe('pc')
-    expect(roles[4]).toBe('nc')
-    expect(roles.filter((r) => r === 'sample')).toHaveLength(8)
+describe('labelling by taps in order', () => {
+  const tapAll = (taps: number[]) => taps.reduce<number[]>((order, i) => tapInOrder(order, i), [])
+  it('gives each tapped ring the next label: +, −, then samples 1 to 8', () => {
+    expect(LABELS).toEqual(['+', '−', '1', '2', '3', '4', '5', '6', '7', '8'])
+    expect(ROLES).toEqual(['pc', 'nc', 'sample', 'sample', 'sample', 'sample', 'sample', 'sample', 'sample', 'sample'])
+    // Any layout: the order of the taps is the only thing that names a tube.
+    expect(tapAll([7, 2, 9, 0, 1, 3, 4, 5, 6, 8])).toEqual([7, 2, 9, 0, 1, 3, 4, 5, 6, 8])
   })
-  it('need all ten tubes in one line: a row, a column or a gentle curve, but not two rows', () => {
-    const grid = Array.from({ length: 10 }, (_, i) => box(50 + (i % 5) * 100, 100 + Math.floor(i / 5) * 100, 10))
-    expect(lineOrder(grid)).toBeNull()
-    expect(pcAtEnd(grid, 0)).toBe(false) // top left of a 2x5 grid is no end
-    const across = row(10)
-    expect(lineOrder([...across].reverse())).toEqual([9, 8, 7, 6, 5, 4, 3, 2, 1, 0])
-    const down = across.map((r) => box(300, 40 + r.cx, 10))
-    expect(lineOrder(down)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-    // A row that sags in the middle, as on a soft tray: 0 at the ends, 25 px lower in the middle.
-    const curved = across.map((r, i) => box(r.cx, 100 + 25 * Math.sin((i / 9) * Math.PI), 10))
-    expect(lineOrder(curved)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-    expect(tubeNames(curved, rolesFrom(10, 9, 8))).toEqual(['8', '7', '6', '5', '4', '3', '2', '1', '−', '+'])
+  it('undoes a label and every label after it when its ring is tapped again', () => {
+    expect(tapAll([4, 5, 6, 7])).toEqual([4, 5, 6, 7])
+    expect(tapAll([4, 5, 6, 7, 5])).toEqual([4])
+    expect(tapAll([4, 5, 6, 7, 7])).toEqual([4, 5, 6])
+    expect(tapAll([4, 5, 4])).toEqual([])
+    expect(tapAll([4, 5, 6, 5, 6, 5])).toEqual([4, 6, 5])
   })
-  it('take the positive control only from an end of the row, across or down the photo', () => {
-    const across = row(10)
-    const down = across.map((r) => box(300, 40 + r.cx, 10))
-    for (const rings of [across, down]) {
-      expect(pcAtEnd(rings, 0)).toBe(true)
-      expect(pcAtEnd(rings, 9)).toBe(true)
-      for (let i = 1; i < 9; i++) expect(pcAtEnd(rings, i)).toBe(false)
-    }
-    // A slanted, slightly wavy row still has the same two ends.
-    const slant = across.map((r, i) => box(r.cx, 100 + i * 12 + (i % 2) * 6, 10))
-    expect([0, 1, 8, 9].map((i) => pcAtEnd(slant, i))).toEqual([true, false, false, true])
-  })
-  it("number samples along the row from the positive control's end, in either layout and either way round", () => {
-    const across = row(10)
-    const down = across.map((r) => box(300, 40 + r.cx, 10)) // a column, as in a portrait photo
-    for (const rings of [across, down]) {
-      expect(tubeNames(rings, rolesFrom(10, 0, 1))).toEqual(['+', '−', '1', '2', '3', '4', '5', '6', '7', '8'])
-      expect(tubeNames(rings, rolesFrom(10, 9, 8))).toEqual(['8', '7', '6', '5', '4', '3', '2', '1', '−', '+'])
-      expect(tubeNames(rings, rolesFrom(10, 0, 9))).toEqual(['+', '1', '2', '3', '4', '5', '6', '7', '8', '−'])
-      expect(tubeNames(rings, rolesFrom(10, 9, 0))).toEqual(['−', '8', '7', '6', '5', '4', '3', '2', '1', '+'])
-    }
-  })
-  it('refuse the same ring twice or a ring that is not there', () => {
-    expect(() => rolesFrom(10, 3, 3)).toThrow()
-    expect(() => rolesFrom(10, 0, 10)).toThrow()
+  it('stops at ten labels, but a labelled ring still undoes', () => {
+    const all = tapAll([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+    expect(tapInOrder(all, 10)).toEqual(all)
+    expect(tapInOrder(all, 9)).toHaveLength(9)
   })
 })
 
@@ -88,20 +62,13 @@ describe('fixing rings', () => {
   it('counts a tap inside a big ring as on it, whatever the reach', () => {
     expect(ringAt([box(100, 100, 40)], 135, 100, 5)).toBe(0)
   })
-  it("adds a ring on empty paper inside the liquid: the median ring's narrow side, in reading order", () => {
+  it("adds a ring on empty paper inside the liquid: the median ring's narrow side", () => {
     const tall = (cx: number, w: number, h: number): Region => ({ x0: cx - w, y0: 100 - h, x1: cx + w, y1: 100 + h, cx, cy: 100 })
     const rings = [tall(50, 8, 20), tall(250, 10, 30), tall(350, 30, 40)]
     const out = tapRings(rings, 150, 100, 20)
-    expect(out.map((r) => r.cx)).toEqual([50, 150, 250, 350])
-    expect(out[1]).toEqual(discRegion(150, 100, 10))
-    expect(radius(out[1])).toBe(10)
-  })
-  it('sorts the rings again after a removal, since stray rings can change the order', () => {
-    // A stray ring high on the photo makes the finder see two rows; without it, the tubes are one row.
-    const tubes = [box(50, 100, 10), box(150, 112, 10), box(250, 96, 10)]
-    const stray = box(400, 20, 10)
-    const found = [stray, tubes[2], tubes[0], tubes[1]]
-    expect(tapRings(found, 400, 20, 5)).toEqual(tubes)
+    expect(out.slice(0, 3)).toEqual(rings)
+    expect(out[3]).toEqual(discRegion(150, 100, 10))
+    expect(radius(out[3])).toBe(10)
   })
   it('puts an added ring back on the same spot when tapped again', () => {
     const rings = row(9)
@@ -124,16 +91,15 @@ describe('the photo path on a synthetic run', () => {
     const { x, y } = liquidCentre(spec, i)
     return flip ? [img.width - 1 - x * 0.6, img.height - 1 - y * 0.6] : [x * 0.6, y * 0.6]
   }
+  // The grower taps the tubes in label order; makeRun lays them out as +, −, then samples 1 to 8.
   const read = (photo: Img, flip: boolean) => {
     const rings = findRings(photo)
-    const tube = (i: number) => ringAt(rings, ...(at(i, flip) as [number, number]), 20)
-    const roles = rolesFrom(rings.length, tube(0), tube(1))
-    const r = readTubes(photo, rings, roles)
-    const names = tubeNames(rings, roles)
-    return { rings, calls: spec.tubes.map((_, i) => r.tubes[tube(i)].call), labels: spec.tubes.map((_, i) => names[tube(i)]), status: r.status }
+    const order = spec.tubes.reduce<number[]>((o, _, i) => tapInOrder(o, ringAt(rings, ...(at(i, flip) as [number, number]), 20)), [])
+    const r = readTubes(photo, order.map((i) => rings[i]), ROLES)
+    return { rings, order, calls: r.tubes.map((t) => t.call), status: r.status }
   }
 
-  it('finds ten rings and reads against the tapped controls', () => {
+  it('finds ten rings and reads against the controls tapped first', () => {
     const { rings, calls, status } = read(img, false)
     expect(rings).toHaveLength(10)
     expect(status).toBe('ok')
@@ -145,11 +111,7 @@ describe('the photo path on a synthetic run', () => {
       const photo = render(run, 1)
       const rings = findRings(photo)
       const centre = (i: number) => [liquidCentre(run, i).x, liquidCentre(run, i).y] as [number, number]
-      const calls = (rs: typeof rings) => {
-        const tube = (i: number) => ringAt(rs, ...centre(i), 20)
-        const r = readTubes(photo, rs, rolesFrom(10, tube(0), tube(1)))
-        return run.tubes.map((_, i) => r.tubes[tube(i)].call)
-      }
+      const calls = (rs: typeof rings) => readTubes(photo, run.tubes.map((_, i) => rs[ringAt(rs, ...centre(i), 20)]), ROLES).tubes.map((t) => t.call)
       const found = calls(rings)
       for (let i = 2; i < 10; i++) {
         const ring = rings[ringAt(rings, ...centre(i), 20)]
@@ -159,22 +121,21 @@ describe('the photo path on a synthetic run', () => {
       }
     }
   })
-  it('gives every tube the same label and call on a photo turned 180 degrees once the controls are tapped', () => {
+  it('gives every label the same call on a photo turned 180 degrees, tapped tube by tube', () => {
     const upright = read(img, false)
     const turned = read(turn(img), true)
     expect(turned.rings).toHaveLength(10)
     expect(turned.calls).toEqual(upright.calls)
-    expect(upright.labels).toEqual(['+', '−', '1', '2', '3', '4', '5', '6', '7', '8'])
-    expect(turned.labels).toEqual(upright.labels)
-    // Reading order runs the other way: the positive control is now the last ring, where sample 8 was.
-    expect(ringAt(turned.rings, ...(at(0, true) as [number, number]), 20)).toBe(9)
+    // Reading order runs the other way, so the taps land on the rings in the opposite order.
+    expect(upright.order).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+    expect(turned.order).toEqual([9, 8, 7, 6, 5, 4, 3, 2, 1, 0])
   })
 })
 
 // A run of 2 controls and 8 samples with the given sample calls.
 const runRead = (samples: TubeRead['call'][], status: RunRead['status'] = 'ok'): { read: RunRead; roles: Role[] } => ({
   read: { status, flags: [], tubes: [{ call: 'pos', reason: '' }, { call: 'neg', reason: '' }, ...samples.map((call) => ({ call, reason: '' }))] },
-  roles: rolesFrom(10, 0, 1),
+  roles: ROLES,
 })
 const taps = (t: Record<number, Tap>): Tap[] => Array.from({ length: 10 }, (_, i) => t[i] ?? null)
 

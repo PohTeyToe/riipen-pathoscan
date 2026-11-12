@@ -3,7 +3,7 @@
 
 import { params } from '../../data/eval.json'
 import { median } from '../lib/color'
-import { discRegion, findRegions, globalPaper, measure, oneRow, readingOrder, type Region } from '../lib/find'
+import { discRegion, findRegions, globalPaper, measure, type Region } from '../lib/find'
 import { readCalibrated, type Band, type Model, type RunRead } from '../lib/readers'
 import type { Img, Role } from '../lib/synth'
 
@@ -19,7 +19,7 @@ export const radius = (r: Region) => r.r ?? Math.max(r.x1 - r.x0, r.y1 - r.y0) /
 /** Half a ring's narrow side: a disc this size sits inside the liquid instead of reaching the paper. */
 const inner = (r: Region) => r.r ?? Math.min(r.x1 - r.x0, r.y1 - r.y0) / 2
 
-/** The tubes the finder sees, in reading order. */
+/** The tubes the finder sees, in reading order, so the keyboard steps through them along the rows. */
 export const findRings = (img: Img): Region[] => findRegions(img).regions
 
 /**
@@ -39,55 +39,27 @@ export function ringAt(rings: Region[], x: number, y: number, reach: number): nu
 /**
  * A tap while fixing rings. On a ring it removes it (a finger, a petal, a pen mark). On empty paper it adds a
  * ring for a tube the finder missed, as wide as the median ring's narrow side so it sits inside the liquid
- * (sized by the long side, as scripts/read-runs.ts does, it reads paper as glare). Rings stay in reading order.
+ * (sized by the long side, as scripts/read-runs.ts does, it reads paper as glare). An added ring goes last.
  */
 export function tapRings(rings: Region[], x: number, y: number, reach: number): Region[] {
   const i = ringAt(rings, x, y, reach)
   return i >= 0 ? removeRing(rings, i) : addRing(rings, x, y)
 }
 
-// Sorted again either way: the finder's order was worked out with the removed ring in it.
-export const removeRing = (rings: Region[], i: number) => readingOrder(rings.filter((_, j) => j !== i))
-export const addRing = (rings: Region[], x: number, y: number) => readingOrder([...rings, discRegion(x, y, median(rings.map(inner)) || 12)])
+export const removeRing = (rings: Region[], i: number) => rings.filter((_, j) => j !== i)
+export const addRing = (rings: Region[], x: number, y: number) => [...rings, discRegion(x, y, median(rings.map(inner)) || 12)]
 
-/** Roles come only from the grower's two taps, never from position: a photo from the other side flips the row. */
-export function rolesFrom(n: number, pc: number, nc: number): Role[] {
-  if (pc === nc || pc < 0 || nc < 0 || pc >= n || nc >= n) throw new Error(`bad control taps ${pc}, ${nc} of ${n}`)
-  return Array.from({ length: n }, (_, i) => (i === pc ? 'pc' : i === nc ? 'nc' : 'sample'))
-}
-
-const transpose = (r: Region): Region => ({ ...r, x0: r.y0, y0: r.x0, x1: r.y1, y1: r.x1, cx: r.cy, cy: r.cx })
+/** The labels on the grower's paper, in the order they tap the tubes. */
+export const LABELS = ['+', '−', '1', '2', '3', '4', '5', '6', '7', '8']
+/** Rings stored in label order have these roles: never worked out from where a tube sits in the photo. */
+export const ROLES: Role[] = LABELS.map((l) => (l === '+' ? 'pc' : l === '−' ? 'nc' : 'sample'))
 
 /**
- * The rings in order along the one line they form: a row across the photo or a column down it, straight or
- * gently curved, as the finder groups a row. Null if they don't form one line (two rows, a grid).
+ * A tap while labelling: an unlabelled ring gets the next label; a labelled one loses its label and every
+ * label after it, so a wrong tap is undone by tapping it again. `order` holds ring indices in label order.
  */
-export function lineOrder(rings: Region[]): number[] | null {
-  const idx = rings.map((_, i) => i)
-  if (oneRow(rings)) return idx.sort((a, b) => rings[a].cx - rings[b].cx)
-  if (oneRow(rings.map(transpose))) return idx.sort((a, b) => rings[a].cy - rings[b].cy)
-  return null
-}
-
-/**
- * The positive control must be one of the line's two end rings, as in both kit layouts (+ − 1..8 and
- * + 1..8 −). From the middle, which way the samples run would depend on how the photo was turned.
- */
-export function pcAtEnd(rings: Region[], i: number): boolean {
-  const order = lineOrder(rings)
-  return order !== null && (order[0] === i || order.at(-1) === i)
-}
-
-/**
- * Each ring's label: + and − for the controls, samples 1 to 8 along the line from the positive control's
- * end, which is how the tubes are labelled whichever way round the photo was taken.
- */
-export function tubeNames(rings: Region[], roles: Role[]): string[] {
-  const order = lineOrder(rings) ?? rings.map((_, i) => i)
-  if (order.at(-1) === roles.indexOf('pc')) order.reverse()
-  const samples = order.filter((i) => roles[i] === 'sample')
-  return roles.map((r, i) => (r === 'pc' ? '+' : r === 'nc' ? '−' : String(samples.indexOf(i) + 1)))
-}
+export const tapInOrder = (order: number[], i: number) =>
+  order.includes(i) ? order.slice(0, order.indexOf(i)) : order.length < LABELS.length ? [...order, i] : order
 
 export function readTubes(img: Img, rings: Region[], roles: Role[]): RunRead {
   const paper = globalPaper(img)
