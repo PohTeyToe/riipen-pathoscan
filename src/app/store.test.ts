@@ -2,7 +2,9 @@ import 'fake-indexeddb/auto'
 import { describe, expect, it, vi } from 'vitest'
 import { sclerotinia } from './assays/sclerotinia'
 import { currentStep, newRun, withStep } from './run'
-import { addRun, getRun, listRuns, setStepDone, startTimer } from './store'
+import type { RunRead } from '../lib/readers'
+import { rolesFrom } from './reader'
+import { addRun, getPhoto, getRun, listRuns, savePhoto, saveRead, setPhoto, setStepDone, setTap, startTimer } from './store'
 import { remainingMs } from './timer'
 
 const run = (field: string, createdAt: number) => newRun(sclerotinia, { field, notes: '' }, createdAt, `id-${field}`)
@@ -96,5 +98,61 @@ describe('the run store', () => {
     const stored = await tabA.getRun('id-tabs')
     expect(stored?.steps.slice(0, 3).map((s) => s.done)).toEqual([true, true, false])
     expect(stored?.steps[2].timerStartedAt).toBe(333)
+  })
+})
+
+describe('the read and the taps', () => {
+  const roles = rolesFrom(10, 0, 1)
+  const read = (samples: ('pos' | 'neg' | 'held')[], status: RunRead['status'] = 'ok'): RunRead => ({
+    status,
+    flags: [],
+    tubes: [{ call: 'pos', reason: '' }, { call: 'neg', reason: '' }, ...samples.map((call) => ({ call, reason: '' }))],
+  })
+  const regions = roles.map((_, i) => ({ x0: i, y0: 0, x1: i + 1, y1: 1, cx: i, cy: 0 }))
+  const twoHeld = read(['pos', 'pos', 'held', 'held', 'neg', 'neg', 'neg', 'neg'])
+
+  it('keeps the photo apart from the run and points the run at it', async () => {
+    await addRun(run('photo', 7000))
+    await savePhoto('id-photo', new Blob(['jpeg'], { type: 'image/jpeg' }))
+    await setPhoto('id-photo', 'id-photo')
+    expect((await getRun('id-photo'))?.photoKey).toBe('id-photo')
+    expect(await getPhoto('id-photo')).toBeDefined()
+  })
+
+  it('stores the read with its count and outcome, and the first read wins', async () => {
+    await addRun(run('read', 7100))
+    await saveRead('id-read', regions, roles, twoHeld, 3)
+    await saveRead('id-read', regions, roles, read(Array(8).fill('pos')), 3)
+    await setPhoto('id-read', 'other')
+    const r = await getRun('id-read')
+    expect(r).toMatchObject({ read: twoHeld, roles, regions, readerPositives: 2, tappedPositives: 0, rule: { treatAt: 3 }, readerVersion: '1' })
+    expect(r?.outcome).toBeUndefined()
+    expect(r?.photoKey).toBeUndefined()
+  })
+
+  it("keeps taps apart from the read and recounts, without losing a stale tab's tap", async () => {
+    await addRun(run('taps', 7200))
+    await saveRead('id-taps', regions, roles, twoHeld, 3)
+    vi.resetModules()
+    const tabB = await import('./store')
+    await setTap('id-taps', 4, 'neg', 3)
+    await tabB.setTap('id-taps', 5, 'pos', 3) // B never saw A's tap
+    const r = await getRun('id-taps')
+    expect(r?.taps.slice(4, 6)).toEqual(['neg', 'pos'])
+    expect(r?.read).toEqual(twoHeld)
+    expect(r).toMatchObject({ readerPositives: 2, tappedPositives: 1, outcome: 'treat' })
+    await setTap('id-taps', 5, null, 3)
+    expect((await getRun('id-taps'))?.outcome).toBeUndefined()
+  })
+
+  it('fails a refused run and keeps its taps as notes that never count', async () => {
+    await addRun(run('failed', 7300))
+    await saveRead('id-failed', regions, roles, read(Array(8).fill('held'), 'failed'), 3)
+    for (const i of [2, 3, 4, 5]) await setTap('id-failed', i, 'pos', 3)
+    const r = await getRun('id-failed')
+    expect(r).toMatchObject({ outcome: 'failed', rule: { treatAt: 3 } })
+    expect(r?.taps.filter((t) => t === 'pos')).toHaveLength(4)
+    expect(r?.readerPositives).toBeUndefined()
+    expect(r?.tappedPositives).toBeUndefined()
   })
 })
