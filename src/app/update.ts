@@ -28,6 +28,7 @@ async function servingBuild(): Promise<string | null> {
 export function watchForUpdates(reg: ServiceWorkerRegistration) {
   const sw = navigator.serviceWorker
   let asked = false
+  let fallback: ReturnType<typeof setTimeout> | undefined
   // Reload decides what to do when tapped, not when offered, so it can't act on a version that has
   // since moved on: switch to the version waiting now, or, if none is waiting, just reload.
   const update = () => {
@@ -36,7 +37,7 @@ export function watchForUpdates(reg: ServiceWorkerRegistration) {
     asked = true
     waiting.postMessage({ type: 'SKIP_WAITING' })
     // If that version never takes over (a newer one replaced it), reload anyway; the next check offers again.
-    setTimeout(() => location.reload(), 3000)
+    fallback = setTimeout(() => location.reload(), 3000)
   }
   // Checks can finish out of order. Each takes a number; an answer is dropped only if a later
   // check has already published one. A check that learns nothing publishes nothing.
@@ -59,7 +60,11 @@ export function watchForUpdates(reg: ServiceWorkerRegistration) {
     const next = reg.installing
     next?.addEventListener('statechange', check)
   })
-  sw.addEventListener('controllerchange', () => (asked ? location.reload() : void check()))
+  sw.addEventListener('controllerchange', () => {
+    if (!asked) return void check()
+    clearTimeout(fallback)
+    location.reload()
+  })
   // An installed app can stay open for days; look for a new version each time it comes back into view.
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible') return

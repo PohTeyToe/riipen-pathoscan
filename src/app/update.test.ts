@@ -139,5 +139,7 @@ describe('the update bar', () => {
     expect(b.reload).not.toHaveBeenCalled()
     b.fire('controllerchange')
     expect(b.reload).toHaveBeenCalledOnce()
+    await vi.advanceTimersByTimeAsync(3000) // a slow navigation must not get a second reload
+    expect(b.reload).toHaveBeenCalledOnce()
   })
 })
