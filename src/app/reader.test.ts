@@ -3,7 +3,7 @@ import { discRegion, type Region } from '../lib/find'
 import type { RunRead, TubeRead } from '../lib/readers'
 import { liquidCentre, makeRun, render, type Img, type Role } from '../lib/synth'
 import { sclerotinia } from './assays/sclerotinia'
-import { findRings, radius, readTubes, ringAt, rolesFrom, tapRings, tubeNames } from './reader'
+import { findRings, pcAtEnd, radius, readTubes, ringAt, rolesFrom, tapRings, tubeNames } from './reader'
 import { newRun, tally, tapsDecided, type Run, type Tap } from './run'
 
 const box = (cx: number, cy: number, half: number): Region => ({ x0: cx - half, y0: cy - half, x1: cx + half, y1: cy + half, cx, cy })
@@ -16,7 +16,19 @@ describe('control taps', () => {
     expect(roles[4]).toBe('nc')
     expect(roles.filter((r) => r === 'sample')).toHaveLength(8)
   })
-  it('number samples along the row from the end nearest the positive control, in either layout and either way round', () => {
+  it('take the positive control only from an end of the row, across or down the photo', () => {
+    const across = row(10)
+    const down = across.map((r) => box(300, 40 + r.cx, 10))
+    for (const rings of [across, down]) {
+      expect(pcAtEnd(rings, 0)).toBe(true)
+      expect(pcAtEnd(rings, 9)).toBe(true)
+      for (let i = 1; i < 9; i++) expect(pcAtEnd(rings, i)).toBe(false)
+    }
+    // A slanted, slightly wavy row still has the same two ends.
+    const slant = across.map((r, i) => box(r.cx, 100 + i * 12 + (i % 2) * 6, 10))
+    expect([0, 1, 8, 9].map((i) => pcAtEnd(slant, i))).toEqual([true, false, false, true])
+  })
+  it("number samples along the row from the positive control's end, in either layout and either way round", () => {
     const across = row(10)
     const down = across.map((r) => box(300, 40 + r.cx, 10)) // a column, as in a portrait photo
     for (const rings of [across, down]) {

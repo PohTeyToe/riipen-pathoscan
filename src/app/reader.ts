@@ -42,10 +42,13 @@ export function ringAt(rings: Region[], x: number, y: number, reach: number): nu
  * (sized by the long side, as scripts/read-runs.ts does, it reads paper as glare). Rings stay in reading order.
  */
 export function tapRings(rings: Region[], x: number, y: number, reach: number): Region[] {
-  // Sorted again either way: the finder's order was worked out with the removed ring in it.
   const i = ringAt(rings, x, y, reach)
-  return readingOrder(i >= 0 ? rings.filter((_, j) => j !== i) : [...rings, discRegion(x, y, median(rings.map(inner)) || 12)])
+  return i >= 0 ? removeRing(rings, i) : addRing(rings, x, y)
 }
+
+// Sorted again either way: the finder's order was worked out with the removed ring in it.
+export const removeRing = (rings: Region[], i: number) => readingOrder(rings.filter((_, j) => j !== i))
+export const addRing = (rings: Region[], x: number, y: number) => readingOrder([...rings, discRegion(x, y, median(rings.map(inner)) || 12)])
 
 /** Roles come only from the grower's two taps, never from position: a photo from the other side flips the row. */
 export function rolesFrom(n: number, pc: number, nc: number): Role[] {
@@ -53,21 +56,33 @@ export function rolesFrom(n: number, pc: number, nc: number): Role[] {
   return Array.from({ length: n }, (_, i) => (i === pc ? 'pc' : i === nc ? 'nc' : 'sample'))
 }
 
-/**
- * Each ring's label: + and − for the controls, samples 1 to 8 along the row from the end nearest the positive
- * control, which is how the tubes are labelled whichever way round the photo was taken.
- */
-export function tubeNames(rings: Region[], roles: Role[]): string[] {
-  // The row's direction: the main axis of the ring centres.
+/** Each ring's place along the row: its centre on the main axis of all the centres. */
+function along(rings: Region[]): number[] {
   const n = rings.length
   const mx = rings.reduce((a, r) => a + r.cx, 0) / n
   const my = rings.reduce((a, r) => a + r.cy, 0) / n
   const [sxx, syy, sxy] = rings.reduce(([a, b, c], r) => [a + (r.cx - mx) ** 2, b + (r.cy - my) ** 2, c + (r.cx - mx) * (r.cy - my)], [0, 0, 0])
   const angle = Math.atan2(2 * sxy, sxx - syy) / 2
-  let t = rings.map((r) => (r.cx - mx) * Math.cos(angle) + (r.cy - my) * Math.sin(angle))
-  const pc = t[roles.indexOf('pc')]
-  if (pc - Math.min(...t) > Math.max(...t) - pc) t = t.map((v) => -v)
-  const samples = roles.flatMap((r, i) => (r === 'sample' ? [i] : [])).sort((a, b) => t[a] - t[b])
+  return rings.map((r) => (r.cx - mx) * Math.cos(angle) + (r.cy - my) * Math.sin(angle))
+}
+
+/**
+ * The positive control must be one of the row's two end rings, as in both kit layouts (+ − 1..8 and
+ * + 1..8 −). From the middle, which way the samples run would depend on how the photo was turned.
+ */
+export function pcAtEnd(rings: Region[], i: number): boolean {
+  const t = along(rings)
+  return t[i] === Math.min(...t) || t[i] === Math.max(...t)
+}
+
+/**
+ * Each ring's label: + and − for the controls, samples 1 to 8 along the row from the positive control's
+ * end, which is how the tubes are labelled whichever way round the photo was taken.
+ */
+export function tubeNames(rings: Region[], roles: Role[]): string[] {
+  const t = along(rings)
+  const flip = t[roles.indexOf('pc')] === Math.max(...t) ? -1 : 1
+  const samples = roles.flatMap((r, i) => (r === 'sample' ? [i] : [])).sort((a, b) => flip * (t[a] - t[b]))
   return roles.map((r, i) => (r === 'pc' ? '+' : r === 'nc' ? '−' : String(samples.indexOf(i) + 1)))
 }
 
