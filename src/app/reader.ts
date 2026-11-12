@@ -10,6 +10,9 @@ import type { Img, Role } from '../lib/synth'
 export const MODEL: Model = params.model
 export const BAND: Band = params.band
 
+/** How far outside a ring's box a finger still hits it, in CSS pixels. */
+export const REACH_PX = 12
+
 /** A ring's radius in image pixels. */
 export const radius = (r: Region) => r.r ?? Math.max(r.x1 - r.x0, r.y1 - r.y0) / 2
 
@@ -32,12 +35,13 @@ export function ringAt(rings: Region[], x: number, y: number, reach: number): nu
 
 /**
  * A tap while fixing rings. On a ring it removes it (a finger, a petal, a pen mark). On empty paper it adds a
- * ring for a tube the finder missed, sized like the median ring, as scripts/read-runs.ts places one.
+ * ring for a tube the finder missed, sized like the median ring, as scripts/read-runs.ts places one. Rings
+ * stay in reading order.
  */
 export function tapRings(rings: Region[], x: number, y: number, reach: number): Region[] {
+  // Sorted again either way: the finder's order was worked out with the removed ring in it.
   const i = ringAt(rings, x, y, reach)
-  if (i >= 0) return rings.filter((_, j) => j !== i)
-  return readingOrder([...rings, discRegion(x, y, median(rings.map(radius)) || 12)])
+  return readingOrder(i >= 0 ? rings.filter((_, j) => j !== i) : [...rings, discRegion(x, y, median(rings.map(radius)) || 12)])
 }
 
 /** Roles come only from the grower's two taps, never from position: a photo from the other side flips the row. */

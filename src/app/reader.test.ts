@@ -40,6 +40,13 @@ describe('fixing rings', () => {
     expect(out[1]).toEqual(discRegion(150, 100, 10))
     expect(radius(out[1])).toBe(10)
   })
+  it('sorts the rings again after a removal, since stray rings can change the order', () => {
+    // A stray ring high on the photo makes the finder see two rows; without it, the tubes are one row.
+    const tubes = [box(50, 100, 10), box(150, 112, 10), box(250, 96, 10)]
+    const stray = box(400, 20, 10)
+    const found = [stray, tubes[2], tubes[0], tubes[1]]
+    expect(tapRings(found, 400, 20, 5)).toEqual(tubes)
+  })
   it('puts an added ring back on the same spot when tapped again', () => {
     const rings = row(9)
     const added = tapRings(rings, 950, 100, 20)

@@ -1,8 +1,6 @@
 import { useState, type MouseEvent } from 'react'
 import type { Region } from '../lib/find'
-
-/** How far outside a ring's box a finger still hits it, in CSS pixels. */
-const REACH_PX = 12
+import { REACH_PX } from './reader'
 
 export interface Ring {
   region: Region
