@@ -10,8 +10,8 @@ import type { Img, Role } from '../lib/synth'
 export const MODEL: Model = params.model
 export const BAND: Band = params.band
 
-/** How far outside a ring's box a finger still hits it, in CSS pixels. */
-export const REACH_PX = 12
+/** How far from a ring's centre a finger still hits it, in CSS pixels, when no neighbour is closer. */
+export const REACH_PX = 22
 
 /** A ring's radius in image pixels. */
 export const radius = (r: Region) => r.r ?? Math.max(r.x1 - r.x0, r.y1 - r.y0) / 2
@@ -20,17 +20,17 @@ export const radius = (r: Region) => r.r ?? Math.max(r.x1 - r.x0, r.y1 - r.y0) /
 export const findRings = (img: Img): Region[] => findRegions(img).regions
 
 /**
- * The ring a tap at (x, y) lands on: the one whose box is nearest, within `reach` of it, and of two boxes the
- * tap is inside, the one with the nearer centre. -1 for none.
+ * The ring a tap at (x, y) lands on: the ring with the nearest centre, if the tap is under half the way to
+ * that ring's nearest neighbour (so a tap between two tubes hits neither) and within `reach` of the centre or
+ * inside the ring. -1 for none.
  */
 export function ringAt(rings: Region[], x: number, y: number, reach: number): number {
-  let hit = -1
-  let best = [Infinity, Infinity]
-  rings.forEach((r, i) => {
-    const d = [Math.hypot(Math.max(r.x0 - x, 0, x - r.x1), Math.max(r.y0 - y, 0, y - r.y1)), Math.hypot(r.cx - x, r.cy - y)]
-    if (d[0] <= reach && (d[0] < best[0] || (d[0] === best[0] && d[1] < best[1]))) [hit, best] = [i, d]
-  })
-  return hit
+  const d = rings.map((r) => Math.hypot(r.cx - x, r.cy - y))
+  const i = d.indexOf(Math.min(...d))
+  if (i < 0) return -1
+  const r = rings[i]
+  const spacing = Math.min(...rings.map((o, j) => (j === i ? Infinity : Math.hypot(o.cx - r.cx, o.cy - r.cy))))
+  return d[i] < spacing / 2 && d[i] <= Math.max(reach, radius(r)) ? i : -1
 }
 
 /**

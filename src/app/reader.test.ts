@@ -30,6 +30,21 @@ describe('fixing rings', () => {
     expect(ringAt(rings, 100, 100, 30)).toBe(-1)
     expect(tapRings(rings, 155, 104, 30).map((r) => r.cx)).toEqual([50, 250])
   })
+  it('picks the nearest ring centre, never a neighbour whose box happens to be closer', () => {
+    // Tubes 27 px apart; the first ring's box is wide (a glare streak joined to it), the second narrow.
+    const rings = [box(0, 0, 12), box(27, 0, 3), box(54, 0, 3)]
+    expect(ringAt(rings, 16, 0, 40)).toBe(1)
+    expect(ringAt(rings, 12, 0, 40)).toBe(0)
+  })
+  it('takes a tap only within half the spacing to the next ring, so a tap between two tubes hits neither', () => {
+    const rings = [box(0, 0, 3), box(27, 0, 3), box(54, 0, 3)]
+    expect(ringAt(rings, 13.5, 0, 40)).toBe(-1)
+    expect(ringAt(rings, 40.5, 3, 40)).toBe(-1)
+    expect(ringAt(rings, 13, 0, 40)).toBe(0)
+    expect(ringAt(rings, 41, 0, 40)).toBe(2)
+    // A missed tube midway between two found rings gets a new ring, not a removal.
+    expect(tapRings([box(0, 0, 3), box(54, 0, 3)], 27, 0, 40)).toHaveLength(3)
+  })
   it('counts a tap inside a big ring as on it, whatever the reach', () => {
     expect(ringAt([box(100, 100, 40)], 135, 100, 5)).toBe(0)
   })
