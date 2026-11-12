@@ -53,7 +53,7 @@ export function Guide({ id }: { id: string }) {
   const error = failed && <p className="alert">Couldn't save. Try again.</p>
 
   if (run.read) return <Result run={run} assay={assay} act={act} error={error} />
-  if (i === -1) return <Photo run={run} assay={assay} act={act} back={back} error={error} />
+  if (i === -1) return <Photo key={run.photoKey} run={run} assay={assay} act={act} back={back} error={error} />
 
   return (
     <div className="screen">

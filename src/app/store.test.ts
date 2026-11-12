@@ -1,10 +1,11 @@
 import 'fake-indexeddb/auto'
+import { createStore, keys } from 'idb-keyval'
 import { describe, expect, it, vi } from 'vitest'
 import { sclerotinia } from './assays/sclerotinia'
 import { currentStep, newRun, withStep } from './run'
 import type { RunRead } from '../lib/readers'
 import { rolesFrom } from './reader'
-import { addRun, getPhoto, getRun, listRuns, savePhoto, saveRead, setPhoto, setStepDone, setTap, startTimer } from './store'
+import { addRun, getPhoto, getRun, listRuns, saveRead, setStepDone, setTap, startTimer, takePhoto } from './store'
 import { remainingMs } from './timer'
 
 const run = (field: string, createdAt: number) => newRun(sclerotinia, { field, notes: '' }, createdAt, `id-${field}`)
@@ -111,28 +112,61 @@ describe('the read and the taps', () => {
   const regions = roles.map((_, i) => ({ x0: i, y0: 0, x1: i + 1, y1: 1, cx: i, cy: 0 }))
   const twoHeld = read(['pos', 'pos', 'held', 'held', 'neg', 'neg', 'neg', 'neg'])
 
-  it('keeps the photo apart from the run and points the run at it', async () => {
+  const jpeg = (text: string) => new Blob([text], { type: 'image/jpeg' })
+  /** A run with a photo and a read, as the Photo screen leaves it. */
+  const readRun = async (name: string, at: number, r = twoHeld) => {
+    await addRun(run(name, at))
+    const key = (await takePhoto(`id-${name}`, jpeg('first')))!
+    expect(await saveRead(`id-${name}`, key, regions, roles, r, 3)).toBe(true)
+    return key
+  }
+
+  it('keeps each photo under its own key, and a retake replaces and deletes the one before', async () => {
     await addRun(run('photo', 7000))
-    await savePhoto('id-photo', new Blob(['jpeg'], { type: 'image/jpeg' }))
-    await setPhoto('id-photo', 'id-photo')
-    expect((await getRun('id-photo'))?.photoKey).toBe('id-photo')
-    expect(await getPhoto('id-photo')).toBeDefined()
+    const first = (await takePhoto('id-photo', jpeg('first')))!
+    expect(first).toMatch(/^id-photo\//)
+    expect((await getRun('id-photo'))?.photoKey).toBe(first)
+    const second = (await takePhoto('id-photo', jpeg('second')))!
+    expect(second).not.toBe(first)
+    expect((await getRun('id-photo'))?.photoKey).toBe(second)
+    expect(await getPhoto(first)).toBeUndefined()
+    expect(await (await getPhoto(second))!.text()).toBe('second')
   })
 
   it('stores the read with its count and outcome, and the first read wins', async () => {
-    await addRun(run('read', 7100))
-    await saveRead('id-read', regions, roles, twoHeld, 3)
-    await saveRead('id-read', regions, roles, read(Array(8).fill('pos')), 3)
-    await setPhoto('id-read', 'other')
+    const key = await readRun('read', 7100)
+    expect(await saveRead('id-read', key, regions, roles, read(Array(8).fill('pos')), 3)).toBe(false)
     const r = await getRun('id-read')
-    expect(r).toMatchObject({ read: twoHeld, roles, regions, readerPositives: 2, tappedPositives: 0, rule: { treatAt: 3 }, readerVersion: '1' })
+    expect(r).toMatchObject({ photoKey: key, read: twoHeld, roles, regions, readerPositives: 2, tappedPositives: 0, rule: { treatAt: 3 }, readerVersion: '1' })
     expect(r?.outcome).toBeUndefined()
-    expect(r?.photoKey).toBeUndefined()
+  })
+
+  it("won't let a stale tab retake a run another tab has read: its photo is dropped, the read one kept", async () => {
+    vi.resetModules()
+    const tabB = await import('./store')
+    const key = await readRun('stale', 7150) // tab A takes, rings and reads the run
+    expect(await tabB.takePhoto('id-stale', jpeg('late'))).toBeNull()
+    const r = await getRun('id-stale')
+    expect(r).toMatchObject({ photoKey: key, read: twoHeld })
+    expect(await (await getPhoto(key))!.text()).toBe('first')
+    const saved = await keys(createStore('pathoscan-photos', 'photos'))
+    expect(saved.filter((k) => String(k).startsWith('id-stale/'))).toEqual([key])
+  })
+
+  it('refuses a read of a photo another tab has since replaced', async () => {
+    vi.resetModules()
+    const tabB = await import('./store')
+    await addRun(run('swap', 7160))
+    const a = (await takePhoto('id-swap', jpeg('a')))!
+    const b = (await tabB.takePhoto('id-swap', jpeg('b')))!
+    expect(await saveRead('id-swap', a, regions, roles, twoHeld, 3)).toBe(false) // tab A's rings were on photo a
+    expect((await getRun('id-swap'))?.read).toBeUndefined()
+    expect(await tabB.saveRead('id-swap', b, regions, roles, twoHeld, 3)).toBe(true)
+    expect((await getRun('id-swap'))?.photoKey).toBe(b)
   })
 
   it("keeps taps apart from the read and recounts, without losing a stale tab's tap", async () => {
-    await addRun(run('taps', 7200))
-    await saveRead('id-taps', regions, roles, twoHeld, 3)
+    await readRun('taps', 7200)
     vi.resetModules()
     const tabB = await import('./store')
     await setTap('id-taps', 4, 'neg', 3)
@@ -146,8 +180,7 @@ describe('the read and the taps', () => {
   })
 
   it('fails a refused run and keeps its taps as notes that never count', async () => {
-    await addRun(run('failed', 7300))
-    await saveRead('id-failed', regions, roles, read(Array(8).fill('held'), 'failed'), 3)
+    await readRun('failed', 7300, read(Array(8).fill('held'), 'failed'))
     for (const i of [2, 3, 4, 5]) await setTap('id-failed', i, 'pos', 3)
     const r = await getRun('id-failed')
     expect(r).toMatchObject({ outcome: 'failed', rule: { treatAt: 3 } })

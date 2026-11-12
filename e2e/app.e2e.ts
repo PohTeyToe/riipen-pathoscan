@@ -1,6 +1,6 @@
 import { execSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { PNG } from 'pngjs'
 import { makeRun, render } from '../src/lib/synth'
 
@@ -106,16 +106,7 @@ function syntheticPhoto() {
 test('a run goes from the guide to a photo, rings, control taps and a saved result that opens offline', async ({ page, context }) => {
   await page.goto('/app.html')
   await page.evaluate(() => navigator.serviceWorker.ready)
-  await page.getByRole('link', { name: 'New run' }).click()
-  await page.getByLabel('Field name').fill('Synthetic')
-  await page.getByRole('button', { name: 'Start run' }).click()
-  for (let i = 1; i <= 8; i++) {
-    await expect(page.getByText(`Step ${i} of 8`)).toBeVisible()
-    if (await page.getByRole('button', { name: 'Start timer' }).isVisible()) await page.getByRole('button', { name: 'Start timer' }).click()
-    await page.getByRole('button', { name: 'Done' }).click()
-  }
-
-  await expect(page.getByRole('heading', { name: 'Take photo' })).toBeVisible()
+  await toPhoto(page, 'Synthetic')
   await page.locator('input[type=file]').setInputFiles(syntheticPhoto())
   await expect(page.getByRole('heading', { name: '10 tubes' })).toBeVisible()
   const rings = page.locator('.shot ellipse')
@@ -170,6 +161,64 @@ test('a run goes from the guide to a photo, rings, control taps and a saved resu
   expect(await page.locator('.shot img').evaluate((el: HTMLImageElement) => el.naturalWidth)).toBe(1000)
   await expect(rings).toHaveCount(10)
   await context.setOffline(false)
+})
+
+/** A new run, through the guide to the Photo screen. */
+async function toPhoto(page: Page, field: string) {
+  await page.getByRole('link', { name: 'New run' }).click()
+  await page.getByLabel('Field name').fill(field)
+  await page.getByRole('button', { name: 'Start run' }).click()
+  for (let i = 1; i <= 8; i++) {
+    await expect(page.getByText(`Step ${i} of 8`)).toBeVisible()
+    if (await page.getByRole('button', { name: 'Start timer' }).isVisible()) await page.getByRole('button', { name: 'Start timer' }).click()
+    await page.getByRole('button', { name: 'Done' }).click()
+  }
+  await expect(page.getByRole('heading', { name: 'Take photo' })).toBeVisible()
+}
+
+/** Tab until `target` has focus, as a keyboard user would. */
+async function tabTo(page: Page, target: Locator) {
+  for (let i = 0; i < 60; i++) {
+    if (await target.evaluate((el) => el === document.activeElement)) return
+    await page.keyboard.press('Tab')
+  }
+  throw new Error('not reachable with Tab')
+}
+
+test('with the keyboard alone, rings can be removed, the controls picked and the run read', async ({ page }) => {
+  await page.goto('/app.html')
+  await toPhoto(page, 'Keys')
+  const camera = async () => {
+    await tabTo(page, page.locator('input[type=file]'))
+    const chooser = page.waitForEvent('filechooser')
+    await page.keyboard.press(' ') // Space opens a file input; Enter doesn't in Chromium
+    await (await chooser).setFiles(syntheticPhoto())
+  }
+  await camera()
+  await expect(page.getByRole('heading', { name: '10 tubes' })).toBeVisible()
+  await expect(page.getByRole('group', { name: '10 rings' })).toHaveAccessibleDescription('Adding a ring needs a tap on the photo.')
+
+  // Removing is a key press; adding back takes a tap, so a retake brings the ring back.
+  await tabTo(page, page.getByRole('button', { name: 'Ring 3, tap to remove' }))
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('heading', { name: '9 of 10 tubes' })).toBeVisible()
+  await camera()
+  await expect(page.getByRole('heading', { name: '10 tubes' })).toBeVisible()
+  await tabTo(page, page.getByRole('button', { name: 'Continue' }))
+  await page.keyboard.press('Enter')
+
+  // A positive control in the middle of the row is refused; the end one is taken.
+  await expect(page.getByRole('heading', { name: 'Tap the positive control' })).toBeVisible()
+  await tabTo(page, page.getByRole('button', { name: 'Tube 5' }))
+  await page.keyboard.press(' ')
+  await expect(page.getByText('Put the positive control at one end of the row.')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Tap the positive control' })).toBeVisible()
+  await tabTo(page, page.getByRole('button', { name: 'Tube 1', exact: true }))
+  await page.keyboard.press(' ')
+  await expect(page.getByRole('heading', { name: 'Tap the negative control' })).toBeVisible()
+  await tabTo(page, page.getByRole('button', { name: 'Tube 2', exact: true }))
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('heading', { name: '2 of 8 positive' })).toBeVisible()
 })
 
 // Runs last: it rebuilds dist under the running preview server.

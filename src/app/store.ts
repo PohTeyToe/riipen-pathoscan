@@ -4,7 +4,7 @@
 // A run is written whole only when it is created. Every later change is a read-modify-write in one
 // transaction that touches only its own field, so a second, stale tab can't erase progress.
 
-import { createStore, get, set, update, values, type UseStore } from 'idb-keyval'
+import { createStore, del, get, set, update, values, type UseStore } from 'idb-keyval'
 import type { Region } from '../lib/find'
 import type { RunRead } from '../lib/readers'
 import type { Role } from '../lib/synth'
@@ -15,7 +15,6 @@ const runs = () => (db ??= createStore('pathoscan-field', 'runs'))
 let photoDb: UseStore | undefined
 const photos = () => (photoDb ??= createStore('pathoscan-photos', 'photos'))
 
-export const savePhoto = (key: string, jpeg: Blob) => set(key, jpeg, photos())
 export const getPhoto = (key: string) => get<Blob>(key, photos())
 
 export const addRun = (run: Run) => set(run.id, run, runs())
@@ -43,12 +42,38 @@ export const setStepDone = (id: string, i: number, done: boolean) => change(id, 
 export const startTimer = (id: string, i: number, at: number) =>
   change(id, (run) => (run.steps[i].timerStartedAt === undefined ? withStep(run, i, { timerStartedAt: at }) : run))
 
-/** Points the run at its saved photo. Once the run is read its photo is fixed. */
-export const setPhoto = (id: string, key: string) => change(id, (run) => (run.read ? run : { ...run, photoKey: key }))
+/**
+ * Saves a photo under a new key and points the run at it, replacing (and deleting) the photo before. A run
+ * that's already read keeps its photo: the new one is deleted and null comes back.
+ */
+export async function takePhoto(id: string, jpeg: Blob): Promise<string | null> {
+  const key = `${id}/${crypto.randomUUID()}`
+  await set(key, jpeg, photos())
+  let old: string | undefined
+  let taken = false
+  await change(id, (run) => {
+    if (run.read) return run
+    ;[old, taken] = [run.photoKey, true]
+    return { ...run, photoKey: key }
+  })
+  if (taken && old) await del(old, photos())
+  if (!taken) await del(key, photos())
+  return taken ? key : null
+}
 
-/** Stores the confirmed rings, the control taps and the read, with what they come to. The first read wins. */
-export const saveRead = (id: string, regions: Region[], roles: Role[], read: RunRead, treatAt: number) =>
-  change(id, (run) => (run.read ? run : { ...run, regions, roles, read, readerVersion: READER_VERSION, ...tally(read, roles, run.taps, treatAt) }))
+/**
+ * Stores the confirmed rings, the control taps and the read of the photo at `photoKey`, with what they come to.
+ * Refused (false) if the run is already read or another tab has put a different photo on it since.
+ */
+export async function saveRead(id: string, photoKey: string, regions: Region[], roles: Role[], read: RunRead, treatAt: number): Promise<boolean> {
+  let saved = false
+  await change(id, (run) => {
+    if (run.read || run.photoKey !== photoKey) return run
+    saved = true
+    return { ...run, regions, roles, read, readerVersion: READER_VERSION, ...tally(read, roles, run.taps, treatAt) }
+  })
+  return saved
+}
 
 /** The grower's eye call on tube i, kept apart from the reader's. Recounts the outcome under the current rule. */
 export const setTap = (id: string, i: number, tap: Tap, treatAt: number) =>

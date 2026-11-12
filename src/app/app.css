@@ -416,3 +416,18 @@ h1 {
   background: var(--ultra);
   color: var(--on-ultra);
 }
+.ring[role='button'] {
+  outline: none;
+}
+.ring[role='button']:focus-visible ellipse {
+  stroke: var(--ink);
+  stroke-width: 6px;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
