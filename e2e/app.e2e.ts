@@ -79,9 +79,18 @@ test('the field app installs its service worker, works offline and keeps a timer
   // The demo at / is not the service worker's: offline it fails, online it loads uncontrolled.
   await expect(page.goto('/')).rejects.toThrow()
   await context.setOffline(false)
+  const errors: string[] = []
+  page.on('pageerror', (e) => errors.push(e.message))
   await page.goto('/')
-  await expect(page).toHaveTitle('Tube Reader')
   expect(await page.evaluate(() => navigator.serviceWorker.controller)).toBeNull()
+  // The demo renders and responds: its headline, the hero run, and a Lab control that redraws the slider.
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('A weak positive control fools a midpoint rule.')
+  await expect(page.getByRole('img', { name: /Synthetic run of ten tubes/ })).toBeVisible()
+  const light = page.getByRole('group', { name: 'What to change' }).getByRole('button', { name: 'Light colour' })
+  await light.click()
+  await expect(light).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('label[for="lab-slider"]')).toContainText('Light colour')
+  expect(errors).toEqual([])
 })
 
 // Runs last: it rebuilds dist under the running preview server.
