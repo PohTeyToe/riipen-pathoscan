@@ -10,12 +10,21 @@ const box = (cx: number, cy: number, half: number): Region => ({ x0: cx - half, 
 const row = (n: number, half = 10) => Array.from({ length: n }, (_, i) => box(50 + i * 100, 100, half))
 
 describe('control taps', () => {
-  it('make the tapped rings the controls and the other eight samples 1 to 8 in reading order', () => {
+  it('make the tapped rings the controls and the other eight samples', () => {
     const roles = rolesFrom(10, 9, 4)
     expect(roles[9]).toBe('pc')
     expect(roles[4]).toBe('nc')
     expect(roles.filter((r) => r === 'sample')).toHaveLength(8)
-    expect(tubeNames(roles)).toEqual(['1', '2', '3', '4', '−', '5', '6', '7', '8', '+'])
+  })
+  it('number samples along the row from the end nearest the positive control, in either layout and either way round', () => {
+    const across = row(10)
+    const down = across.map((r) => box(300, 40 + r.cx, 10)) // a column, as in a portrait photo
+    for (const rings of [across, down]) {
+      expect(tubeNames(rings, rolesFrom(10, 0, 1))).toEqual(['+', '−', '1', '2', '3', '4', '5', '6', '7', '8'])
+      expect(tubeNames(rings, rolesFrom(10, 9, 8))).toEqual(['8', '7', '6', '5', '4', '3', '2', '1', '−', '+'])
+      expect(tubeNames(rings, rolesFrom(10, 0, 9))).toEqual(['+', '1', '2', '3', '4', '5', '6', '7', '8', '−'])
+      expect(tubeNames(rings, rolesFrom(10, 9, 0))).toEqual(['−', '8', '7', '6', '5', '4', '3', '2', '1', '+'])
+    }
   })
   it('refuse the same ring twice or a ring that is not there', () => {
     expect(() => rolesFrom(10, 3, 3)).toThrow()
@@ -93,8 +102,10 @@ describe('the photo path on a synthetic run', () => {
   const read = (photo: Img, flip: boolean) => {
     const rings = findRings(photo)
     const tube = (i: number) => ringAt(rings, ...(at(i, flip) as [number, number]), 20)
-    const r = readTubes(photo, rings, rolesFrom(rings.length, tube(0), tube(1)))
-    return { rings, calls: spec.tubes.map((_, i) => r.tubes[tube(i)].call), status: r.status }
+    const roles = rolesFrom(rings.length, tube(0), tube(1))
+    const r = readTubes(photo, rings, roles)
+    const names = tubeNames(rings, roles)
+    return { rings, calls: spec.tubes.map((_, i) => r.tubes[tube(i)].call), labels: spec.tubes.map((_, i) => names[tube(i)]), status: r.status }
   }
 
   it('finds ten rings and reads against the tapped controls', () => {
@@ -123,11 +134,13 @@ describe('the photo path on a synthetic run', () => {
       }
     }
   })
-  it('gives every tube the same call on a photo turned 180 degrees once the controls are tapped', () => {
+  it('gives every tube the same label and call on a photo turned 180 degrees once the controls are tapped', () => {
     const upright = read(img, false)
     const turned = read(turn(img), true)
     expect(turned.rings).toHaveLength(10)
     expect(turned.calls).toEqual(upright.calls)
+    expect(upright.labels).toEqual(['+', '−', '1', '2', '3', '4', '5', '6', '7', '8'])
+    expect(turned.labels).toEqual(upright.labels)
     // Reading order runs the other way: the positive control is now the last ring, where sample 8 was.
     expect(ringAt(turned.rings, ...(at(0, true) as [number, number]), 20)).toBe(9)
   })

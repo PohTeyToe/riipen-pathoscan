@@ -13,7 +13,8 @@ export function Result({ run, assay, act, error }: { run: Run; assay: Assay; act
   const url = usePhoto(run.photoKey)
   const read = run.read!
   const roles = run.roles!
-  const names = tubeNames(roles)
+  const names = tubeNames(run.regions!, roles)
+  const samples = roles.flatMap((r, i) => (r === 'sample' ? [i] : [])).sort((a, b) => +names[a] - +names[b])
   const failed = run.outcome === 'failed'
   const positives = (run.readerPositives ?? 0) + (run.tappedPositives ?? 0)
   const calls = read.tubes.map((t, i) => (t.call === 'held' && run.taps[i] && !failed ? run.taps[i] : t.call))
@@ -31,7 +32,7 @@ export function Result({ run, assay, act, error }: { run: Run; assay: Assay; act
         ) : (
           <>
             <h1 className="count">
-              {positives} of {roles.filter((r) => r === 'sample').length} positive
+              {positives} of {samples.length} positive
             </h1>
             <p className="lead">
               {run.outcome === 'treat' ? assay.advice.treat : run.outcome === 'dont-treat' ? assay.advice.dontTreat : 'Call the held tubes below.'}
@@ -52,27 +53,25 @@ export function Result({ run, assay, act, error }: { run: Run; assay: Assay; act
         <Shot src={url} rings={run.regions!.map((region, i) => ({ region, label: names[i] + (roles[i] === 'sample' ? MARK[calls[i]] : ''), tone: calls[i] }))} />
         {failed && <p className="note">Your calls are notes. They don't count.</p>}
         <ol className="tubes">
-          {roles.map((role, i) =>
-            role !== 'sample' ? null : (
-              <li key={i}>
-                <span className="no">{names[i]}</span>
-                {read.tubes[i].call === 'held' ? (
-                  <span className="pick">
-                    <span>Look again: yellow or pink?</span>
-                    <span className="choices">
-                      {(['pos', 'neg'] as const).map((t) => (
-                        <button key={t} type="button" aria-pressed={run.taps[i] === t} onClick={() => tap(i, t)}>
-                          {t === 'pos' ? 'Yellow' : 'Pink'}
-                        </button>
-                      ))}
-                    </span>
+          {samples.map((i) => (
+            <li key={i}>
+              <span className="no">{names[i]}</span>
+              {read.tubes[i].call === 'held' ? (
+                <span className="pick">
+                  <span>Look again: yellow or pink?</span>
+                  <span className="choices">
+                    {(['pos', 'neg'] as const).map((t) => (
+                      <button key={t} type="button" aria-pressed={run.taps[i] === t} onClick={() => tap(i, t)}>
+                        {t === 'pos' ? 'Yellow' : 'Pink'}
+                      </button>
+                    ))}
                   </span>
-                ) : (
-                  <span className="call">{read.tubes[i].call === 'pos' ? 'Positive' : 'Negative'}</span>
-                )}
-              </li>
-            ),
-          )}
+                </span>
+              ) : (
+                <span className="call">{read.tubes[i].call === 'pos' ? 'Positive' : 'Negative'}</span>
+              )}
+            </li>
+          ))}
         </ol>
         {error}
       </main>

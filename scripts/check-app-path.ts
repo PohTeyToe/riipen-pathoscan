@@ -92,7 +92,7 @@ try {
           if (rings.length !== names.length || new Set(h).size !== names.length || h.includes(-1)) return { error: 'taps did not give one ring per tube', found, removed, added }
           const roles = reader.rolesFrom(rings.length, h[names.indexOf(e.pc)], h[names.indexOf(e.nc)])
           const read = reader.readTubes(img, rings, roles)
-          const label = reader.tubeNames(roles)
+          const label = reader.tubeNames(rings, roles)
           // Each sample's ring removed and added back by a tap on its point: the call a placed ring gives.
           const readded = (n: string) => {
             const ring = rings[h[names.indexOf(n)]]

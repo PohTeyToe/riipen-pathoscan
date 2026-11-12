@@ -53,10 +53,22 @@ export function rolesFrom(n: number, pc: number, nc: number): Role[] {
   return Array.from({ length: n }, (_, i) => (i === pc ? 'pc' : i === nc ? 'nc' : 'sample'))
 }
 
-/** Each ring's label: + and − for the controls, samples 1 to 8 in reading order. */
-export const tubeNames = (roles: Role[]) => {
-  let n = 0
-  return roles.map((r) => (r === 'pc' ? '+' : r === 'nc' ? '−' : String(++n)))
+/**
+ * Each ring's label: + and − for the controls, samples 1 to 8 along the row from the end nearest the positive
+ * control, which is how the tubes are labelled whichever way round the photo was taken.
+ */
+export function tubeNames(rings: Region[], roles: Role[]): string[] {
+  // The row's direction: the main axis of the ring centres.
+  const n = rings.length
+  const mx = rings.reduce((a, r) => a + r.cx, 0) / n
+  const my = rings.reduce((a, r) => a + r.cy, 0) / n
+  const [sxx, syy, sxy] = rings.reduce(([a, b, c], r) => [a + (r.cx - mx) ** 2, b + (r.cy - my) ** 2, c + (r.cx - mx) * (r.cy - my)], [0, 0, 0])
+  const angle = Math.atan2(2 * sxy, sxx - syy) / 2
+  let t = rings.map((r) => (r.cx - mx) * Math.cos(angle) + (r.cy - my) * Math.sin(angle))
+  const pc = t[roles.indexOf('pc')]
+  if (pc - Math.min(...t) > Math.max(...t) - pc) t = t.map((v) => -v)
+  const samples = roles.flatMap((r, i) => (r === 'sample' ? [i] : [])).sort((a, b) => t[a] - t[b])
+  return roles.map((r, i) => (r === 'pc' ? '+' : r === 'nc' ? '−' : String(samples.indexOf(i) + 1)))
 }
 
 export function readTubes(img: Img, rings: Region[], roles: Role[]): RunRead {
