@@ -35,6 +35,8 @@ export function watchForUpdates(reg: ServiceWorkerRegistration) {
     if (!waiting) return location.reload()
     asked = true
     waiting.postMessage({ type: 'SKIP_WAITING' })
+    // If that version never takes over (a newer one replaced it), reload anyway; the next check offers again.
+    setTimeout(() => location.reload(), 3000)
   }
   // Checks can finish out of order. Each takes a number; an answer is dropped only if a later
   // check has already published one. A check that learns nothing publishes nothing.

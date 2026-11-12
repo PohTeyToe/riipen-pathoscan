@@ -79,6 +79,22 @@ describe('the update bar', () => {
     expect(b.reload).toHaveBeenCalledOnce()
   })
 
+  it('reloads anyway when the waiting version never takes over after the tap', async () => {
+    vi.useFakeTimers()
+    try {
+      const b = browser({ controlled: true, waiting: true, serving: __APP_BUILD__ })
+      const { watchForUpdates, offered } = await load()
+      watchForUpdates(b.reg)
+      await vi.advanceTimersByTimeAsync(0)
+      ;(await offered())!()
+      expect(b.reload).not.toHaveBeenCalled()
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(b.reload).toHaveBeenCalledOnce()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('offers Reload when another tab already switched this page to a newer build', async () => {
     const b = browser({ controlled: true, serving: 'newer' })
     const { watchForUpdates, offered } = await load()
