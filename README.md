@@ -119,6 +119,7 @@ npm run eval:real    # score the real photos, writes data/real-eval.json
 npx tsx scripts/case-study-check.ts <photo.png>   # the PathoScan photo check above
 npm run measure -- <photo> [names] ["x:y:r;..."]  # any photo, found or hand-placed
 npx tsx scripts/read-runs.ts <manifest.json> > <out.json>  # a batch of photos with named tubes and control groups, as JSON on stdout
+npx tsx scripts/check-app-path.ts <manifest.json> [overlay-dir] > <out.json>  # real photos through the field app's Photo path in Chromium, upright and turned 180 degrees
 npx tsx scripts/thumbs.ts                          # redraw the photo picker's thumbnails
 ```
 
@@ -132,7 +133,7 @@ src/run.ts      a synthetic run as the page shows it: drawn, found, measured, re
 src/caseStudy.ts the case-study numbers the page charts
 src/components/ hero story, rack and lights, case-study chart, lab, sweep chart, eval, real-photo bench, stage, scale strip, matrix, tube detail
 src/page.test.ts checks the page's runs and numbers against what it says about them
-app.html, src/app/ the field app (in progress): offline runs on the phone, a step guide with timers. Its service worker covers /app.html only
+app.html, src/app/ the field app (in progress): offline runs on the phone, a step guide with timers, the photo with rings and control taps, and the result. Its service worker covers /app.html only
 e2e/            Playwright test for the field app
 scripts/        eval, real-photo eval, photo measurement, image IO for Node
 data/           eval.json, real-eval.json, real/labels.json
