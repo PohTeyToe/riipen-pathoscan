@@ -1,3 +1,5 @@
+import { execSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import { expect, test, type Page } from '@playwright/test'
 
 const secondsLeft = async (page: Page) => {
@@ -80,4 +82,23 @@ test('the field app installs its service worker, works offline and keeps a timer
   await page.goto('/')
   await expect(page).toHaveTitle('Tube Reader')
   expect(await page.evaluate(() => navigator.serviceWorker.controller)).toBeNull()
+})
+
+// Runs last: it rebuilds dist under the running preview server.
+test('a new version waits until the grower taps Reload, then takes over', async ({ page }) => {
+  await page.goto('/app.html')
+  await page.evaluate(() => navigator.serviceWorker.ready)
+  await page.reload()
+  expect(await page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true)
+  const first = (await page.getByText(/^Build /).textContent())!
+  await expect(page.getByText('New version ready.')).toHaveCount(0)
+
+  execSync('npx vite build', { cwd: fileURLToPath(new URL('..', import.meta.url)), env: { ...process.env, APP_BUILD: 'e2e-next' }, stdio: 'ignore' })
+  await page.reload() // the browser looks for a new sw.js on navigation
+
+  await expect(page.getByText('New version ready.')).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByText(first)).toBeVisible() // still the old version
+  await page.getByRole('button', { name: 'Reload' }).click()
+  await expect(page.getByText('Build e2e-next')).toBeVisible()
+  await expect(page.getByText('New version ready.')).toHaveCount(0)
 })

@@ -45,6 +45,7 @@ export function Runs() {
             })}
           </ul>
         )}
+        <p className="build">Build {__APP_BUILD__}</p>
       </main>
       <footer className="actions">
         <a className="btn" href="#/new">

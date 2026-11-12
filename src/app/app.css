@@ -192,6 +192,34 @@ h1 {
   cursor: pointer;
 }
 
+/* New version bar */
+.update {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px var(--pad);
+  padding-top: calc(8px + env(safe-area-inset-top));
+  background: var(--ink);
+  color: var(--paper);
+  font-weight: 700;
+}
+.update button {
+  min-height: 48px;
+  padding: 0 18px;
+  border: 2px solid var(--paper);
+  border-radius: 10px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+.build {
+  margin-top: auto;
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+
 /* Runs list */
 .runs {
   list-style: none;

@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process'
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -6,6 +7,17 @@ import { VitePWA } from 'vite-plugin-pwa'
 // vite-plugin-pwa only writes sw.js here. The manifest (public/app.webmanifest) and the
 // registration (src/app/main.tsx) are ours, because the plugin would inject both into
 // every HTML page, the demo included.
+
+/** Shown on the Runs screen, so a tester can say which build they have. APP_BUILD overrides it (the e2e update test). */
+function buildId(): string {
+  if (process.env.APP_BUILD) return process.env.APP_BUILD
+  if (process.env.VERCEL_GIT_COMMIT_SHA) return process.env.VERCEL_GIT_COMMIT_SHA.slice(0, 7)
+  try {
+    return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()
+  } catch {
+    return 'dev'
+  }
+}
 
 /** Every built file app.html loads: its chunks, their CSS and the fonts that CSS uses. */
 const appFiles = new Set<string>()
@@ -29,6 +41,7 @@ const appGraph: Plugin = {
 }
 
 export default defineConfig({
+  define: { __APP_BUILD__: JSON.stringify(buildId()) },
   plugins: [
     react(),
     appGraph,
