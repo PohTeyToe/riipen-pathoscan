@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { assays } from './assays'
 import type { Step } from './assays/assay'
+import { Photo } from './Photo'
+import { Result } from './Result'
 import { currentStep, type Run } from './run'
 import { getRun, setStepDone, startTimer } from './store'
 import { clock, remainingMs, sessionClock, type SessionClock } from './timer'
+import { Action, Bar } from './ui'
 import { useOnVisible } from './visible'
 
 export function Guide({ id }: { id: string }) {
@@ -49,24 +52,8 @@ export function Guide({ id }: { id: string }) {
   )
   const error = failed && <p className="alert">Couldn't save. Try again.</p>
 
-  if (i === -1) {
-    return (
-      <div className="screen">
-        <Bar field={run.field} />
-        <main className="body">
-          <h1>Take photo</h1>
-          <p className="note">Coming in the next build.</p>
-          {error}
-        </main>
-        <footer className="actions">
-          {back}
-          <button type="button" className="btn" disabled>
-            Take photo
-          </button>
-        </footer>
-      </div>
-    )
-  }
+  if (run.read) return <Result run={run} assay={assay} act={act} error={error} />
+  if (i === -1) return <Photo run={run} assay={assay} act={act} back={back} error={error} />
 
   return (
     <div className="screen">
@@ -82,22 +69,6 @@ export function Guide({ id }: { id: string }) {
         error={error}
       />
     </div>
-  )
-}
-
-function Bar({ field, step }: { field?: string; step?: string }) {
-  return (
-    <header className="bar">
-      <a className="back" href="#/">
-        ‹ Runs
-      </a>
-      {field && (
-        <span className="where">
-          <span className="field">{field}</span>
-          {step}
-        </span>
-      )}
-    </header>
   )
 }
 
@@ -144,20 +115,6 @@ function StepView({ step, startedAt, time, onStart, onDone, back, error }: StepP
         )}
       </footer>
     </>
-  )
-}
-
-/** A button that takes no taps for its first half second, so a double tap can't also finish the next step. */
-function Action({ onClick, ghost, children }: { onClick: () => void; ghost?: boolean; children: ReactNode }) {
-  const [armed, setArmed] = useState(false)
-  useEffect(() => {
-    const t = setTimeout(() => setArmed(true), 500)
-    return () => clearTimeout(t)
-  }, [])
-  return (
-    <button type="button" className={ghost ? 'btn ghost' : 'btn'} data-arming={armed ? undefined : ''} disabled={!armed} onClick={onClick}>
-      {children}
-    </button>
   )
 }
 
