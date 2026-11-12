@@ -198,10 +198,26 @@ test('with the keyboard alone, rings can be removed, the controls picked and the
   await expect(page.getByRole('heading', { name: '10 tubes' })).toBeVisible()
   await expect(page.getByRole('group', { name: '10 rings' })).toHaveAccessibleDescription('Adding a ring needs a tap on the photo.')
 
-  // Removing is a key press; adding back takes a tap, so a retake brings the ring back.
-  await tabTo(page, page.getByRole('button', { name: 'Ring 3, tap to remove' }))
+  // An assistive tech click (detail 0, no position) removes that ring; it isn't a tap on the photo.
+  await page.getByRole('button', { name: 'Ring 3, tap to remove' }).dispatchEvent('click')
+  await expect(page.getByRole('heading', { name: '9 of 10 tubes' })).toBeVisible()
+  await camera()
+  await expect(page.getByRole('heading', { name: '10 tubes' })).toBeVisible()
+
+  // Removing is a key press, and focus moves on to the next ring, or back to the one before after the last.
+  const ring = (n: number) => page.getByRole('button', { name: `Ring ${n}, tap to remove` })
+  await tabTo(page, ring(10))
   await page.keyboard.press('Enter')
   await expect(page.getByRole('heading', { name: '9 of 10 tubes' })).toBeVisible()
+  await expect(ring(9)).toBeFocused()
+  await page.keyboard.press(' ')
+  await expect(page.getByRole('heading', { name: '8 of 10 tubes' })).toBeVisible()
+  await expect(ring(8)).toBeFocused()
+  await tabTo(page, ring(3))
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('heading', { name: '7 of 10 tubes' })).toBeVisible()
+  await expect(ring(3)).toBeFocused() // the ring that was 4
+  // Adding back takes a tap, so a retake brings the rings back.
   await camera()
   await expect(page.getByRole('heading', { name: '10 tubes' })).toBeVisible()
   await tabTo(page, page.getByRole('button', { name: 'Continue' }))
