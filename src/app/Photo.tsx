@@ -4,7 +4,7 @@ import { loadImage } from '../lib/photo'
 import type { Img } from '../lib/synth'
 import type { Assay } from './assays/assay'
 import { encodePhoto } from './camera'
-import { addRing, findRings, pcAtEnd, readTubes, removeRing, ringAt, rolesFrom } from './reader'
+import { addRing, findRings, lineOrder, pcAtEnd, readTubes, removeRing, ringAt, rolesFrom } from './reader'
 import type { Run } from './run'
 import { Shot } from './Shot'
 import { getPhoto, saveRead, takePhoto } from './store'
@@ -121,6 +121,8 @@ export function Photo({ run, assay, act, back, error }: Props) {
     )
 
   const n = rings.length
+  // Numbering runs along one line of tubes, so ten rings in any other shape can't go on to the controls.
+  const ready = n === assay.tubes && lineOrder(rings) !== null
   const picked = (i: number) => i === pc && stage === 'nc'
   const labels = rings.map((region, i) => ({
     region,
@@ -135,6 +137,7 @@ export function Photo({ run, assay, act, back, error }: Props) {
         <h1>{stage === 'rings' ? (n === assay.tubes ? `${n} tubes` : `${n} of ${assay.tubes} tubes`) : stage === 'pc' ? 'Tap the positive control' : 'Tap the negative control'}</h1>
         {stage === 'rings' && <p className="note">Tap a tube to ring it. Tap a ring to remove it.</p>}
         <Shot src={shot.url} rings={labels} onTap={tap} onRing={pick} hint={stage === 'rings' ? 'Adding a ring needs a tap on the photo.' : undefined} />
+        {stage === 'rings' && n === assay.tubes && !ready && <p className="alert">Lay all 10 tubes in one line.</p>}
         {stage === 'pc' && notEnd && <p className="alert">Put the positive control at one end of the row.</p>}
         {status}
         {error}
@@ -143,7 +146,7 @@ export function Photo({ run, assay, act, back, error }: Props) {
         {stage === 'rings' ? (
           <>
             {camera('Retake', true)}
-            <button type="button" className="btn" disabled={n !== assay.tubes} onClick={() => setStage('pc')}>
+            <button type="button" className="btn" disabled={!ready} onClick={() => setStage('pc')}>
               Continue
             </button>
           </>

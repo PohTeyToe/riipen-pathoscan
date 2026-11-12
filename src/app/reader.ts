@@ -3,7 +3,7 @@
 
 import { params } from '../../data/eval.json'
 import { median } from '../lib/color'
-import { discRegion, findRegions, globalPaper, measure, readingOrder, type Region } from '../lib/find'
+import { discRegion, findRegions, globalPaper, measure, oneRow, readingOrder, type Region } from '../lib/find'
 import { readCalibrated, type Band, type Model, type RunRead } from '../lib/readers'
 import type { Img, Role } from '../lib/synth'
 
@@ -56,33 +56,36 @@ export function rolesFrom(n: number, pc: number, nc: number): Role[] {
   return Array.from({ length: n }, (_, i) => (i === pc ? 'pc' : i === nc ? 'nc' : 'sample'))
 }
 
-/** Each ring's place along the row: its centre on the main axis of all the centres. */
-function along(rings: Region[]): number[] {
-  const n = rings.length
-  const mx = rings.reduce((a, r) => a + r.cx, 0) / n
-  const my = rings.reduce((a, r) => a + r.cy, 0) / n
-  const [sxx, syy, sxy] = rings.reduce(([a, b, c], r) => [a + (r.cx - mx) ** 2, b + (r.cy - my) ** 2, c + (r.cx - mx) * (r.cy - my)], [0, 0, 0])
-  const angle = Math.atan2(2 * sxy, sxx - syy) / 2
-  return rings.map((r) => (r.cx - mx) * Math.cos(angle) + (r.cy - my) * Math.sin(angle))
+const transpose = (r: Region): Region => ({ ...r, x0: r.y0, y0: r.x0, x1: r.y1, y1: r.x1, cx: r.cy, cy: r.cx })
+
+/**
+ * The rings in order along the one line they form: a row across the photo or a column down it, straight or
+ * gently curved, as the finder groups a row. Null if they don't form one line (two rows, a grid).
+ */
+export function lineOrder(rings: Region[]): number[] | null {
+  const idx = rings.map((_, i) => i)
+  if (oneRow(rings)) return idx.sort((a, b) => rings[a].cx - rings[b].cx)
+  if (oneRow(rings.map(transpose))) return idx.sort((a, b) => rings[a].cy - rings[b].cy)
+  return null
 }
 
 /**
- * The positive control must be one of the row's two end rings, as in both kit layouts (+ − 1..8 and
+ * The positive control must be one of the line's two end rings, as in both kit layouts (+ − 1..8 and
  * + 1..8 −). From the middle, which way the samples run would depend on how the photo was turned.
  */
 export function pcAtEnd(rings: Region[], i: number): boolean {
-  const t = along(rings)
-  return t[i] === Math.min(...t) || t[i] === Math.max(...t)
+  const order = lineOrder(rings)
+  return order !== null && (order[0] === i || order.at(-1) === i)
 }
 
 /**
- * Each ring's label: + and − for the controls, samples 1 to 8 along the row from the positive control's
+ * Each ring's label: + and − for the controls, samples 1 to 8 along the line from the positive control's
  * end, which is how the tubes are labelled whichever way round the photo was taken.
  */
 export function tubeNames(rings: Region[], roles: Role[]): string[] {
-  const t = along(rings)
-  const flip = t[roles.indexOf('pc')] === Math.max(...t) ? -1 : 1
-  const samples = roles.flatMap((r, i) => (r === 'sample' ? [i] : [])).sort((a, b) => flip * (t[a] - t[b]))
+  const order = lineOrder(rings) ?? rings.map((_, i) => i)
+  if (order.at(-1) === roles.indexOf('pc')) order.reverse()
+  const samples = order.filter((i) => roles[i] === 'sample')
   return roles.map((r, i) => (r === 'pc' ? '+' : r === 'nc' ? '−' : String(samples.indexOf(i) + 1)))
 }
 

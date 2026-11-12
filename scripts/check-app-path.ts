@@ -90,6 +90,7 @@ try {
             }
           const h = hits()
           if (rings.length !== names.length || new Set(h).size !== names.length || h.includes(-1)) return { error: 'taps did not give one ring per tube', found, removed, added }
+          if (!reader.lineOrder(rings)) return { error: 'Lay all 10 tubes in one line.', found, removed, added }
           if (!reader.pcAtEnd(rings, h[names.indexOf(e.pc)])) return { error: 'Put the positive control at one end of the row.', found, removed, added }
           const roles = reader.rolesFrom(rings.length, h[names.indexOf(e.pc)], h[names.indexOf(e.nc)])
           const read = reader.readTubes(img, rings, roles)

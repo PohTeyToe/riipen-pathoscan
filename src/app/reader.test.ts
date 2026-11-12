@@ -3,7 +3,7 @@ import { discRegion, type Region } from '../lib/find'
 import type { RunRead, TubeRead } from '../lib/readers'
 import { liquidCentre, makeRun, render, type Img, type Role } from '../lib/synth'
 import { sclerotinia } from './assays/sclerotinia'
-import { findRings, pcAtEnd, radius, readTubes, ringAt, rolesFrom, tapRings, tubeNames } from './reader'
+import { findRings, lineOrder, pcAtEnd, radius, readTubes, ringAt, rolesFrom, tapRings, tubeNames } from './reader'
 import { newRun, tally, tapsDecided, type Run, type Tap } from './run'
 
 const box = (cx: number, cy: number, half: number): Region => ({ x0: cx - half, y0: cy - half, x1: cx + half, y1: cy + half, cx, cy })
@@ -15,6 +15,19 @@ describe('control taps', () => {
     expect(roles[9]).toBe('pc')
     expect(roles[4]).toBe('nc')
     expect(roles.filter((r) => r === 'sample')).toHaveLength(8)
+  })
+  it('need all ten tubes in one line: a row, a column or a gentle curve, but not two rows', () => {
+    const grid = Array.from({ length: 10 }, (_, i) => box(50 + (i % 5) * 100, 100 + Math.floor(i / 5) * 100, 10))
+    expect(lineOrder(grid)).toBeNull()
+    expect(pcAtEnd(grid, 0)).toBe(false) // top left of a 2x5 grid is no end
+    const across = row(10)
+    expect(lineOrder([...across].reverse())).toEqual([9, 8, 7, 6, 5, 4, 3, 2, 1, 0])
+    const down = across.map((r) => box(300, 40 + r.cx, 10))
+    expect(lineOrder(down)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+    // A row that sags in the middle, as on a soft tray: 0 at the ends, 25 px lower in the middle.
+    const curved = across.map((r, i) => box(r.cx, 100 + 25 * Math.sin((i / 9) * Math.PI), 10))
+    expect(lineOrder(curved)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+    expect(tubeNames(curved, rolesFrom(10, 9, 8))).toEqual(['8', '7', '6', '5', '4', '3', '2', '1', '−', '+'])
   })
   it('take the positive control only from an end of the row, across or down the photo', () => {
     const across = row(10)
