@@ -25,6 +25,22 @@ const flush = () => new Promise((r) => setTimeout(r, 0))
 afterEach(() => vi.unstubAllGlobals())
 
 describe('the update bar', () => {
+  it('keeps a newer offer when an older version check answers late', async () => {
+    const b = browser({ controlled: true, serving: __APP_BUILD__ })
+    let answer!: (v: unknown) => void
+    vi.stubGlobal('fetch', vi.fn(() => new Promise((r) => (answer = r))))
+    const { watchForUpdates, offered } = await load()
+    watchForUpdates(b.reg) // check 1 waits on the version file
+    // Build 2 finishes installing; its check sees it waiting and offers it.
+    ;(b.reg as unknown as { waiting: unknown }).waiting = { postMessage: vi.fn() }
+    b.fire('controllerchange')
+    await flush()
+    expect(await offered()).not.toBeNull()
+    answer({ ok: true, json: async () => ({ build: __APP_BUILD__ }) }) // check 1 answers: same build
+    await flush()
+    expect(await offered()).not.toBeNull()
+  })
+
   it('offers Reload when another tab already switched this page to a newer build', async () => {
     const b = browser({ controlled: true, serving: 'newer' })
     const { watchForUpdates, offered } = await load()

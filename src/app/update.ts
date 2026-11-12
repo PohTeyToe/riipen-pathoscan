@@ -28,7 +28,9 @@ async function servingBuild(): Promise<string | null> {
 export function watchForUpdates(reg: ServiceWorkerRegistration) {
   const sw = navigator.serviceWorker
   let asked = false
+  let latest = 0
   const check = async () => {
+    const mine = ++latest
     // With no controller this is the first install, not an update.
     if (!sw.controller) return
     const waiting = reg.waiting
@@ -38,6 +40,8 @@ export function watchForUpdates(reg: ServiceWorkerRegistration) {
         waiting.postMessage({ type: 'SKIP_WAITING' })
       })
     const build = await servingBuild()
+    // A newer check started while this one waited on the network; its answer wins.
+    if (mine !== latest) return
     set(build && build !== __APP_BUILD__ ? () => location.reload() : null)
   }
   reg.addEventListener('updatefound', () => {
