@@ -94,20 +94,28 @@ test('the field app installs its service worker, works offline and keeps a timer
 })
 
 // Runs last: it rebuilds dist under the running preview server.
-test('a new version waits until the grower taps Reload, then takes over', async ({ page }) => {
+test('a new version waits until the grower taps Reload, then takes over in every open tab', async ({ page, context }) => {
   await page.goto('/app.html')
   await page.evaluate(() => navigator.serviceWorker.ready)
   await page.reload()
   expect(await page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true)
   const first = (await page.getByText(/^Build /).textContent())!
   await expect(page.getByText('New version ready.')).toHaveCount(0)
+  const other = await context.newPage()
+  await other.goto('/app.html')
+  await expect(other.getByText(first)).toBeVisible()
 
   execSync('npx vite build', { cwd: fileURLToPath(new URL('..', import.meta.url)), env: { ...process.env, APP_BUILD: 'e2e-next' }, stdio: 'ignore' })
   await page.reload() // the browser looks for a new sw.js on navigation
 
   await expect(page.getByText('New version ready.')).toBeVisible({ timeout: 20_000 })
+  await expect(other.getByText('New version ready.')).toBeVisible({ timeout: 20_000 })
   await expect(page.getByText(first)).toBeVisible() // still the old version
   await page.getByRole('button', { name: 'Reload' }).click()
   await expect(page.getByText('Build e2e-next')).toBeVisible()
   await expect(page.getByText('New version ready.')).toHaveCount(0)
+
+  // The other tab's new version already took over from the first tab; its Reload must still work.
+  await other.getByRole('button', { name: 'Reload' }).click()
+  await expect(other.getByText('Build e2e-next')).toBeVisible()
 })

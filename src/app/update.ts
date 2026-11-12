@@ -10,6 +10,8 @@ export function watchForUpdates(reg: ServiceWorkerRegistration) {
   let asked = false
   const offer = (sw: ServiceWorker) => {
     apply = () => {
+      // Another tab may have switched to this version already; then no controllerchange will come here.
+      if (sw.state === 'activating' || sw.state === 'activated') return location.reload()
       asked = true
       sw.postMessage({ type: 'SKIP_WAITING' })
     }
