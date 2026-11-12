@@ -21,9 +21,9 @@ export interface Run {
   steps: { done: boolean; timerStartedAt?: number }[]
   /** IndexedDB key of the saved JPEG. */
   photoKey?: string
-  /** The 10 confirmed rings, in reading order. */
+  /** The 10 labelled rings, in the order the grower tapped them: +, −, then samples 1 to 8. */
   regions?: Region[]
-  /** From the grower's two control taps. */
+  /** From the grower's tap order: 'pc', 'nc', then eight 'sample'. */
   roles?: Role[]
   /** Straight from readCalibrated. */
   read?: RunRead
