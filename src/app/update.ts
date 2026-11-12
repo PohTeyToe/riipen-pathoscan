@@ -40,9 +40,10 @@ export function watchForUpdates(reg: ServiceWorkerRegistration) {
         waiting.postMessage({ type: 'SKIP_WAITING' })
       })
     const build = await servingBuild()
-    // A newer check started while this one waited on the network; its answer wins.
-    if (mine !== latest) return
-    set(build && build !== __APP_BUILD__ ? () => location.reload() : null)
+    // A newer check started while this one waited; its answer wins. An unreadable file tells us
+    // nothing, so it leaves the bar as it is.
+    if (mine !== latest || build === null) return
+    set(build !== __APP_BUILD__ ? () => location.reload() : null)
   }
   reg.addEventListener('updatefound', () => {
     const next = reg.installing

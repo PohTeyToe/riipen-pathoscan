@@ -41,6 +41,18 @@ describe('the update bar', () => {
     expect(await offered()).not.toBeNull()
   })
 
+  it('keeps an offer when a later version check cannot read the file', async () => {
+    const b = browser({ controlled: true, serving: 'newer' })
+    const { watchForUpdates, offered } = await load()
+    watchForUpdates(b.reg)
+    await flush()
+    expect(await offered()).not.toBeNull()
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('offline') }))
+    b.fire('visibilitychange')
+    await flush()
+    expect(await offered()).not.toBeNull()
+  })
+
   it('offers Reload when another tab already switched this page to a newer build', async () => {
     const b = browser({ controlled: true, serving: 'newer' })
     const { watchForUpdates, offered } = await load()
