@@ -28,27 +28,30 @@ async function servingBuild(): Promise<string | null> {
 export function watchForUpdates(reg: ServiceWorkerRegistration) {
   const sw = navigator.serviceWorker
   let asked = false
+  // Reload decides what to do when tapped, not when offered, so it can't act on a version that has
+  // since moved on: switch to the version waiting now, or, if none is waiting, just reload.
+  const update = () => {
+    const waiting = reg.waiting
+    if (!waiting) return location.reload()
+    asked = true
+    waiting.postMessage({ type: 'SKIP_WAITING' })
+  }
   // Checks can finish out of order. Each takes a number; an answer is dropped only if a later
   // check has already published one. A check that learns nothing publishes nothing.
   let started = 0
   let published = 0
-  const publish = (mine: number, f: (() => void) | null) => {
+  const publish = (mine: number, offer: boolean) => {
     if (mine < published) return
     published = mine
-    set(f)
+    set(offer ? update : null)
   }
   const check = async () => {
     const mine = ++started
     // With no controller this is the first install, not an update.
     if (!sw.controller) return
-    const waiting = reg.waiting
-    if (waiting)
-      return publish(mine, () => {
-        asked = true
-        waiting.postMessage({ type: 'SKIP_WAITING' })
-      })
+    if (reg.waiting) return publish(mine, true)
     const build = await servingBuild()
-    if (build !== null) publish(mine, build !== __APP_BUILD__ ? () => location.reload() : null)
+    if (build !== null) publish(mine, build !== __APP_BUILD__)
   }
   reg.addEventListener('updatefound', () => {
     const next = reg.installing

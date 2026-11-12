@@ -67,6 +67,18 @@ describe('the update bar', () => {
     expect(await offered()).not.toBeNull()
   })
 
+  it('reloads on tap when the offered waiting version was activated elsewhere in the meantime', async () => {
+    const b = browser({ controlled: true, waiting: true, serving: __APP_BUILD__ })
+    const { watchForUpdates, offered } = await load()
+    watchForUpdates(b.reg)
+    await flush()
+    const apply = await offered()
+    ;(b.reg as unknown as { waiting: unknown }).waiting = null // another tab switched to it
+    apply!()
+    expect(b.waiting!.postMessage).not.toHaveBeenCalled()
+    expect(b.reload).toHaveBeenCalledOnce()
+  })
+
   it('offers Reload when another tab already switched this page to a newer build', async () => {
     const b = browser({ controlled: true, serving: 'newer' })
     const { watchForUpdates, offered } = await load()
