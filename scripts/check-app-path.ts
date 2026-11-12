@@ -1,6 +1,7 @@
 // Runs real photos through the field app's own Photo-screen code, in Chromium: the camera file is re-encoded
 // to the saved JPEG, the saved JPEG is decoded and ringed, hand-placed points stand in for the grower's taps
 // (removing rings on no tube, adding rings on missed tubes, then the two controls), and the run is read.
+// Each sample is also read from a ring removed and added back by a tap, as a missed tube would be.
 // Each photo is also turned 180 degrees at full size, as if taken from the other side, and run again.
 //   npx tsx scripts/check-app-path.ts <manifest.json> [overlay-dir] > <out.json>
 // The manifest is a list of photos:
@@ -92,6 +93,13 @@ try {
           const roles = reader.rolesFrom(rings.length, h[names.indexOf(e.pc)], h[names.indexOf(e.nc)])
           const read = reader.readTubes(img, rings, roles)
           const label = reader.tubeNames(roles)
+          // Each sample's ring removed and added back by a tap on its point: the call a placed ring gives.
+          const readded = (n: string) => {
+            const ring = rings[h[names.indexOf(n)]]
+            const rs = reader.tapRings(reader.tapRings(rings, ring.cx, ring.cy, reach), ...pt(n), reach)
+            const at = (m: string) => reader.ringAt(rs, ...pt(m), reach)
+            return reader.readTubes(img, rs, reader.rolesFrom(rs.length, at(e.pc), at(e.nc))).tubes[at(n)].call
+          }
           let overlay: string | undefined
           if (draw) {
             const oc = new OffscreenCanvas(img.width, img.height)
@@ -125,6 +133,7 @@ try {
               s: read.tubes[h[j]].s,
               p: read.tubes[h[j]].p,
               reason: read.tubes[h[j]].reason,
+              readded: roles[h[j]] === 'sample' ? readded(n) : undefined,
             })),
             overlay,
           }
