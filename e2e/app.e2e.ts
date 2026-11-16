@@ -1,6 +1,6 @@
 import { execSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import { devices, expect, test, type Locator, type Page } from '@playwright/test'
 import { PNG } from 'pngjs'
 import { liquidCentre, makeRun, render } from '../src/lib/synth'
 
@@ -225,18 +225,59 @@ test('a run goes from the guide to a photo, rings, labels tapped in order and a 
   await context.setOffline(false)
 })
 
-/** A new run, through the guide to the Photo screen. */
-async function toPhoto(page: Page, field: string) {
+/** A new run, on its first guide step. */
+async function newRun(page: Page, field: string) {
   await page.getByRole('link', { name: 'New run' }).click()
   await page.getByLabel('Field name').fill(field)
   await page.getByRole('button', { name: 'Start run' }).click()
+  await expect(page.getByText('Step 1 of 8')).toBeVisible()
+}
+
+/** A new run, through the guide to the Photo screen. Each step shows its own picture, loaded, and fits the screen. */
+async function toPhoto(page: Page, field: string) {
+  await newRun(page, field)
+  const pictures = new Set<string | null>()
   for (let i = 1; i <= 8; i++) {
     await expect(page.getByText(`Step ${i} of 8`)).toBeVisible()
+    const picture = page.getByRole('main').getByRole('img')
+    await expect(picture).toHaveAccessibleName(/\w+ \w+ \w+/)
+    await expect.poll(() => picture.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBeGreaterThan(0)
+    pictures.add(await picture.getAttribute('src'))
+    expect(await page.evaluate(() => document.documentElement.scrollHeight - innerHeight)).toBeLessThanOrEqual(0)
     if (await page.getByRole('button', { name: 'Start timer' }).isVisible()) await page.getByRole('button', { name: 'Start timer' }).click()
     await page.getByRole('button', { name: 'Done' }).click()
   }
   await expect(page.getByRole('heading', { name: 'Take photo', exact: true })).toBeVisible()
+  expect(pictures.size).toBe(8)
 }
+
+test('offline on a 360 x 740 phone, every guide step shows its picture with no scrolling', async ({ page, context }) => {
+  await page.setViewportSize({ width: 360, height: 740 })
+  await page.goto('/app.html')
+  await page.evaluate(() => navigator.serviceWorker.ready)
+  await context.setOffline(true)
+  await page.reload()
+  await toPhoto(page, 'Pictures')
+})
+
+test('a step picture moves, and stays still when the phone asks for reduced motion', async ({ page, playwright, baseURL }) => {
+  const moves = async (p: Page) => {
+    await p.goto('/app.html')
+    await newRun(p, 'Motion')
+    const picture = p.getByRole('main').getByRole('img')
+    const first = await picture.screenshot()
+    await p.waitForTimeout(400)
+    return !first.equals(await picture.screenshot())
+  }
+  expect(await moves(page)).toBe(true)
+  // Chromium doesn't pass emulated media into a picture's own SVG document; the browser-wide flag stands in for the phone's setting.
+  const still = await playwright.chromium.launch({ args: ['--force-prefers-reduced-motion'] })
+  try {
+    expect(await moves(await still.newPage({ ...devices['Pixel 7'], baseURL }))).toBe(false)
+  } finally {
+    await still.close()
+  }
+})
 
 /** Tab until `target` has focus, as a keyboard user would. */
 async function tabTo(page: Page, target: Locator) {

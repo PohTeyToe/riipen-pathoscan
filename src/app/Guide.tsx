@@ -90,6 +90,7 @@ function StepView({ step, startedAt, time, onStart, onDone, back, error }: StepP
   return (
     <>
       <main className="body">
+        {step.image && <img className="picture" src={step.image.src} alt={step.image.alt} />}
         <h1>{step.title}</h1>
         <p className="lead">{step.body}</p>
         {step.timerMin !== undefined && (

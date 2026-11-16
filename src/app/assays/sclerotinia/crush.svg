@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" fill="none" stroke="#141b3f" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+<style>.a{animation:u 1s ease-in-out 3}@keyframes u{50%{transform:translateY(-12px)}}.b{animation:v 1s ease-in-out 3}@keyframes v{50%{transform:translateY(12px)}}.c{transform-box:fill-box;transform-origin:center;animation:s 1s ease-in-out 3}@keyframes s{50%{transform:scaleY(1.7)}}@media (prefers-reduced-motion:reduce){*{animation:none!important}}</style>
+<defs><path id="l" d="M0 24C-4 18-16 2-15-10c1-10 9-14 15-12 6-2 14 2 15 12 1 12-11 28-15 34z"/></defs>
+<g fill="#fff"><use href="#l" transform="translate(66 46)"/><use href="#l" transform="translate(100 80) rotate(90)"/><use href="#l" transform="translate(66 114) rotate(180)"/><use href="#l" transform="translate(32 80) rotate(270)"/></g>
+<path d="M132 80h36m-12-12 12 12-12 12" stroke="#2a40b0" stroke-width="6"/>
+<path class="c" d="M206 80c6-9 14 3 22-3s14 6 22 0 14-4 24 3c-8 8-16-2-24 4s-14-5-22 0-16 4-22-4z" fill="#fff" stroke-width="4"/>
+<g class="a"><rect x="214" y="-16" width="52" height="84" rx="26" fill="#fff"/><rect x="225" y="36" width="30" height="24" rx="10" fill="#d6defa" stroke-width="4"/></g>
+<g class="b"><rect x="214" y="92" width="52" height="84" rx="26" fill="#fff"/><rect x="225" y="100" width="30" height="24" rx="10" fill="#d6defa" stroke-width="4"/></g>
+</svg>

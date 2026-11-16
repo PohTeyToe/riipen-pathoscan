@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" fill="none" stroke="#141b3f" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+<style>.p{animation:w .5s ease-in-out 6}@keyframes w{33%{transform:translate(-3px,2px)}66%{transform:translate(2px,-1px)}}@media (prefers-reduced-motion:reduce){*{animation:none!important}}</style>
+<defs><g id="t" fill="#fff"><path d="M-9 8v28l9 18 9-18V8z"/><rect x="-11" y="0" width="22" height="8" rx="2"/></g></defs>
+<use href="#t" x="22" y="34"/><use href="#t" x="51" y="34"/><use href="#t" x="80" y="34"/><use href="#t" x="109" y="34"/><use href="#t" x="138" y="34"/><use href="#t" x="167" y="34"/><use href="#t" x="196" y="34"/><use href="#t" x="225" y="34"/><use href="#t" x="254" y="34"/><use href="#t" x="283" y="34"/>
+<rect x="2" y="70" width="302" height="42" rx="6" fill="#fff" stroke-width="5"/>
+<g fill="#141b3f" stroke="none" font-family="Arial,Helvetica,sans-serif" font-weight="700" text-anchor="middle" font-size="20"><text x="22" y="97" font-size="12">POS</text><text x="51" y="97" font-size="12">NEG</text><text x="80" y="98">1</text><text x="109" y="98">2</text><text x="138" y="98">3</text><text x="167" y="98">4</text><text x="196" y="98">5</text><text x="225" y="98">6</text><text x="254" y="98">7</text><text x="283" y="98">8</text></g>
+<g class="p"><g transform="translate(294 108) rotate(150)" stroke-width="4"><path d="M0 0l-6-12h12z" fill="#141b3f"/><rect x="-8" y="-50" width="16" height="38" rx="3" fill="#2a40b0"/></g></g>
+</svg>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" fill="none" stroke="#141b3f" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+<style>.w{animation:r 1.6s ease-in-out 3}.w+.w{animation-delay:.3s}.w+.w+.w{animation-delay:.6s}@keyframes r{50%{transform:translateY(-8px);opacity:.3}}@media (prefers-reduced-motion:reduce){*{animation:none!important}}</style>
+<g stroke="#b23a22"><path class="w" d="M58 66c-9-7 9-14 0-21s9-14 0-21"/><path class="w" d="M108 66c-9-7 9-14 0-21s9-14 0-21"/><path class="w" d="M158 66c-9-7 9-14 0-21s9-14 0-21"/></g>
+<rect x="18" y="78" width="180" height="66" rx="10" fill="#fff"/>
+<path d="M18 100h180"/>
+<g fill="#141b3f" stroke="none"><ellipse cx="48" cy="89" rx="9" ry="4.5"/><ellipse cx="78" cy="89" rx="9" ry="4.5"/><ellipse cx="108" cy="89" rx="9" ry="4.5"/><ellipse cx="138" cy="89" rx="9" ry="4.5"/><ellipse cx="168" cy="89" rx="9" ry="4.5"/></g>
+<circle cx="176" cy="123" r="8" fill="#b23a22" stroke="none"/>
+<circle cx="262" cy="92" r="44" fill="#fff"/>
+<path d="M262 92V48a44 44 0 0 1 38.1 66z" fill="#d6defa" stroke="none"/>
+<circle cx="262" cy="92" r="44"/>
+<path d="M262 48v8M306 92h-8M262 136v-8M218 92h8" stroke-width="4"/>
+<path d="M262 92V62M262 92l26 15" stroke="#2a40b0" stroke-width="6"/>
+<circle cx="262" cy="92" r="5" fill="#141b3f" stroke="none"/>
+</svg>

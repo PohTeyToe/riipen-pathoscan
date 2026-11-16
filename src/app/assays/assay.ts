@@ -3,7 +3,8 @@
 export interface Step {
   title: string
   body: string
-  image?: string
+  /** A picture of the step's action, and its description for screen readers. */
+  image?: { src: string; alt: string }
   timerMin?: number
 }
 

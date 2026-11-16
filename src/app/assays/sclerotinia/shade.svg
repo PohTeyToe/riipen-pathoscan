@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" fill="none" stroke="#141b3f" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+<defs><g id="f" stroke-width="4"><path d="M-9 8v28l9 18 9-18V8z" fill="#fff"/><path d="M-9 24v12l9 18 9-18V24z" fill="#d6defa" stroke="none"/><path d="M-9 8v28l9 18 9-18V8z"/><rect x="-11" y="0" width="22" height="8" rx="2" fill="#fff"/></g></defs>
+<path d="M156 86h164v74H134z" fill="#c4cdf0" stroke="none"/>
+<circle cx="40" cy="38" r="16" fill="#fff"/>
+<path d="M40 8v8M40 60v8M10 38h8M62 38h8M19 17l6 6M55 53l6 6M19 59l6-6M55 23l6-6"/>
+<path d="M78 46l56 12M74 62l50 12" stroke="#b23a22" stroke-dasharray="1 12"/>
+<use href="#f" x="186" y="104"/><use href="#f" x="212" y="104"/><use href="#f" x="238" y="104"/><use href="#f" x="264" y="104"/><use href="#f" x="290" y="104"/>
+<rect x="172" y="132" width="132" height="25" rx="5" fill="#fff"/>
+<rect x="198" y="80" width="46" height="18" rx="9" transform="rotate(-22 221 89)" fill="#fff"/>
+<path d="M330 50H166a6 6 0 0 0 0 12h-8a6 6 0 0 0 0 12h6a6 6 0 0 0 0 12h166z" fill="#fff"/>
+<path d="M166 62h30M164 74h32" stroke-width="3"/>
+<rect x="294" y="42" width="40" height="52" rx="4" fill="#2a40b0"/>
+</svg>

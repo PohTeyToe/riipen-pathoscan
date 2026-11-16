@@ -121,6 +121,13 @@ h1 {
   font-weight: 700;
   color: var(--alert);
 }
+/* A guide step's picture: one box for every step, whatever the picture's shape. */
+.picture {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2;
+  object-fit: contain;
+}
 .timer {
   margin-top: 8px;
   font-size: clamp(4.5rem, 26vw, 7rem);
