@@ -1,19 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" fill="none" stroke="#141b3f" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
 <style>.d{animation:f 1.2s ease-in 3}.d+.d{animation-delay:.6s}@keyframes f{80%{transform:translateY(24px);opacity:1}100%{transform:translateY(28px);opacity:0}}@media (prefers-reduced-motion:reduce){*{animation:none!important}}</style>
 <defs>
-<g id="t" fill="#fff"><path d="M-9 8v28l9 18 9-18V8z"/><rect x="-11" y="0" width="22" height="8" rx="2"/></g>
-<path id="l" d="M-9 24v12l9 18 9-18V24z" stroke="none"/>
-<path id="o" d="M-9 8v28l9 18 9-18V8z"/>
+<g id="t" fill="#fff"><path d="M-11 10V62L0 80 11 62V10z"/><rect x="-12" y="0" width="24" height="10" rx="2"/></g>
 <g id="p"><rect x="-10" y="-58" width="20" height="24" rx="10" fill="#fff"/><path d="M-6-36v20l4 14h4l4-14v-20z" fill="#fff"/></g>
 </defs>
-<use href="#t" x="22" y="78"/><use href="#l" x="22" y="78" fill="#2a40b0"/><use href="#o" x="22" y="78"/>
-<use href="#t" x="51" y="78"/><use href="#l" x="51" y="78" fill="#d6defa"/><use href="#o" x="51" y="78"/>
-<use href="#t" x="80" y="78"/><use href="#l" x="80" y="78" fill="#d6defa"/><use href="#o" x="80" y="78"/>
-<use href="#t" x="109" y="78"/><use href="#t" x="138" y="78"/><use href="#t" x="167" y="78"/><use href="#t" x="196" y="78"/><use href="#t" x="225" y="78"/><use href="#t" x="254" y="78"/><use href="#t" x="283" y="78"/>
-<rect x="2" y="112" width="302" height="40" rx="6" fill="#fff" stroke-width="5"/>
-<g fill="#141b3f" stroke="none" font-family="Arial,Helvetica,sans-serif" font-weight="700" text-anchor="middle" font-size="20"><text x="22" y="138" font-size="12">POS</text><text x="51" y="138" font-size="12">NEG</text><text x="80" y="139">1</text><text x="109" y="139">2</text><text x="138" y="139">3</text><text x="167" y="139">4</text><text x="196" y="139">5</text><text x="225" y="139">6</text><text x="254" y="139">7</text><text x="283" y="139">8</text></g>
-<use href="#p" x="22" y="62"/><path d="M18 32h8v14h-8z" fill="#2a40b0" stroke="none"/>
-<use href="#p" x="109" y="62"/><path d="M105 32h8v14h-8z" fill="#d6defa" stroke="none"/>
-<path class="d" d="M22 62c-4 6-4 10 0 10s4-4 0-10z" fill="#2a40b0" stroke-width="2"/>
-<path class="d" d="M109 62c-4 6-4 10 0 10s4-4 0-10z" fill="#d6defa" stroke-width="2"/>
+<rect x="2" y="122" width="298" height="34" rx="6" fill="#fff" stroke-width="5"/>
+<use href="#t" x="20" y="72"/><use href="#t" x="49" y="72"/><use href="#t" x="78" y="72"/><use href="#t" x="107" y="72"/><use href="#t" x="136" y="72"/><use href="#t" x="165" y="72"/><use href="#t" x="194" y="72"/><use href="#t" x="223" y="72"/><use href="#t" x="252" y="72"/><use href="#t" x="281" y="72"/>
+<path d="M10.2 136L20 152 29.8 136z" fill="#2a40b0" stroke-width="3"/><path d="M39.2 136L49 152 58.8 136z" fill="#6f84e6" stroke-width="3"/><path d="M68.2 136L78 152 87.8 136z" fill="#6f84e6" stroke-width="3"/>
+<g fill="#141b3f" stroke="none" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="17" text-anchor="middle"><text x="20" y="100">P</text><text x="20" y="116">O</text><text x="20" y="132">S</text><text x="49" y="100">N</text><text x="49" y="116">E</text><text x="49" y="132">G</text><text x="78" y="116" font-size="22">1</text><text x="107" y="116" font-size="22">2</text><text x="136" y="116" font-size="22">3</text><text x="165" y="116" font-size="22">4</text><text x="194" y="116" font-size="22">5</text><text x="223" y="116" font-size="22">6</text><text x="252" y="116" font-size="22">7</text><text x="281" y="116" font-size="22">8</text></g>
+<use href="#p" x="20" y="66"/><path d="M16 34h8v14h-8z" fill="#2a40b0" stroke-width="2"/>
+<use href="#p" x="107" y="66"/><path d="M103 34h8v14h-8z" fill="#6f84e6" stroke-width="2"/>
+<path class="d" d="M20 66c-4 6-4 10 0 10s4-4 0-10z" fill="#2a40b0" stroke-width="2"/>
+<path class="d" d="M107 66c-4 6-4 10 0 10s4-4 0-10z" fill="#6f84e6" stroke-width="2"/>
 </svg>
