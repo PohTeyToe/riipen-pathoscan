@@ -37,7 +37,6 @@ describe('step drawings', () => {
     expect(svg.length).toBeLessThan(6 * 1024)
     expect(svg).not.toMatch(/https?:\/\/(?!www\.w3\.org\/2000\/svg)/) // nothing fetched from outside
     expect(motionEnds(svg)).toBeLessThanOrEqual(5)
-    if (motionEnds(svg) > 0) expect(svg).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{[^}]*animation:\s*none/)
   })
 
   it('counts every animation, its repeats and its delays', () => {

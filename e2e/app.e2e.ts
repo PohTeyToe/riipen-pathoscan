@@ -1,6 +1,6 @@
 import { execSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { devices, expect, test, type Locator, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { PNG } from 'pngjs'
 import { liquidCentre, makeRun, render } from '../src/lib/synth'
 
@@ -268,23 +268,21 @@ test('offline on a 360 x 740 phone, every guide step shows its picture with no s
   for (const src of await toPhoto(page, 'Pictures')) expect(cached).toContain(new URL(src).pathname)
 })
 
-test('a step picture moves, and stays still when the phone asks for reduced motion', async ({ page, playwright, baseURL }) => {
-  const moves = async (p: Page) => {
-    await p.goto('/app.html')
-    await newRun(p, 'Motion')
-    const picture = p.getByRole('main').getByRole('img')
-    const first = await picture.screenshot()
-    await p.waitForTimeout(400)
-    return !first.equals(await picture.screenshot())
+test('every step picture moves, and none move when the phone asks for reduced motion', async ({ page }) => {
+  await page.goto('/app.html')
+  const pictures = [...(await toPhoto(page, 'Motion'))]
+  // Open each drawing as its own page, where emulated media reaches its styles, and count the animations running.
+  const running = async () => {
+    const counts: number[] = []
+    for (const src of pictures) {
+      await page.goto(src)
+      counts.push(await page.evaluate(() => document.getAnimations().filter((a) => a.playState === 'running').length))
+    }
+    return counts
   }
-  expect(await moves(page)).toBe(true)
-  // Chromium doesn't pass emulated media into a picture's own SVG document; the browser-wide flag stands in for the phone's setting.
-  const still = await playwright.chromium.launch({ args: ['--force-prefers-reduced-motion'] })
-  try {
-    expect(await moves(await still.newPage({ ...devices['Pixel 7'], baseURL }))).toBe(false)
-  } finally {
-    await still.close()
-  }
+  expect((await running()).filter((n) => n > 0).length).toBe(pictures.length - 1) // shade.svg is the one still picture
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  expect(await running()).toEqual(pictures.map(() => 0))
 })
 
 /** Tab until `target` has focus, as a keyboard user would. */
