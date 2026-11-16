@@ -53,7 +53,7 @@ export default defineConfig({
       injectRegister: null,
       manifest: false,
       workbox: {
-        // Images too: the guide's drawings are small enough to be inlined, but a photo swapped in is its own file.
+        // Images too: the guide's drawings, or a photo swapped in for one.
         globPatterns: ['app.html', 'app.webmanifest', 'app-version.json', 'app-icon-*.png', 'assets/*.{js,css,woff2,svg,png,jpg,jpeg,webp}'],
         // Precache only what app.html loads, so the demo's chunks and fonts stay out.
         manifestTransforms: [async (entries) => ({ manifest: entries.filter((e) => !e.url.startsWith('assets/') || appFiles.has(e.url)), warnings: [] })],
@@ -64,6 +64,8 @@ export default defineConfig({
     }),
   ],
   build: {
+    // Images stay their own files, the way a photo swapped in for a drawing would be, so the offline test covers that path.
+    assetsInlineLimit: 0,
     rolldownOptions: {
       input: { index: 'index.html', app: 'app.html' },
     },

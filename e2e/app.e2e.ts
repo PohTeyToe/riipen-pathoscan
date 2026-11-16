@@ -9,6 +9,15 @@ const secondsLeft = async (page: Page) => {
   return m * 60 + s
 }
 
+/** The paths the service worker has cached. */
+function precached(page: Page) {
+  return page.evaluate(async () => {
+    const paths: string[] = []
+    for (const name of await caches.keys()) for (const req of await (await caches.open(name)).keys()) paths.push(new URL(req.url).pathname)
+    return paths
+  })
+}
+
 test('the field app installs its service worker, works offline and keeps a timer across a reload', async ({ page, context }) => {
   await context.grantPermissions(['geolocation'])
   await context.setGeolocation({ latitude: 52.13, longitude: -106.67, accuracy: 9 })
@@ -19,11 +28,7 @@ test('the field app installs its service worker, works offline and keeps a timer
   await page.evaluate(() => navigator.serviceWorker.ready)
 
   // The precache holds the app and none of the demo.
-  const cached = await page.evaluate(async () => {
-    const urls: string[] = []
-    for (const name of await caches.keys()) for (const req of await (await caches.open(name)).keys()) urls.push(new URL(req.url).pathname)
-    return urls
-  })
+  const cached = await precached(page)
   expect(cached.some((u) => u.startsWith('/app.html'))).toBe(true)
   expect(cached.filter((u) => u === '/' || u.startsWith('/index.html') || u.startsWith('/assets/index-'))).toEqual([])
 
@@ -233,31 +238,34 @@ async function newRun(page: Page, field: string) {
   await expect(page.getByText('Step 1 of 8')).toBeVisible()
 }
 
-/** A new run, through the guide to the Photo screen. Each step shows its own picture, loaded, and fits the screen. */
+/** A new run, through the guide to the Photo screen. Each step shows its own picture, loaded, and fits the screen. Returns the pictures. */
 async function toPhoto(page: Page, field: string) {
   await newRun(page, field)
-  const pictures = new Set<string | null>()
+  const pictures = new Set<string>()
   for (let i = 1; i <= 8; i++) {
     await expect(page.getByText(`Step ${i} of 8`)).toBeVisible()
     const picture = page.getByRole('main').getByRole('img')
     await expect(picture).toHaveAccessibleName(/\w+ \w+ \w+/)
     await expect.poll(() => picture.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBeGreaterThan(0)
-    pictures.add(await picture.getAttribute('src'))
+    pictures.add(await picture.evaluate((img: HTMLImageElement) => img.src))
     expect(await page.evaluate(() => document.documentElement.scrollHeight - innerHeight)).toBeLessThanOrEqual(0)
     if (await page.getByRole('button', { name: 'Start timer' }).isVisible()) await page.getByRole('button', { name: 'Start timer' }).click()
     await page.getByRole('button', { name: 'Done' }).click()
   }
   await expect(page.getByRole('heading', { name: 'Take photo', exact: true })).toBeVisible()
   expect(pictures.size).toBe(8)
+  return pictures
 }
 
 test('offline on a 360 x 740 phone, every guide step shows its picture with no scrolling', async ({ page, context }) => {
   await page.setViewportSize({ width: 360, height: 740 })
   await page.goto('/app.html')
   await page.evaluate(() => navigator.serviceWorker.ready)
+  const cached = await precached(page)
   await context.setOffline(true)
   await page.reload()
-  await toPhoto(page, 'Pictures')
+  // Each picture is its own file, as a photo swapped in would be, and came from the precache.
+  for (const src of await toPhoto(page, 'Pictures')) expect(cached).toContain(new URL(src).pathname)
 })
 
 test('a step picture moves, and stays still when the phone asks for reduced motion', async ({ page, playwright, baseURL }) => {
