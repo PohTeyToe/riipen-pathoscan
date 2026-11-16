@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" fill="none" stroke="#141b3f" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
-<defs><g id="f" stroke-width="4"><path d="M-9 8v28l9 18 9-18V8z" fill="#fff"/><path d="M-9 24v12l9 18 9-18V24z" fill="#d6defa" stroke="none"/><path d="M-9 8v28l9 18 9-18V8z"/><rect x="-11" y="0" width="22" height="8" rx="2" fill="#fff"/></g></defs>
+<defs><g id="f" stroke-width="4"><path d="M-9 8v28l9 18 9-18V8z" fill="#fff"/><path d="M-9 24v12l9 18 9-18V24z" fill="#6f84e6"/><rect x="-11" y="0" width="22" height="8" rx="2" fill="#fff"/></g></defs>
 <path d="M156 86h164v74H134z" fill="#c4cdf0" stroke="none"/>
 <circle cx="40" cy="38" r="16" fill="#fff"/>
 <path d="M40 8v8M40 60v8M10 38h8M62 38h8M19 17l6 6M55 53l6 6M19 59l6-6M55 23l6-6"/>

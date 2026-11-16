@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" fill="none" stroke="#141b3f" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
 <style>.s{animation:d .7s ease-in-out 6}@keyframes d{50%{transform:translateY(-26px)}}@media (prefers-reduced-motion:reduce){*{animation:none!important}}</style>
 <defs>
-<g id="f"><path d="M-9 8v28l9 18 9-18V8z" fill="#fff"/><path d="M-9 24v12l9 18 9-18V24z" fill="#d6defa" stroke="none"/><path d="M-9 8v28l9 18 9-18V8z"/><rect x="-11" y="0" width="22" height="8" rx="2" fill="#fff"/></g>
+<g id="f"><path d="M-9 8v28l9 18 9-18V8z" fill="#fff"/><path d="M-9 24v12l9 18 9-18V24z" fill="#6f84e6"/><rect x="-11" y="0" width="22" height="8" rx="2" fill="#fff"/></g>
 <g id="s"><rect x="-10" y="4" width="20" height="22" rx="4" fill="#2a40b0"/><rect x="-4" y="26" width="8" height="80" rx="2" fill="#fff"/></g>
 </defs>
 <use href="#f" transform="translate(55 52) scale(1.3)"/><use href="#f" transform="translate(160 52) scale(1.3)"/><use href="#f" transform="translate(265 52) scale(1.3)"/>

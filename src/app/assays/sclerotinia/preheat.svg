@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" fill="none" stroke="#141b3f" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
-<style>.w{animation:r 1.6s ease-in-out 3}.w+.w{animation-delay:.3s}.w+.w+.w{animation-delay:.6s}@keyframes r{50%{transform:translateY(-8px);opacity:.3}}@media (prefers-reduced-motion:reduce){*{animation:none!important}}</style>
+<style>.w{animation:r 1.4s ease-in-out 3}.w+.w{animation-delay:.3s}.w+.w+.w{animation-delay:.6s}@keyframes r{50%{transform:translateY(-8px);opacity:.3}}@media (prefers-reduced-motion:reduce){*{animation:none!important}}</style>
 <g stroke="#b23a22"><path class="w" d="M58 66c-9-7 9-14 0-21s9-14 0-21"/><path class="w" d="M108 66c-9-7 9-14 0-21s9-14 0-21"/><path class="w" d="M158 66c-9-7 9-14 0-21s9-14 0-21"/></g>
 <rect x="18" y="78" width="180" height="66" rx="10" fill="#fff"/>
 <path d="M18 100h180"/>

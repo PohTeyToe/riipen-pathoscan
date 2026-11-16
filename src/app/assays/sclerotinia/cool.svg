@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" fill="none" stroke="#141b3f" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
-<style>.m{transform:scaleY(.4);transform-origin:194px 130px;animation:c 2.4s ease-in-out 3}@keyframes c{from{transform:none}}.h{transform-origin:266px 82px;animation:r 2.4s linear 3}@keyframes r{to{transform:rotate(1turn)}}@media (prefers-reduced-motion:reduce){*{animation:none!important}}</style>
-<defs><g id="f" stroke-width="4"><path d="M-9 8v28l9 18 9-18V8z" fill="#fff"/><path d="M-9 24v12l9 18 9-18V24z" fill="#d6defa" stroke="none"/><path d="M-9 8v28l9 18 9-18V8z"/><rect x="-11" y="0" width="22" height="8" rx="2" fill="#fff"/></g></defs>
+<style>.m{transform:scaleY(.4);transform-origin:194px 130px;animation:c 1.6s ease-in-out 3}@keyframes c{from{transform:none}}.h{transform-origin:266px 82px;animation:r 1.6s linear 3}@keyframes r{to{transform:rotate(1turn)}}@media (prefers-reduced-motion:reduce){*{animation:none!important}}</style>
+<defs><g id="f" stroke-width="4"><path d="M-9 8v28l9 18 9-18V8z" fill="#fff"/><path d="M-9 24v12l9 18 9-18V24z" fill="#6f84e6"/><rect x="-11" y="0" width="22" height="8" rx="2" fill="#fff"/></g></defs>
 <use href="#f" transform="translate(30 66) scale(1.2)"/><use href="#f" transform="translate(60 66) scale(1.2)"/><use href="#f" transform="translate(90 66) scale(1.2)"/><use href="#f" transform="translate(120 66) scale(1.2)"/>
 <rect x="12" y="108" width="126" height="34" rx="5" fill="#fff"/>
 <path d="M160 44v56m-12-12 12 12 12-12" stroke="#2a40b0" stroke-width="6"/>
