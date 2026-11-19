@@ -4,18 +4,19 @@ import type { Step } from './assays/assay'
 import { Photo } from './Photo'
 import { Result } from './Result'
 import { currentStep, type Run } from './run'
-import { getRun, setStepDone, startTimer } from './store'
+import { getRun, NewerRun, setStepDone, startTimer } from './store'
 import { clock, remainingMs, sessionClock, type SessionClock } from './timer'
 import { Action, Bar } from './ui'
-import { useUpdate } from './update'
 import { useOnVisible } from './visible'
 
 export function Guide({ id }: { id: string }) {
   const [run, setRun] = useState<Run | null>()
   const [failed, setFailed] = useState(false)
+  // Saved by a newer version of the app (another tab updated): only Reload, offered above, can open it.
+  const [newer, setNewer] = useState(false)
   const [time] = useState(sessionClock)
-  const update = useUpdate()
-  const load = useCallback(() => void getRun(id).then((r) => setRun(r ?? null), () => setFailed(true)), [id])
+  const fail = useCallback((e: unknown) => (e instanceof NewerRun ? setNewer(true) : setFailed(true)), [])
+  const load = useCallback(() => void getRun(id).then((r) => setRun(r ?? null), fail), [id, fail])
   useEffect(load, [load])
   useOnVisible(
     useCallback(() => {
@@ -25,13 +26,12 @@ export function Guide({ id }: { id: string }) {
   )
 
   const assay = run && assays[run.assay]
-  if (!run || !assay) {
+  if (newer || !run || !assay) {
     const missing = run === null || failed || (run && !assay)
     return (
       <div className="screen">
         <Bar />
-        {/* A run only a newer version can open shows as missing here, with Reload offered above. */}
-        <main className="body">{missing && <p className="alert">{update ? 'Reload to open this run.' : 'Run not found.'}</p>}</main>
+        <main className="body">{(newer || missing) && <p className="alert">{newer ? 'Reload to open this run.' : 'Run not found.'}</p>}</main>
       </div>
     )
   }
@@ -42,8 +42,8 @@ export function Guide({ id }: { id: string }) {
       await write()
       setRun((await getRun(id)) ?? null)
       setFailed(false)
-    } catch {
-      setFailed(true)
+    } catch (e) {
+      fail(e)
     }
   }
   const i = currentStep(run, assay)

@@ -5,7 +5,7 @@ import { sclerotinia } from './assays/sclerotinia'
 import { currentStep, newRun, withStep } from './run'
 import type { RunRead } from '../lib/readers'
 import { ROLES } from './reader'
-import { addRun, getPhoto, getRun, listRuns, saveRead, setStepDone, setTap, startTimer, takePhoto } from './store'
+import { addRun, getPhoto, getRun, listRuns, NewerRun, saveRead, setStepDone, setTap, startTimer, takePhoto } from './store'
 import { remainingMs } from './timer'
 import { currentUpdate } from './update'
 
@@ -163,12 +163,26 @@ describe('a run saved by a newer app (another tab already updated)', () => {
     const future = { schema: 3, id: 'id-future', createdAt: 99_000, steps: 'a shape this app has never seen' }
     await set(future.id, future, db)
     expect(currentUpdate()).toBeNull()
-    expect(await getRun(future.id)).toBeUndefined()
+    await expect(getRun(future.id)).rejects.toBeInstanceOf(NewerRun)
     expect(currentUpdate()).toBeInstanceOf(Function)
     expect((await listRuns()).map((r) => r.id)).not.toContain(future.id)
-    await expect(setStepDone(future.id, 'pick', true)).rejects.toThrow('newer version')
-    await expect(startTimer(future.id, 'preheat', 1)).rejects.toThrow('newer version')
+    await expect(setStepDone(future.id, 'pick', true)).rejects.toBeInstanceOf(NewerRun)
+    await expect(startTimer(future.id, 'preheat', 1)).rejects.toBeInstanceOf(NewerRun)
     expect(await get(future.id, db)).toEqual(future)
+  })
+
+  it('is told apart from a missing run and from a failed read, even once Reload is offered', async () => {
+    expect(currentUpdate()).not.toBeNull() // offered by the test before
+    expect(await getRun('id-never-saved')).toBeUndefined()
+    const broken = new DOMException('The disk is unreadable', 'UnknownError')
+    const read = vi.spyOn(IDBObjectStore.prototype, 'get').mockImplementation(() => {
+      throw broken
+    })
+    try {
+      await expect(getRun('id-future')).rejects.toBe(broken)
+    } finally {
+      read.mockRestore()
+    }
   })
 })
 

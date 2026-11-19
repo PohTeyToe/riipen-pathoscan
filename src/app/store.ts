@@ -26,10 +26,18 @@ function newer(run: StoredRun) {
   return true
 }
 
-/** Undefined if there's no such run, or this app is too old to read it. */
+/** A run saved by a newer version of the app: the reason a read or a change of it fails. */
+export class NewerRun extends Error {
+  constructor(id: string) {
+    super(`Run ${id} is from a newer version of the app`)
+  }
+}
+
+/** Undefined if there's no such run. Fails with NewerRun if this app is too old to read it. */
 export const getRun = async (id: string) => {
   const run = await get<StoredRun>(id, runs())
-  return run && !newer(run) ? upgrade(run) : undefined
+  if (run && newer(run)) throw new NewerRun(id)
+  return run && upgrade(run)
 }
 
 /** Newest first, leaving out any this app is too old to read. */
@@ -44,7 +52,7 @@ function change(id: string, edit: (run: Run) => Run): Promise<void> {
     (run) => {
       if (!run) throw new Error(`No run ${id}`)
       // Throwing here writes nothing.
-      if (newer(run)) throw new Error(`Run ${id} is from a newer version of the app`)
+      if (newer(run)) throw new NewerRun(id)
       return edit(upgrade(run))
     },
     runs(),

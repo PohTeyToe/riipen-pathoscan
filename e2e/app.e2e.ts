@@ -371,6 +371,11 @@ test('a run saved by a newer version of the app is left alone, and Reload is off
   await expect(page.getByText('Future')).toHaveCount(0)
   await page.goto(`/app.html#/run/${future.id}`)
   await expect(page.getByText('Reload to open this run.')).toBeVisible()
+  // With Reload on offer, a run that isn't there is still just not found.
+  await page.goto('/app.html#/run/never-saved')
+  await expect(page.getByText('Run not found.')).toBeVisible()
+  await expect(page.getByRole('status')).toContainText('New version ready.')
+  await expect(page.getByText('Reload to open this run.')).toHaveCount(0)
   expect(errors).toEqual([])
 })
 
