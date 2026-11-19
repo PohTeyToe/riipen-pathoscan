@@ -4,6 +4,7 @@
 // Calibrated: white-balanced on the paper next to each tube, scored against the run's own controls in
 // CIELAB, mapped to a probability by a one-feature logistic model, with a band where it holds the call.
 
+import { median } from './color'
 import type { Features } from './find'
 import type { Role } from './synth'
 
@@ -48,6 +49,12 @@ export const QC = {
   minChromaShare: 0.3,
   /** A sample this far past the positive control counts toward the "weak control" flag. */
   weakControlS: 1.15,
+  /**
+   * A found sample region whose box is more than this many times the median found region's is held: it has
+   * likely spread into lit paper or the table, so its colour isn't the liquid's. Controls are left out: they set
+   * the scale whatever their size.
+   */
+  maxAreaShare: 3,
 }
 
 const sigmoid = (z: number) => 1 / (1 + Math.exp(-z))
@@ -128,11 +135,14 @@ export function readCalibrated(feats: (Features | null)[], roles: Role[], model:
   if (pcHues.some((h) => h - hNc < (hPc - hNc) / 2))
     flags.push('One positive control barely changed colour. Read against the one that did; check the other before trusting the run.')
 
+  const areas = feats.flatMap((f) => (f?.area ? [f.area] : []))
+  const maxArea = areas.length >= 3 ? QC.maxAreaShare * median(areas) : Infinity
   const tubes = feats.map((f, i): TubeRead => {
     if (roles[i] !== 'sample') return controlRead(roles[i])
     if (!f) return held('No liquid colour found.')
     if (f.clear < QC.minClear) return held('Too few clear pixels (glare, a bubble or low volume).')
     if (f.glare > f.clear * 1.5) return held('Mostly glare or reflection.')
+    if ((f.area ?? 0) > maxArea) return held('Much bigger than the other tubes, so it may take in paper or table. Read by eye.')
     const s = (f.labHue - hNc) / (hPc - hNc)
     if (chroma(f) < QC.minChromaShare * cRef) return { ...held('Too pale to read against the controls.'), s }
     const p = pAt(model, s)

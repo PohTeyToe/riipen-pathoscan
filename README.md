@@ -46,12 +46,12 @@ All numbers come from the scripts below, run on the code in `src/lib`.
 
 | | Wrong | Held | Right among calls made |
 |---|---|---|---|
-| Naive | 1,248 | 0 | 92.2% |
-| Calibrated | 488 | 1,621 (10%) | 96.6% |
+| Naive | 1,249 | 0 | 92.2% |
+| Calibrated | 487 | 1,636 (10%) | 96.6% |
 
-412 positives never changed colour enough to see. They are all 412 of the naive reader's misses in that group. The calibrated reader gets 399 of them wrong and holds the other 13. No colour reader gets them right. The naive reader's losses are mostly the orange middle: it calls 638 of 917 weak positives negative. The calibrated reader holds 673 of those and gets 7 wrong.
+412 positives never changed colour enough to see. They are all 412 of the naive reader's misses in that group. The calibrated reader gets 398 of them wrong and holds the other 14. No colour reader gets them right. The naive reader's losses are mostly the orange middle: it calls 639 of 917 weak positives negative. The calibrated reader holds 674 of those and gets 7 wrong.
 
-What surprised me: **light colour doesn't break the fixed cut** in this model. A warm cast squeezes hues together, and the best cut sits near the hue that moves least. What breaks it is a pH shift shared by the whole run. At -0.3 the naive reader makes 87 wrong calls per 320 samples against 25 with no shift, while the calibrated reader stays at 8 to 9. Blown-out photos (+2 stops) hurt both readers. The finder loses 93 of 400 tubes, and the calibrated reader holds 168 samples rather than guess.
+What surprised me: **light colour doesn't break the fixed cut** in this model. A warm cast squeezes hues together, and the best cut sits near the hue that moves least. What breaks it is a pH shift shared by the whole run. At -0.3 the naive reader makes 87 wrong calls per 320 samples against 26 with no shift, while the calibrated reader stays at 8 to 9. Blown-out photos (+2 stops) hurt both readers. The finder loses 93 of 400 tubes, and the calibrated reader holds 170 samples rather than guess.
 
 ### Real photos (`npm run eval:real`, `data/real-eval.json`)
 
@@ -59,17 +59,17 @@ The fair comparison covers 664 sample wells whose assay has both controls on the
 
 | | Wrong | Held |
 |---|---|---|
-| Naive (cut learned on synthetic) | 301 | 0 |
-| Naive, best cut for these wells picked with hindsight (48.5°) | 18 | 0 |
-| Calibrated, nothing retuned | 23 | 233 |
+| Naive (cut learned on synthetic) | 300 | 0 |
+| Naive, best cut for these wells picked with hindsight (50°) | 17 | 0 |
+| Calibrated, nothing retuned | 23 | 232 |
 | The paper's own hue calls (on the 438 of these wells it reports) | 7 | 0 |
 | Calibrated, on those same 438 wells | 8 | 152 |
 
 - A fixed cut doesn't travel. On these plates the negatives read orange, not pink.
-- Most of the calibrated reader's held wells sit on four plates whose controls are 14° to 19° apart. That's under the 20° minimum I set on synthetic runs. At 10° it would hold 45 and still get 23 wrong. I kept 20°, because changing it after seeing these results would be tuning on the test set.
+- Most of the calibrated reader's held wells sit on four plates whose controls are 14° to 19° apart. That's under the 20° minimum I set on synthetic runs. At 10° it would hold 44 and still get 23 wrong. I kept 20°, because changing it after seeing these results would be tuning on the test set.
 - 208 more scored wells have no pair of controls on their plate. The calibrated reader holds all of them.
 - The paper's calls are better on the wells both of us read. Its cut was set for this assay and these plates. This reader saw neither before.
-- The scores use the labelled well positions. Run on the same photos, the automatic finder covers 730 of the 996 wells read here. It also returns 21 regions on wells the scores skip or on a well it already found, and 11 on no well at all.
+- The scores use the labelled well positions. Run on the same photos, the automatic finder covers 907 of the 996 wells read here. It also returns 21 regions on wells the scores skip or on a well it already found, and 4 on no well at all.
 - The page decodes the photos with the browser, `scripts/eval-real.ts` with jpeg-js. Hues near the fixed cut can land on the other side, so a single photo's counts on the page can differ a little from a recount in Node. On the Supp. Fig. 5a plate that Zenodo labels SuppFig5_d, the fixed cut gets 31 of 45 wrong in Chrome and 25 in Node. The totals above are from Node.
 
 ## PathoScan's published photo: what the tool measures
@@ -78,21 +78,21 @@ The research for this project rested on one claim about the Alternaria photo on 
 
 The image is 810 by 296 px, and each tube tip is about 6 to 10 px across, so the automatic finder fails on it. It finds 6 regions, not 10, and one is a shadow. I placed the ten read spots by hand, the same as the page's "Place tubes by hand". Then I repeated every read at 27 placements: radius 3, 4 or 5 px, each shifted up to 2 px.
 
-Raw hue at the centre placement (0° is red, 60° is yellow): positive control 25.6°, negative control -3.8°, PS162 32.4°, PS163 11.5°, PS164 6.0°, PS165 37.6°, PS166 40.0°, PS167 40.0°, PS168 20.0°, PS169 16.2°.
+Raw hue at the centre placement (0° is red, 60° is yellow): positive control 25.0°, negative control -3.9°, PS162 31.2°, PS163 11.3°, PS164 6.0°, PS165 37.6°, PS166 40.0°, PS167 40.0°, PS168 20.0°, PS169 21.3°.
 
 - **Positive control less yellow than the positive samples.** It holds, and it's stronger than the claim. The control reads less yellow than **all four** tubes marked "+" (PS162, PS165, PS166, PS167), at all 27 placements. That may be why it's marked "+/-".
-- **A midpoint rule flips three tubes.** Only partly. The midpoint between the controls is about 11°. It calls PS168 and PS169 positive against their handwritten "−" at all 27 placements. PS163 (the corrected "*−") flips at 12 of 27, because it sits within about 1° of the midpoint. At one placement PS164 flips too. So the fair line is "two tubes for sure, a third on the edge".
+- **A midpoint rule flips three tubes.** Only partly. The midpoint between the controls is about 10.5°. It calls PS168 and PS169 positive against their handwritten "−" at all 27 placements. PS163 (the corrected "*−") flips at 8 of 27, because it sits within about 1° of the midpoint. So the fair line is "two tubes for sure, a third on the edge".
 - **What the naive cut does.** The fixed 23.5° cut learned on synthetic runs matches all eight handwritten calls at 26 of 27 placements. On this photo a fixed cut does fine, and the midpoint rule is what breaks.
-- **What the calibrated reader does.** It never contradicts a handwritten call. It flags the positive control as weaker than the samples, but it counts 3 rather than 4, because PS162 has too few clear pixels to score. At this resolution it holds most tubes for too few clear pixels. It calls PS167 positive at 24 of 27 placements, PS166 at 20 and PS165 at 8, and holds everything else. On a photo this small it mostly says "read these by eye", which is the right answer but not a useful one. A box camera close to the tubes would give it hundreds of pixels per tube.
+- **What the calibrated reader does.** It never contradicts a handwritten call. It flags the positive control as weaker than the samples, but it counts 3 rather than 4, because PS162 has too few clear pixels to score. At this resolution it holds most tubes for too few clear pixels. It calls PS167 positive at 24 of 27 placements, PS166 at 20 and PS165 at 10, and holds everything else. On a photo this small it mostly says "read these by eye", which is the right answer but not a useful one. A box camera close to the tubes would give it hundreds of pixels per tube.
 
 So the line for any message is: "Your positive control reads less yellow than all four tubes you marked positive. A midpoint rule between the controls would call 168 and 169 positive, and 163 is within a degree of flipping." Don't claim three flips.
 
 ## How it works
 
-1. **Find** (`src/lib/find.ts`). Make the brightest third of the photo, the paper, neutral. Keep pixels that are clearly pink, orange or yellow. Join pieces that a glare streak or bubble splits, and sort the regions into reading order. A placed or labelled disc skips this step. Both readers get the same regions and pixels.
-2. **Measure.** Take the per-channel median of the liquid pixels. The naive reader uses that colour's HSV hue. The calibrated reader divides it by the median of pale, neutral pixels in a ring around the tube, so the nearby paper becomes white, then converts to CIELAB.
+1. **Find** (`src/lib/find.ts`). Make the paper neutral: the white of each part of the photo is the brightest third of the pixels around it, so a lamp that warms one side doesn't turn that paper into "liquid". Keep pixels that are clearly pink, orange or yellow. Drop any region with the frame or the dark table along one side: it isn't a tube on paper. Join pieces that a glare streak or bubble splits, and sort the regions into reading order. A placed or labelled disc skips this step. Both readers get the same regions and pixels.
+2. **Measure.** Take the per-channel median of the liquid pixels, told from paper against the paper around the tube. The naive reader uses that colour's HSV hue. The calibrated reader divides it by the median of pale, neutral pixels in a ring around the tube, so the nearby paper becomes white, then converts to CIELAB.
 3. **Scale** (`src/lib/readers.ts`). The calibrated reader puts each sample on a line from the negative control's Lab hue (0) to the positive control's (1). With several positive controls it uses the one that turned furthest and flags any that didn't turn. Several negative controls are averaged if they agree. If they don't, one may be contaminated, and it holds the group. A one-feature logistic model maps the position to p. A plate with two assays is read as two groups, each against its own controls.
-4. **Call or hold.** p ≥ 0.8 is positive and p ≤ 0.2 is negative. Anything in between is held. It also holds tubes with fewer than 25 clear pixels or too little colour. It holds the whole run when the controls are under 20° apart, and it flags a positive control that reads weaker than samples.
+4. **Call or hold.** p ≥ 0.8 is positive and p ≤ 0.2 is negative. Anything in between is held. It also holds tubes with fewer than 25 clear pixels or too little colour, and a found sample whose box is over three times the size of the run's median found box, since that region has likely spread into paper or table. It holds the whole run when the controls are under 20° apart, and it flags a positive control that reads weaker than samples.
 
 The "model" is a two-parameter logistic regression. I don't call it AI. All of it runs in the browser in milliseconds.
 
