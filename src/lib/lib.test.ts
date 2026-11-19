@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { LIN8, lightCast, toSrgb, type RGB } from './color'
 import { emptyConfusion, fitCut, fitLogistic, readSynthetic, score } from './evaluate'
 import { discRegion, findRegions, measure, readingOrder, type Features } from './find'
 import { readByGroup, readCalibrated, readMidpoint, readNaive, QC } from './readers'
@@ -14,6 +15,11 @@ const tube = (labHue: number, rawHue = labHue / 2, clear = 400): Features => {
   return { raw: [200, 150, 100], rawHue, corrected: [1, 0.7, 0.4], lab: { L: 70, a, b }, labHue, clear, glare: 0, paperFrom: 'local' }
 }
 const roles = (n: number): Role[] => ['pc', 'nc', ...Array<Role>(n).fill('sample')]
+const norm = (g: RGB): RGB => g.map((v) => v / Math.max(...g)) as RGB
+const sheet = (w: number, h: number): Img => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4).fill(255) })
+const paint = (img: Img, x0: number, y0: number, x1: number, y1: number, c: readonly number[]) => {
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) img.data.set([c[0], c[1], c[2], 255], (y * img.width + x) * 4)
+}
 
 describe('calibrated reader', () => {
   it('calls against the run controls and holds what sits between them', () => {
@@ -33,6 +39,15 @@ describe('calibrated reader', () => {
   })
   it('holds the run when the positive control is pinker than the negative', () => {
     expect(readCalibrated([tube(10), tube(90), tube(50)], roles(1), model, band).flags[0]).toMatch(/pinker/)
+  })
+  it('holds a sample whose region is far bigger than the other tubes', () => {
+    // A region that spread into paper lit by a lamp: its colour is the paper's, not the liquid's.
+    const found = (f: Features, area: number): Features => ({ ...f, area })
+    const r = readCalibrated([found(tube(90), 900), found(tube(10), 500), found(tube(10), 400), found(tube(12), 3000), found(tube(90), 1100)], roles(3), model, band)
+    expect(r.tubes.slice(2).map((t) => t.call)).toEqual(['neg', 'held', 'pos'])
+    expect(r.tubes[3].reason).toMatch(/bigger than the other tubes/)
+    // Placed discs are sized by the reader, so their pixel counts never make a tube oversized.
+    expect(readCalibrated([tube(90), tube(10), tube(10), tube(12, 6, 1300)], roles(2), model, band).tubes[3].call).toBe('neg')
   })
   it('flags a positive control weaker than samples', () => {
     const r = readCalibrated([tube(60), tube(10), tube(85), tube(88)], roles(2), model, band)
@@ -168,6 +183,65 @@ describe('finding and measuring', () => {
     for (let y = 0; y < img.height; y++)
       for (let x = 0; x < img.width; x++) if (x < 12 || y < 12) img.data.set(warm, (y * img.width + x) * 4)
     expect(findRegions(img).regions.map((r) => r.cx)).toEqual(clean.map((r) => r.cx))
+  })
+  it('ignores the dark table along the edges, and the warm strip where it meets the paper', () => {
+    // A phone photo cropped loose: dark table across the top and down the right, and a few pixels of
+    // brown, blurred table-to-paper edge that stop short of the frame. None of it is a tube on paper.
+    const img = render(makeRun(608, 'typical', { kelvin: 5500, ev: 0, drift: 0 }), 0.5)
+    const { regions: clean } = findRegions(img)
+    const { width: w, height: h } = img
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const table = y < 8 || x >= w - 8
+        const blur = !table && (y < 12 || x >= w - 12) && (x + y) % 40 < 25
+        if (table) img.data.set([30, 24, 20, 255], (y * w + x) * 4)
+        else if (blur) img.data.set([85, 62, 45, 255], (y * w + x) * 4)
+      }
+    const { regions } = findRegions(img)
+    expect(regions.map((r) => Math.round(r.cx))).toEqual(clean.map((r) => Math.round(r.cx)))
+  })
+  it('keeps a tube beside a pen mark out on the paper', () => {
+    // Dark ink a few pixels from a tube isn't table: it doesn't reach the frame.
+    const img = sheet(300, 150)
+    paint(img, 100, 60, 107, 83, [235, 180, 40])
+    paint(img, 92, 60, 96, 83, [30, 30, 30])
+    expect(findRegions(img).regions).toHaveLength(1)
+  })
+  it('measures a close-up tube that fills much of the photo', () => {
+    // Liquid covering most of a box a quarter of the photo across must not become its own white.
+    const img = sheet(300, 150)
+    for (const [x, c] of [[4, [235, 180, 40]], [110, [225, 80, 120]], [216, [235, 180, 40]]] as const) paint(img, x, 35, x + 79, 114, c)
+    const { regions, paper } = findRegions(img)
+    expect(regions).toHaveLength(3)
+    for (const r of regions) expect(measure(img, r, paper)?.clear).toBeGreaterThan(5000)
+  })
+  it('reads the same tubes the same way under a warm lamp on one side', () => {
+    // A 3000 K lamp at one end of the rack and daylight at the other: the paper goes from orange to white.
+    const lit = lightCast(3000)
+    const day = lightCast(6500)
+    const gain = norm([lit[0] / day[0], lit[1] / day[1], lit[2] / day[2]])
+    for (const fromLeft of [true, false])
+      for (const seed of [1, 2, 3]) {
+        const spec = makeRun(seed, 'typical', { kelvin: 5500, ev: 0, drift: 0 })
+        const img = render(spec, 0.5)
+        const roles = spec.tubes.map((t) => t.role)
+        const read = (im: Img) => {
+          const { regions, paper } = findRegions(im)
+          return { n: regions.length, calls: readCalibrated(regions.map((r) => measure(im, r, paper)), roles, model, band).tubes.map((t) => t.call) }
+        }
+        const clean = read(img)
+        const lamp = new Uint8ClampedArray(img.data)
+        for (let y = 0; y < img.height; y++)
+          for (let x = 0; x < img.width; x++) {
+            const t = fromLeft ? x / (img.width - 1) : 1 - x / (img.width - 1)
+            const o = (y * img.width + x) * 4
+            for (let c = 0; c < 3; c++) lamp[o + c] = Math.round(toSrgb(LIN8[lamp[o + c]] * (gain[c] + (1 - gain[c]) * t)) * 255)
+          }
+        // Every tube is still found, and none swaps positive for negative. Tubes on the lit side may be held.
+        const lampRead = read({ ...img, data: lamp })
+        expect(lampRead.n).toBe(clean.n)
+        expect(lampRead.calls.filter((c, i) => c !== clean.calls[i] && c !== 'held' && clean.calls[i] !== 'held')).toEqual([])
+      }
   })
   it('matches every tube in clean runs', () => {
     for (const seed of [1, 2, 3, 4, 5]) expect(readSynthetic(makeRun(seed, 'typical', { ev: 0 }), 0.5).missed).toBe(0)

@@ -28,6 +28,8 @@ export interface Features {
   labHue: number
   clear: number
   glare: number
+  /** A found region's box in pixels. Unset for a placed disc, whose size the reader chose. */
+  area?: number
   /** How the paper reference was found. */
   paperFrom: 'local' | 'global'
 }
@@ -50,32 +52,93 @@ function histMedian(hist: Uint32Array, n: number): RGB {
   return out
 }
 
-/** Median linear colour of the brightest third of the image: the paper, or whatever white the photo has. */
-export function globalPaper(img: Img): RGB {
-  const { width: w, height: h, data } = img
-  const stride = Math.max(1, Math.floor(Math.sqrt((w * h) / 40000)))
+const lumOf = (c: RGB) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+
+/** Under a fifth of the paper's light a pixel is dark: the table, a vignette, a deep shadow. */
+const DARK = 0.2
+
+/**
+ * Median linear colour of the brightest third of the pixels in a box, from about this many samples, leaving
+ * out any inside `skip`. Null if `skip` covers over three quarters of the box: too little left to judge.
+ */
+function whiteIn(img: Img, bx0: number, by0: number, bx1: number, by1: number, samples: number, skip?: Region): RGB | null {
+  const { width: w, data } = img
+  const x0 = Math.max(0, Math.floor(bx0))
+  const y0 = Math.max(0, Math.floor(by0))
+  const x1 = Math.min(w - 1, Math.ceil(bx1))
+  const y1 = Math.min(img.height - 1, Math.ceil(by1))
+  const stride = Math.max(1, Math.floor(Math.sqrt(((x1 - x0 + 1) * (y1 - y0 + 1)) / samples)))
+  const out = (x: number, y: number) => !!skip && x >= skip.x0 && x <= skip.x1 && y >= skip.y0 && y <= skip.y1
   const lum = new Uint32Array(766)
   let n = 0
-  for (let y = 0; y < h; y += stride)
-    for (let x = 0; x < w; x += stride) {
+  let all = 0
+  for (let y = y0; y <= y1; y += stride)
+    for (let x = x0; x <= x1; x += stride) {
+      all++
+      if (out(x, y)) continue
       const o = (y * w + x) * 4
       lum[data[o] + data[o + 1] + data[o + 2]]++
       n++
     }
+  if (n === 0 || n * 4 < all) return null
   let cut = 765
   for (let acc = 0; cut > 0; cut--) if ((acc += lum[cut]) * 3 >= n) break
   const hist = new Uint32Array(768)
   let m = 0
-  for (let y = 0; y < h; y += stride)
-    for (let x = 0; x < w; x += stride) {
+  for (let y = y0; y <= y1; y += stride)
+    for (let x = x0; x <= x1; x += stride) {
       const o = (y * w + x) * 4
-      if (data[o] + data[o + 1] + data[o + 2] < cut) continue
+      if (out(x, y) || data[o] + data[o + 1] + data[o + 2] < cut) continue
       hist[data[o]]++
       hist[256 + data[o + 1]]++
       hist[512 + data[o + 2]]++
       m++
     }
   return histMedian(hist, m).map((v) => Math.max(1e-3, LIN8[v])) as RGB
+}
+
+/** The whole photo's white: the paper, or whatever white the photo has. */
+export const globalPaper = (img: Img): RGB => whiteIn(img, 0, 0, img.width - 1, img.height - 1, 40000)!
+
+/**
+ * The paper's white around a point: the white of a box a quarter of the photo's long side across. Light is
+ * rarely even (a lamp on one side warms the paper there), so each tube is judged against the paper near it.
+ * The tube itself (`skip`) is left out, so a big one in a close-up can't become its own white. A box with
+ * too little left, or too dark to hold paper (all table or shadow), takes the whole photo's white.
+ */
+function areaPaper(img: Img, x: number, y: number, paper: RGB, skip?: Region): RGB {
+  const r = Math.max(img.width, img.height) / 8
+  const c = whiteIn(img, x - r, y - r, x + r, y + r, 4000, skip)
+  return !c || lumOf(c) < DARK * lumOf(paper) ? paper : c
+}
+
+/**
+ * areaPaper on a grid of points an eighth of the long side apart, blended between the four nearest: the
+ * finder's white at any pixel, written into `out` (the finder asks for it at every work pixel).
+ */
+function paperField(img: Img, paper: RGB): (x: number, y: number, out: RGB) => void {
+  const step = Math.max(img.width, img.height) / 8
+  const cols = Math.max(1, Math.round(img.width / step))
+  const rows = Math.max(1, Math.round(img.height / step))
+  const cw = img.width / cols
+  const ch = img.height / rows
+  const cells: RGB[] = []
+  for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) cells.push(areaPaper(img, (i + 0.5) * cw, (j + 0.5) * ch, paper))
+  return (x, y, out) => {
+    const fx = Math.min(cols - 1, Math.max(0, x / cw - 0.5))
+    const fy = Math.min(rows - 1, Math.max(0, y / ch - 0.5))
+    const i = Math.floor(fx)
+    const j = Math.floor(fy)
+    const i1 = Math.min(cols - 1, i + 1)
+    const j1 = Math.min(rows - 1, j + 1)
+    const tx = fx - i
+    const ty = fy - j
+    const a = cells[j * cols + i]
+    const b = cells[j * cols + i1]
+    const c = cells[j1 * cols + i]
+    const d = cells[j1 * cols + i1]
+    for (let k = 0; k < 3; k++) out[k] = (a[k] * (1 - tx) + b[k] * tx) * (1 - ty) + (c[k] * (1 - tx) + d[k] * tx) * ty
+  }
 }
 
 // Inlined HSV: this runs on every pixel the finder and the measurer look at.
@@ -96,10 +159,13 @@ export function isLiquid(r: number, g: number, b: number, paper: RGB): boolean {
 
 export function findRegions(img: Img): { regions: Region[]; paper: RGB } {
   const paper = globalPaper(img)
+  const white = paperField(img, paper)
+  const p: RGB = [0, 0, 0]
   const f = Math.max(1, Math.max(img.width, img.height) / WORK)
   const w = Math.max(1, Math.floor(img.width / f))
   const h = Math.max(1, Math.floor(img.height / f))
   const mask = new Uint8Array(w * h)
+  /** Each work pixel's light as a share of the paper's light there. */
   const lum = new Float32Array(w * h)
   // Box-average each work pixel's footprint, then test it.
   for (let y = 0; y < h; y++) {
@@ -120,9 +186,26 @@ export function findRegions(img: Img): { regions: Region[]; paper: RGB } {
           b += LIN8[img.data[o + 2]]
           n++
         }
-      mask[y * w + x] = isLiquid(r / n, g / n, b / n, paper) ? 1 : 0
-      lum[y * w + x] = (0.2126 * r + 0.7152 * g + 0.0722 * b) / n
+      white((x + 0.5) * f, (y + 0.5) * f, p)
+      mask[y * w + x] = isLiquid(r / n, g / n, b / n, p) ? 1 : 0
+      lum[y * w + x] = (0.2126 * r + 0.7152 * g + 0.0722 * b) / n / lumOf(p)
     }
+  }
+  // The table: dark pixels joined to the frame. A pen mark or a dark cap out on the paper isn't table.
+  const table = new Uint8Array(w * h)
+  const todo: number[] = []
+  const seed = (i: number) => {
+    if (!table[i] && lum[i] < DARK) (table[i] = 1), todo.push(i)
+  }
+  for (let x = 0; x < w; x++) seed(x), seed((h - 1) * w + x)
+  for (let y = 0; y < h; y++) seed(y * w), seed(y * w + w - 1)
+  while (todo.length) {
+    const j = todo.pop()!
+    const x = j % w
+    if (x > 0) seed(j - 1)
+    if (x < w - 1) seed(j + 1)
+    if (j >= w) seed(j - w)
+    if (j < (h - 1) * w) seed(j + w)
   }
 
   // Connected components, 4-neighbour.
@@ -155,26 +238,32 @@ export function findRegions(img: Img): { regions: Region[]; paper: RGB } {
     boxes.push(box)
   }
 
-  // A region that reaches the frame is a dark corner, the table or a tube cut off by the crop. None can be
-  // read. So is one that stops a pixel or two short with only dark pixels (under a quarter of the paper's light)
-  // between it and the frame: a vignette or a table that faded out. Paper in that gap, even shaded or
-  // tinted, means a whole tube. Drop these before joining: a border region's box can span most of the
-  // photo and would swallow tubes.
-  const edge = 2
-  const paperLum = 0.2126 * paper[0] + 0.7152 * paper[1] + 0.0722 * paper[2]
-  const darkGap = (x0: number, x1: number, y0: number, y1: number) => {
-    if (x1 < x0 || y1 < y0) return true // touches the frame
-    let sum = 0
-    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) sum += lum[y * w + x]
-    return sum / ((x1 - x0 + 1) * (y1 - y0 + 1)) < 0.25 * paperLum
+  // A tube's liquid sits on paper. A region with the frame or the dark table along one side is not a tube on
+  // paper: a dark corner, the edge of the table, a tube cut off by the crop. None can be read. So each side
+  // of a region is checked over a strip as deep as the region is narrow: a side is off the paper if the strip
+  // lies outside the frame or more than half of it is table. Shaded or tinted paper beside a tube is still
+  // paper. Drop these before joining: a border region's box can span most of the photo and would swallow tubes.
+  const offPaper = (x0: number, x1: number, y0: number, y1: number) => {
+    x0 = Math.max(0, x0)
+    y0 = Math.max(0, y0)
+    x1 = Math.min(w - 1, x1)
+    y1 = Math.min(h - 1, y1)
+    if (x1 < x0 || y1 < y0) return true
+    let dark = 0
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) dark += table[y * w + x]
+    return dark * 2 > (x1 - x0 + 1) * (y1 - y0 + 1)
   }
-  const atFrame = (b: Box) =>
-    (b.x0 < edge && darkGap(0, b.x0 - 1, b.y0, b.y1)) ||
-    (b.y0 < edge && darkGap(b.x0, b.x1, 0, b.y0 - 1)) ||
-    (b.x1 >= w - edge && darkGap(b.x1 + 1, w - 1, b.y0, b.y1)) ||
-    (b.y1 >= h - edge && darkGap(b.x0, b.x1, b.y1 + 1, h - 1))
+  const besideTable = (b: Box) => {
+    const d = Math.max(2, Math.min(b.x1 - b.x0 + 1, b.y1 - b.y0 + 1))
+    return (
+      offPaper(b.x0 - d, b.x0 - 1, b.y0, b.y1) ||
+      offPaper(b.x1 + 1, b.x1 + d, b.y0, b.y1) ||
+      offPaper(b.x0, b.x1, b.y0 - d, b.y0 - 1) ||
+      offPaper(b.x0, b.x1, b.y1 + 1, b.y1 + d)
+    )
+  }
   const minArea = Math.max(4, w * h * 0.00004)
-  let parts = boxes.filter((b) => b.n >= minArea && !atFrame(b))
+  let parts = boxes.filter((b) => b.n >= minArea && !besideTable(b))
 
   // A glare streak or a bubble can cut one liquid region in two. Join parts that nearly touch.
   const parent = parts.map((_, i) => i)
@@ -266,9 +355,14 @@ export const discRegion = (cx: number, cy: number, r: number, r0?: number): Regi
   r0,
 })
 
-/** Measure one region: its clear liquid colour, raw and paper-corrected. */
+/**
+ * Measure one region: its clear liquid colour, raw and paper-corrected. Liquid is told from paper against the
+ * paper around the region (areaPaper), not the whole photo's `paper`, so paper warmed by a lamp on one side
+ * isn't taken for liquid. The colour is then corrected by the paper right beside it.
+ */
 export function measure(img: Img, region: Region, paper: RGB): Features | null {
   const { width: w, height: h, data } = img
+  const near = areaPaper(img, region.cx, region.cy, paper, region)
   const hist = new Uint32Array(768)
   let n = 0
   let glare = 0
@@ -285,7 +379,7 @@ export function measure(img: Img, region: Region, paper: RGB): Features | null {
         if (d2 > region.r ** 2 || (region.r0 && d2 < region.r0 ** 2)) continue
       }
       const o = (y * w + x) * 4
-      if (!isLiquid(LIN8[data[o]], LIN8[data[o + 1]], LIN8[data[o + 2]], paper)) {
+      if (!isLiquid(LIN8[data[o]], LIN8[data[o + 1]], LIN8[data[o + 2]], near)) {
         // Inside a placed disc, a washed-out pixel is glare, a bubble or a reflection. In a found region
         // it is just the background around the liquid.
         if (region.r !== undefined) glare++
@@ -313,6 +407,7 @@ export function measure(img: Img, region: Region, paper: RGB): Features | null {
     labHue: labHue(lab.a, lab.b),
     clear: n * step * step,
     glare: glare * step * step,
+    area: region.r === undefined ? area : undefined,
     paperFrom: local ? 'local' : 'global',
   }
 }
