@@ -1,10 +1,11 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import type { Assay } from './assays/assay'
+import { exportRun } from './csv'
 import { LABELS } from './reader'
-import { tapsDecided, type Run, type Tap } from './run'
+import { finalCalls, tapsDecided, type Run, type Tap } from './run'
 import { Shot } from './Shot'
 import { getPhoto, setTap } from './store'
-import { Bar } from './ui'
+import { Action, Bar } from './ui'
 
 const MARK = { pos: '+', neg: '−', held: '?' }
 
@@ -16,7 +17,7 @@ export function Result({ run, assay, act, error }: { run: Run; assay: Assay; act
   const samples = roles.flatMap((r, i) => (r === 'sample' ? [i] : []))
   const failed = run.outcome === 'failed'
   const positives = (run.readerPositives ?? 0) + (run.tappedPositives ?? 0)
-  const calls = read.tubes.map((t, i) => (t.call === 'held' && run.taps[i] && !failed ? run.taps[i] : t.call))
+  const calls = finalCalls(run)
   const tap = (i: number, t: Tap) => act(() => setTap(run.id, i, run.taps[i] === t ? null : t, assay.treatAt))
 
   return (
@@ -75,6 +76,9 @@ export function Result({ run, assay, act, error }: { run: Run; assay: Assay; act
         {error}
       </main>
       <footer className="actions">
+        <Action ghost onClick={() => void exportRun(run)}>
+          Export
+        </Action>
         <a className="btn" href="#/">
           Done
         </a>

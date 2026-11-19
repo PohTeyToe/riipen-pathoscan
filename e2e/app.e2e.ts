@@ -1,4 +1,5 @@
 import { execSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { PNG } from 'pngjs'
@@ -227,6 +228,36 @@ test('a run goes from the guide to a photo, rings, labels tapped in order and a 
   await expect(page.locator('.shot img')).toHaveJSProperty('complete', true)
   expect(await page.locator('.shot img').evaluate((el: HTMLImageElement) => el.naturalWidth)).toBe(1000)
   await expect(rings).toHaveCount(10)
+
+  // Export, still offline. With no file sharing it downloads: a BOM, a header and one row per tube.
+  await page.evaluate(() => Object.defineProperty(navigator, 'canShare', { value: undefined, configurable: true }))
+  const downloaded = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Export' }).click()
+  const download = await downloaded
+  const bytes = readFileSync((await download.path())!)
+  const csv = bytes.toString('utf8')
+  expect(csv.charCodeAt(0)).toBe(0xfeff)
+  const [head, ...rows] = csv.slice(1).trimEnd().split('\r\n').map((line) => line.split(','))
+  const column = (name: string) => rows.map((r) => r[head.indexOf(name)])
+  expect(column('Tube')).toEqual(['POS', 'NEG', '1', '2', '3', '4', '5', '6', '7', '8'])
+  for (const [name, value] of [['Field', 'Synthetic'], ['Result', 'Treat'], ['Positives', '3'], ['Samples', '8'], ['Treat at', '3']])
+    expect(column(name)).toEqual(Array(10).fill(value))
+  // The held tube is the grower's Yellow, and it counts.
+  expect(column('Reader call').filter((c) => c === 'Held')).toHaveLength(1)
+  expect(column('Grower call').filter(Boolean)).toEqual(['Positive'])
+  expect(column('Final call').filter((c) => c === 'Positive')).toHaveLength(4) // the positive control and 3 samples
+  expect(download.suggestedFilename()).toBe(`pathoscan-synthetic-${column('Date')[0]}.csv`)
+
+  // Where the phone can share files, Export shares the same file instead.
+  await page.evaluate(() => {
+    const shared = ((window as unknown as { shared: unknown }).shared = [] as { name: string; type: string; bytes: number[] }[])
+    Object.defineProperty(navigator, 'canShare', { value: ({ files }: ShareData) => files?.length === 1 })
+    Object.defineProperty(navigator, 'share', {
+      value: async ({ files }: ShareData) => shared.push({ name: files![0].name, type: files![0].type, bytes: [...new Uint8Array(await files![0].arrayBuffer())] }),
+    })
+  })
+  await page.getByRole('button', { name: 'Export' }).click()
+  await expect.poll(() => page.evaluate(() => (window as unknown as { shared: unknown[] }).shared)).toEqual([{ name: download.suggestedFilename(), type: 'text/csv', bytes: [...bytes] }])
   await context.setOffline(false)
 })
 

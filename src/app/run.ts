@@ -1,6 +1,6 @@
 import { version } from '../../package.json'
 import type { Region } from '../lib/find'
-import type { RunRead } from '../lib/readers'
+import type { Call, RunRead } from '../lib/readers'
 import type { Role } from '../lib/synth'
 import type { Assay } from './assays/assay'
 
@@ -90,6 +90,13 @@ export function tally(read: RunRead, roles: Role[], taps: Tap[], treatAt: number
   const outcome = known >= treatAt ? 'treat' : known + open < treatAt ? 'dont-treat' : undefined
   return { rule, readerPositives, tappedPositives, outcome }
 }
+
+/**
+ * Each tube's call as it counts: the reader's, or the grower's tap on a tube the reader held. A failed run's
+ * taps are notes, so its held tubes stay held.
+ */
+export const finalCalls = (run: Run): Call[] =>
+  run.read!.tubes.map((t, i) => (t.call === 'held' && run.taps[i] && run.outcome !== 'failed' ? run.taps[i] : t.call))
 
 /** True when the reader's calls alone left the run either side of treatAt, so the grower's taps decided it. */
 export function tapsDecided(run: Run): boolean {
