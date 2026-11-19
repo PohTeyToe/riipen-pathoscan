@@ -47,9 +47,13 @@ test('the field app installs its service worker, works offline and keeps a timer
   await expect(page.getByText('52.13000, -106.67000 ±9 m')).toBeVisible()
   await start.click()
 
-  // Step 1: a 20 minute timer
+  // Step 1 has no timer; step 2 has a 20 minute one.
+  await expect(page.getByRole('heading', { name: 'Pick the samples', exact: true })).toBeVisible()
+  await expect(page.getByText('Step 1 of 9')).toBeVisible()
+  await expect(page.getByRole('timer')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Done' }).click()
   await expect(page.getByRole('heading', { name: 'Pre-heat the PathoBox', exact: true })).toBeVisible()
-  await expect(page.getByText('Step 1 of 8')).toBeVisible()
+  await expect(page.getByText('Step 2 of 9')).toBeVisible()
   await expect(page.getByText("Set your phone's alarm too.")).toBeVisible()
   await expect(page.getByRole('timer')).toHaveText('20:00')
   await page.getByRole('button', { name: 'Start timer' }).click()
@@ -71,10 +75,10 @@ test('the field app installs its service worker, works offline and keeps a timer
   expect(left).toBeGreaterThan(14 * 60)
   expect(left).toBeLessThanOrEqual(15 * 60)
 
-  // Done moves to step 2; Back returns with the timer still running.
+  // Done moves to step 3; Back returns with the timer still running.
   await page.getByRole('button', { name: 'Done' }).click()
   await expect(page.getByRole('heading', { name: 'Label the tubes', exact: true })).toBeVisible()
-  await expect(page.getByText('Step 2 of 8')).toBeVisible()
+  await expect(page.getByText('Step 3 of 9')).toBeVisible()
   await page.getByRole('button', { name: 'Back' }).click()
   await expect(page.getByRole('heading', { name: 'Pre-heat the PathoBox', exact: true })).toBeVisible()
   expect(await secondsLeft(page)).toBeLessThanOrEqual(15 * 60)
@@ -261,20 +265,23 @@ test('a run goes from the guide to a photo, rings, labels tapped in order and a 
   await context.setOffline(false)
 })
 
+/** Steps in the Sclerotinia guide. */
+const steps = 9
+
 /** A new run, on its first guide step. */
 async function newRun(page: Page, field: string) {
   await page.getByRole('link', { name: 'New run' }).click()
   await page.getByLabel('Field name').fill(field)
   await page.getByRole('button', { name: 'Start run' }).click()
-  await expect(page.getByText('Step 1 of 8')).toBeVisible()
+  await expect(page.getByText(`Step 1 of ${steps}`)).toBeVisible()
 }
 
 /** A new run, through the guide to the Photo screen. Each step shows its own picture, loaded, and fits the screen. Returns the pictures. */
 async function toPhoto(page: Page, field: string) {
   await newRun(page, field)
   const pictures = new Set<string>()
-  for (let i = 1; i <= 8; i++) {
-    await expect(page.getByText(`Step ${i} of 8`)).toBeVisible()
+  for (let i = 1; i <= steps; i++) {
+    await expect(page.getByText(`Step ${i} of ${steps}`)).toBeVisible()
     const picture = page.getByRole('main').getByRole('img')
     await expect(picture).toHaveAccessibleName(/\w+ \w+ \w+/)
     await expect.poll(() => picture.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBeGreaterThan(0)
@@ -284,7 +291,7 @@ async function toPhoto(page: Page, field: string) {
     await page.getByRole('button', { name: 'Done' }).click()
   }
   await expect(page.getByRole('heading', { name: 'Take photo', exact: true })).toBeVisible()
-  expect(pictures.size).toBe(8)
+  expect(pictures.size).toBe(steps)
   return pictures
 }
 

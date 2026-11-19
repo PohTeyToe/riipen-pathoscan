@@ -55,10 +55,12 @@ describe('the run store', () => {
 
   it('keeps a timer start across a reload, so the time left is recomputed', async () => {
     const started = 1_700_000_000_000
-    await addRun(withStep(run('timer', 4000), 0, { timerStartedAt: started }))
+    const i = sclerotinia.steps.findIndex((s) => s.timerMin !== undefined)
+    const min = sclerotinia.steps[i].timerMin!
+    await addRun(withStep(run('timer', 4000), i, { timerStartedAt: started }))
     const back = await getRun('id-timer')
-    expect(back?.steps[0].timerStartedAt).toBe(started)
-    expect(remainingMs(back!.steps[0].timerStartedAt!, sclerotinia.steps[0].timerMin!, started + 5 * 60_000)).toBe(15 * 60_000)
+    expect(back?.steps[i].timerStartedAt).toBe(started)
+    expect(remainingMs(back!.steps[i].timerStartedAt!, min, started + 5 * 60_000)).toBe((min - 5) * 60_000)
   })
 
   it('marks a step done and undoes it', async () => {
