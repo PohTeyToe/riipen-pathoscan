@@ -1,6 +1,8 @@
 // One file per pathogen in this folder. Adding one means a new file, not new code.
 
 export interface Step {
+  /** Saved runs keep progress under this id: never change or reuse one. */
+  id: string
   title: string
   body: string
   /** A picture of the step's action, and its description for screen readers. */

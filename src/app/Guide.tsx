@@ -43,10 +43,10 @@ export function Guide({ id }: { id: string }) {
       setFailed(true)
     }
   }
-  const i = currentStep(run)
-  const prev = (i === -1 ? run.steps.length : i) - 1
-  const back = prev >= 0 && (
-    <Action ghost onClick={() => act(() => setStepDone(id, prev, false))}>
+  const i = currentStep(run, assay)
+  const prev = assay.steps[(i === -1 ? assay.steps.length : i) - 1]
+  const back = prev && (
+    <Action ghost onClick={() => act(() => setStepDone(id, prev.id, false))}>
       Back
     </Action>
   )
@@ -54,17 +54,18 @@ export function Guide({ id }: { id: string }) {
 
   if (run.read) return <Result run={run} assay={assay} act={act} error={error} />
   if (i === -1) return <Photo key={run.photoKey} run={run} assay={assay} act={act} back={back} error={error} />
+  const step = assay.steps[i]
 
   return (
     <div className="screen">
-      <Bar field={run.field} step={`Step ${i + 1} of ${run.steps.length}`} />
+      <Bar field={run.field} step={`Step ${i + 1} of ${assay.steps.length}`} />
       <StepView
-        key={i}
-        step={assay.steps[i]}
-        startedAt={run.steps[i].timerStartedAt}
+        key={step.id}
+        step={step}
+        startedAt={run.steps[step.id]?.timerStartedAt}
         time={time}
-        onStart={() => act(() => startTimer(id, i, time.now()))}
-        onDone={() => act(() => setStepDone(id, i, true))}
+        onStart={() => act(() => startTimer(id, step.id, time.now()))}
+        onDone={() => act(() => setStepDone(id, step.id, true))}
         back={back}
         error={error}
       />

@@ -306,6 +306,53 @@ test('offline on a 360 x 740 phone, every guide step shows its picture with no s
   for (const src of await toPhoto(page, 'Pictures')) expect(cached).toContain(new URL(src).pathname)
 })
 
+test('a run saved mid-guide by the 8-step app opens on its cool-down, each timer on its own step', async ({ page }) => {
+  await page.goto('/app.html')
+  await expect(page.getByRole('heading', { name: 'Runs', exact: true })).toBeVisible()
+  // Stored as the 8-step app did: progress by position in preheat, label, mix, crush, dip, oil, shade, cool.
+  const min = 60_000
+  const now = Date.now()
+  const old = {
+    schema: 1,
+    id: 'saved-by-8-steps',
+    assay: 'sclerotinia',
+    field: 'Old app',
+    notes: '',
+    createdAt: now - 90 * min,
+    steps: [{ done: true, timerStartedAt: now - 80 * min }, ...Array(4).fill({ done: true }), { done: true, timerStartedAt: now - 40 * min }, { done: true }, { done: false, timerStartedAt: now - 2 * min }],
+    taps: Array(10).fill(null),
+    appVersion: '0.0.0',
+    readerVersion: '1',
+  }
+  await page.evaluate(
+    (run) =>
+      new Promise((done, fail) => {
+        const open = indexedDB.open('pathoscan-field')
+        open.onsuccess = () => {
+          const tx = open.result.transaction('runs', 'readwrite')
+          tx.objectStore('runs').put(run, run.id)
+          tx.oncomplete = () => done(open.result.close())
+          tx.onerror = () => fail(tx.error)
+        }
+      }),
+    old,
+  )
+  await page.goto(`/app.html#/run/${old.id}`)
+  await expect(page.getByRole('heading', { name: 'Cool the tubes', exact: true })).toBeVisible()
+  await expect(page.getByText('Step 9 of 9')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Done' })).toBeVisible()
+  const left = await secondsLeft(page)
+  expect(left).toBeGreaterThan(2 * 60)
+  expect(left).toBeLessThanOrEqual(3 * 60)
+  // Back: the shade step has no timer, and the oil step's 30 minutes ran out 10 minutes ago.
+  await page.getByRole('button', { name: 'Back' }).click()
+  await expect(page.getByRole('heading', { name: 'Keep the tubes out of the sun', exact: true })).toBeVisible()
+  await expect(page.getByRole('timer')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Back' }).click()
+  await expect(page.getByRole('heading', { name: 'Add oil and run', exact: true })).toBeVisible()
+  await expect(page.getByRole('timer')).toHaveText("Time's up")
+})
+
 test('every step picture moves, and none move when the phone asks for reduced motion', async ({ page }) => {
   await page.goto('/app.html')
   const pictures = [...(await toPhoto(page, 'Motion'))]

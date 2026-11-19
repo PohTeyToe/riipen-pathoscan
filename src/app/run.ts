@@ -10,15 +10,22 @@ export const READER_VERSION = '1'
 export type Outcome = 'treat' | 'dont-treat' | 'failed'
 export type Tap = null | 'pos' | 'neg'
 
+/** A guide step's progress. A step with no entry hasn't been started. */
+export interface StepProgress {
+  done: boolean
+  timerStartedAt?: number
+}
+
 export interface Run {
-  schema: 1
+  schema: 2
   id: string
   assay: string
   field: string
   notes: string
   gps?: { lat: number; lon: number; acc: number }
   createdAt: number
-  steps: { done: boolean; timerStartedAt?: number }[]
+  /** Keyed by step id, so a guide that gains, loses or reorders steps keeps each step's progress on that step. */
+  steps: Partial<Record<string, StepProgress>>
   /** IndexedDB key of the saved JPEG. */
   photoKey?: string
   /** The 10 labelled rings, in the order the grower tapped them: +, −, then samples 1 to 8. */
@@ -40,26 +47,44 @@ export interface Run {
 
 export function newRun(assay: Assay, input: Pick<Run, 'field' | 'notes' | 'gps'>, now = Date.now(), id: string = crypto.randomUUID()): Run {
   return {
-    schema: 1,
+    schema: 2,
     id,
     assay: assay.id,
     field: input.field.trim(),
     notes: input.notes.trim(),
     ...(input.gps && { gps: input.gps }),
     createdAt: now,
-    steps: assay.steps.map(() => ({ done: false })),
+    steps: {},
     taps: Array(assay.tubes).fill(null),
     appVersion: version,
     readerVersion: READER_VERSION,
   }
 }
 
-/** The step to show: the first one not done, or -1 when the guide is finished. */
-export const currentStep = (run: Run) => run.steps.findIndex((s) => !s.done)
+/** The index of the step to show: the first one not done, or -1 when the guide is finished. */
+export const currentStep = (run: Run, assay: Assay) => assay.steps.findIndex((s) => !run.steps[s.id]?.done)
 
-/** A copy of the run with step `i` changed. */
-export function withStep(run: Run, i: number, patch: Partial<Run['steps'][number]>): Run {
-  return { ...run, steps: run.steps.map((s, j) => (j === i ? { ...s, ...patch } : s)) }
+/** A copy of the run with step `stepId` changed. */
+export function withStep(run: Run, stepId: string, patch: Partial<StepProgress>): Run {
+  return { ...run, steps: { ...run.steps, [stepId]: { done: false, ...run.steps[stepId], ...patch } } }
+}
+
+/** A run as IndexedDB may hold it: the current shape, or one saved by an older app. */
+export type StoredRun = Run | (Omit<Run, 'schema' | 'steps'> & { schema: 1; steps: StepProgress[] })
+
+/** Schema 1 kept step progress in an array, by position in the guide of the day: these steps, in this order. */
+const SCHEMA_1_STEPS: Record<string, string[]> = { sclerotinia: ['preheat', 'label', 'mix', 'crush', 'dip', 'oil', 'shade', 'cool'] }
+
+/**
+ * A stored run in the current shape. A schema-1 run's progress moves onto its steps' ids. Picking the samples
+ * came in after schema 1: a run already under way had its samples, so that step counts as done.
+ */
+export function upgrade(run: StoredRun): Run {
+  if (run.schema === 2) return run
+  const ids = SCHEMA_1_STEPS[run.assay] ?? []
+  const steps: Run['steps'] = Object.fromEntries(run.steps.flatMap((s, i) => (ids[i] ? [[ids[i], s]] : [])))
+  if (run.steps.some((s) => s.done || s.timerStartedAt !== undefined)) steps.pick = { done: true }
+  return { ...run, schema: 2, steps }
 }
 
 export const OUTCOME_LABEL: Record<Outcome | 'open', string> = {

@@ -8,7 +8,7 @@ import { createStore, del, get, set, update, values, type UseStore } from 'idb-k
 import type { Region } from '../lib/find'
 import type { RunRead } from '../lib/readers'
 import type { Role } from '../lib/synth'
-import { READER_VERSION, tally, withStep, type Run, type Tap } from './run'
+import { READER_VERSION, tally, upgrade, withStep, type Run, type StoredRun, type Tap } from './run'
 
 let db: UseStore | undefined
 const runs = () => (db ??= createStore('pathoscan-field', 'runs'))
@@ -18,29 +18,32 @@ const photos = () => (photoDb ??= createStore('pathoscan-photos', 'photos'))
 export const getPhoto = (key: string) => get<Blob>(key, photos())
 
 export const addRun = (run: Run) => set(run.id, run, runs())
-export const getRun = (id: string) => get<Run>(id, runs())
+export const getRun = async (id: string) => {
+  const run = await get<StoredRun>(id, runs())
+  return run && upgrade(run)
+}
 
 /** Newest first. */
 export async function listRuns(): Promise<Run[]> {
-  return (await values<Run>(runs())).sort((a, b) => b.createdAt - a.createdAt)
+  return (await values<StoredRun>(runs())).map(upgrade).sort((a, b) => b.createdAt - a.createdAt)
 }
 
 function change(id: string, edit: (run: Run) => Run): Promise<void> {
-  return update<Run>(
+  return update<StoredRun>(
     id,
     (run) => {
       if (!run) throw new Error(`No run ${id}`)
-      return edit(run)
+      return edit(upgrade(run))
     },
     runs(),
   )
 }
 
-export const setStepDone = (id: string, i: number, done: boolean) => change(id, (run) => withStep(run, i, { done }))
+export const setStepDone = (id: string, step: string, done: boolean) => change(id, (run) => withStep(run, step, { done }))
 
-/** Starts step i's timer unless it is already running: the first start wins. */
-export const startTimer = (id: string, i: number, at: number) =>
-  change(id, (run) => (run.steps[i].timerStartedAt === undefined ? withStep(run, i, { timerStartedAt: at }) : run))
+/** Starts the step's timer unless it is already running: the first start wins. */
+export const startTimer = (id: string, step: string, at: number) =>
+  change(id, (run) => (run.steps[step]?.timerStartedAt === undefined ? withStep(run, step, { timerStartedAt: at }) : run))
 
 /**
  * Saves a photo under a new key and points the run at it, replacing (and deleting) the photo before. A run

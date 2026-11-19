@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto'
-import { createStore, keys } from 'idb-keyval'
+import { createStore, get, keys, set } from 'idb-keyval'
 import { describe, expect, it, vi } from 'vitest'
 import { sclerotinia } from './assays/sclerotinia'
 import { currentStep, newRun, withStep } from './run'
@@ -11,11 +11,9 @@ import { remainingMs } from './timer'
 const run = (field: string, createdAt: number) => newRun(sclerotinia, { field, notes: '' }, createdAt, `id-${field}`)
 
 describe('a new run', () => {
-  it('follows the schema-1 shape: one step per guide step, ten empty taps, no outcome', () => {
+  it('follows the schema-2 shape: no step started, ten empty taps, no outcome', () => {
     const r = newRun(sclerotinia, { field: '  North 40 ', notes: ' wet ' }, 5, 'a')
-    expect(r).toMatchObject({ schema: 1, id: 'a', assay: 'sclerotinia', field: 'North 40', notes: 'wet', createdAt: 5 })
-    expect(r.steps).toHaveLength(sclerotinia.steps.length)
-    expect(r.steps.every((s) => !s.done)).toBe(true)
+    expect(r).toMatchObject({ schema: 2, id: 'a', assay: 'sclerotinia', field: 'North 40', notes: 'wet', createdAt: 5, steps: {} })
     expect(r.taps).toEqual(Array(10).fill(null))
     expect(r.outcome).toBeUndefined()
     expect('gps' in r).toBe(false)
@@ -29,19 +27,32 @@ describe('a new run', () => {
 })
 
 describe('the guide position', () => {
+  const [first, second] = sclerotinia.steps.map((s) => s.id)
+
   it('is the first step not done, and -1 once all are done', () => {
     let r = run('g', 1)
-    expect(currentStep(r)).toBe(0)
-    r = withStep(withStep(r, 0, { done: true }), 1, { done: true })
-    expect(currentStep(r)).toBe(2)
-    r = withStep(r, 1, { done: false })
-    expect(currentStep(r)).toBe(1)
-    r = r.steps.reduce((acc, _, i) => withStep(acc, i, { done: true }), r)
-    expect(currentStep(r)).toBe(-1)
+    expect(currentStep(r, sclerotinia)).toBe(0)
+    r = withStep(withStep(r, first, { done: true }), second, { done: true })
+    expect(currentStep(r, sclerotinia)).toBe(2)
+    r = withStep(r, second, { done: false })
+    expect(currentStep(r, sclerotinia)).toBe(1)
+    r = sclerotinia.steps.reduce((acc, s) => withStep(acc, s.id, { done: true }), r)
+    expect(currentStep(r, sclerotinia)).toBe(-1)
   })
 
   it('ends on the cool-down, timed by coolMin', () => {
     expect(sclerotinia.steps.at(-1)?.timerMin).toBe(sclerotinia.coolMin)
+  })
+
+  it('gives every step its own id', () => {
+    expect(new Set(sclerotinia.steps.map((s) => s.id)).size).toBe(sclerotinia.steps.length)
+  })
+
+  it('keeps progress on its own step when the guide is reordered', () => {
+    const r = withStep(withStep(run('order', 1), 'pick', { done: true }), 'preheat', { done: true, timerStartedAt: 7 })
+    const reversed = { ...sclerotinia, steps: [...sclerotinia.steps].reverse() }
+    expect(reversed.steps[currentStep(r, reversed)].id).toBe('cool')
+    expect(reversed.steps.map((s) => r.steps[s.id]?.timerStartedAt)).toEqual(reversed.steps.map((s) => (s.id === 'preheat' ? 7 : undefined)))
   })
 })
 
@@ -55,31 +66,30 @@ describe('the run store', () => {
 
   it('keeps a timer start across a reload, so the time left is recomputed', async () => {
     const started = 1_700_000_000_000
-    const i = sclerotinia.steps.findIndex((s) => s.timerMin !== undefined)
-    const min = sclerotinia.steps[i].timerMin!
-    await addRun(withStep(run('timer', 4000), i, { timerStartedAt: started }))
+    const step = sclerotinia.steps.find((s) => s.timerMin !== undefined)!
+    await addRun(withStep(run('timer', 4000), step.id, { timerStartedAt: started }))
     const back = await getRun('id-timer')
-    expect(back?.steps[i].timerStartedAt).toBe(started)
-    expect(remainingMs(back!.steps[i].timerStartedAt!, min, started + 5 * 60_000)).toBe((min - 5) * 60_000)
+    expect(back?.steps[step.id]?.timerStartedAt).toBe(started)
+    expect(remainingMs(back!.steps[step.id]!.timerStartedAt!, step.timerMin!, started + 5 * 60_000)).toBe((step.timerMin! - 5) * 60_000)
   })
 
   it('marks a step done and undoes it', async () => {
     await addRun(run('step', 5000))
-    await setStepDone('id-step', 0, true)
-    expect((await getRun('id-step'))?.steps[0].done).toBe(true)
-    await setStepDone('id-step', 0, false)
-    expect((await getRun('id-step'))?.steps[0].done).toBe(false)
+    await setStepDone('id-step', 'label', true)
+    expect((await getRun('id-step'))?.steps.label?.done).toBe(true)
+    await setStepDone('id-step', 'label', false)
+    expect((await getRun('id-step'))?.steps.label?.done).toBe(false)
   })
 
   it('keeps the first timer start', async () => {
     await addRun(run('first', 5000))
-    await startTimer('id-first', 0, 111)
-    await startTimer('id-first', 0, 222)
-    expect((await getRun('id-first'))?.steps[0].timerStartedAt).toBe(111)
+    await startTimer('id-first', 'preheat', 111)
+    await startTimer('id-first', 'preheat', 222)
+    expect((await getRun('id-first'))?.steps.preheat?.timerStartedAt).toBe(111)
   })
 
   it('refuses a change to a run that is not there, and writes nothing', async () => {
-    await expect(setStepDone('id-nope', 0, true)).rejects.toThrow()
+    await expect(setStepDone('id-nope', 'label', true)).rejects.toThrow()
     expect(await getRun('id-nope')).toBeUndefined()
   })
 
@@ -92,15 +102,57 @@ describe('the run store', () => {
 
     await tabA.addRun(run('tabs', 6000))
     const seenByB = await tabB.getRun('id-tabs')
-    await tabA.setStepDone('id-tabs', 0, true)
-    await tabA.setStepDone('id-tabs', 1, true)
-    expect(seenByB?.steps[0].done).toBe(false) // B's screen is now stale
+    await tabA.setStepDone('id-tabs', 'pick', true)
+    await tabA.setStepDone('id-tabs', 'preheat', true)
+    expect(seenByB?.steps.pick).toBeUndefined() // B's screen is now stale
 
-    await tabB.startTimer('id-tabs', 2, 333)
-    await tabB.setStepDone('id-tabs', 0, true)
+    await tabB.startTimer('id-tabs', 'label', 333)
+    await tabB.setStepDone('id-tabs', 'pick', true)
     const stored = await tabA.getRun('id-tabs')
-    expect(stored?.steps.slice(0, 3).map((s) => s.done)).toEqual([true, true, false])
-    expect(stored?.steps[2].timerStartedAt).toBe(333)
+    expect(['pick', 'preheat', 'label'].map((s) => stored?.steps[s]?.done)).toEqual([true, true, false])
+    expect(stored?.steps.label?.timerStartedAt).toBe(333)
+  })
+})
+
+describe('a run saved by the 8-step guide (schema 1)', () => {
+  const db = createStore('pathoscan-field', 'runs')
+  const t = 1_700_000_000_000
+  // As the app stored it before step ids: progress by position in preheat, label, mix, crush, dip, oil, shade, cool.
+  // Pre-heat and oil timers ran, and the cool-down's timer is running.
+  const old = {
+    ...run('saved', 900),
+    schema: 1,
+    steps: [
+      { done: true, timerStartedAt: t },
+      ...Array(4).fill({ done: true }),
+      { done: true, timerStartedAt: t + 60 * 60_000 },
+      { done: true },
+      { done: false, timerStartedAt: t + 95 * 60_000 },
+    ],
+  }
+
+  it('opens on the cool-down, with each timer on its own step', async () => {
+    await set(old.id, old, db)
+    const r = (await getRun(old.id))!
+    expect(r.schema).toBe(2)
+    expect(sclerotinia.steps[currentStep(r, sclerotinia)].id).toBe('cool')
+    expect(r.steps.cool).toEqual({ done: false, timerStartedAt: t + 95 * 60_000 })
+    const timers = Object.fromEntries(sclerotinia.steps.map((s) => [s.id, r.steps[s.id]?.timerStartedAt]))
+    expect(timers).toEqual({ pick: undefined, preheat: t, label: undefined, mix: undefined, crush: undefined, dip: undefined, oil: t + 60 * 60_000, shade: undefined, cool: t + 95 * 60_000 })
+    expect((await listRuns()).find((x) => x.id === old.id)?.steps).toEqual(r.steps)
+  })
+
+  it('is stored in the new shape at its next change, progress intact', async () => {
+    await set(old.id, old, db)
+    await setStepDone(old.id, 'cool', true)
+    const stored = await get(old.id, db)
+    expect(stored).toMatchObject({ schema: 2, steps: { preheat: { done: true, timerStartedAt: t }, cool: { done: true, timerStartedAt: t + 95 * 60_000 } } })
+    expect(currentStep(stored, sclerotinia)).toBe(-1)
+  })
+
+  it('starts at picking the samples if the run had not begun', async () => {
+    await set('id-fresh', { ...old, id: 'id-fresh', steps: Array(8).fill({ done: false }) }, db)
+    expect(currentStep((await getRun('id-fresh'))!, sclerotinia)).toBe(0)
   })
 })
 
