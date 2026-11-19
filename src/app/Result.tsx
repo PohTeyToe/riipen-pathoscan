@@ -9,6 +9,10 @@ import { Action, Bar } from './ui'
 
 const MARK = { pos: '+', neg: '−', held: '?' }
 
+/** How many of the positives came from the grower's taps: "1 of the 3 positives is your call." */
+export const yourCalls = (tapped: number, positives: number) =>
+  `${tapped} of the ${positives} positives ${tapped === 1 ? 'is your call' : 'are your calls'}.`
+
 /** Drawn from the stored run only. The reader doesn't run again. */
 export function Result({ run, assay, act, error }: { run: Run; assay: Assay; act: (write: () => Promise<void>) => Promise<void>; error: ReactNode }) {
   const url = usePhoto(run.photoKey)
@@ -39,7 +43,7 @@ export function Result({ run, assay, act, error }: { run: Run; assay: Assay; act
             </p>
             {tapsDecided(run) && (
               <p className="note">
-                {run.outcome === 'treat' ? `${run.tappedPositives} of the ${positives} positives are your calls.` : 'Your calls decided this.'}
+                {run.outcome === 'treat' ? yourCalls(run.tappedPositives ?? 0, positives) : 'Your calls decided this.'}
               </p>
             )}
             {read.flags.map((f) => (

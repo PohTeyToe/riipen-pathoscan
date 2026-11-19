@@ -214,7 +214,7 @@ test('a run goes from the guide to a photo, rings, labels tapped in order and a 
   await held.getByRole('button', { name: 'Yellow' }).click()
   await expect(page.getByRole('heading', { name: '3 of 8 positive', exact: true })).toBeVisible()
   await expect(page.getByText('Enough positives to treat.')).toBeVisible()
-  await expect(page.getByText('1 of the 3 positives are your calls.')).toBeVisible()
+  await expect(page.getByText('1 of the 3 positives is your call.')).toBeVisible()
 
   // Saved: a reload opens the same result, and so does the list, offline.
   await page.reload()
