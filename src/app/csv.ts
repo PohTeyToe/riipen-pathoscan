@@ -16,14 +16,14 @@ const day = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.ge
 const time = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`
 
 /**
- * One cell. Text a spreadsheet would run as a formula (it starts with = + - @, a tab or a carriage return)
- * gets a leading apostrophe. A cell with a comma, a quote or a line break is quoted. Numbers stay numbers,
- * so a negative longitude is still a number.
+ * One cell. Text a spreadsheet would run as a formula (it starts with = + - @, their full-width forms, a tab
+ * or a carriage return) gets a leading apostrophe. A cell with a comma, a quote or a line break is quoted.
+ * Numbers stay numbers, so a negative longitude is still a number.
  */
 export function cell(v: Cell): string {
   if (v === undefined) return ''
   if (typeof v === 'number') return String(v)
-  const s = /^[=+\-@\t\r]/.test(v) ? `'${v}` : v
+  const s = /^[=+\-@\t\r\uFF1D\uFF0B\uFF0D\uFF20]/.test(v) ? `'${v}` : v
   return /[",\r\n]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s
 }
 
@@ -83,7 +83,9 @@ export async function exportRun(run: Run): Promise<void> {
       await navigator.share({ files: [file] })
       return
     } catch (e) {
-      if ((e as DOMException).name === 'AbortError') return // the grower closed the share sheet
+      // The grower closed the share sheet. A phone with no app to share to says the same, but that's rare,
+      // and a download after every cancel would be worse.
+      if ((e as DOMException).name === 'AbortError') return
     }
   }
   const a = document.createElement('a')

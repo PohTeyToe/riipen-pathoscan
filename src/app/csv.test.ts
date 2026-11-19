@@ -73,6 +73,7 @@ describe('a CSV cell', () => {
     expect(cell('-2 rows')).toBe("'-2 rows")
     expect(cell('@SUM(A1)')).toBe("'@SUM(A1)")
     expect(cell('\t=1')).toBe("'\t=1")
+    for (const c of [0xff1d, 0xff0b, 0xff0d, 0xff20].map((n) => String.fromCharCode(n))) expect(cell(c + 'SUM(A1)')).toBe("'" + c + 'SUM(A1)') // full-width = + - @
     expect(cell('a=b')).toBe('a=b')
   })
 
