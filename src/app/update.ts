@@ -74,8 +74,21 @@ export function watchForUpdates(reg: ServiceWorkerRegistration) {
   void check()
 }
 
+let stale = false
+const reload = () => location.reload()
+
+/**
+ * This page found data saved by a newer version of the app, which it can't read. Offer Reload from now on,
+ * even before the newer version is waiting here: Reload then picks up whatever this browser serves newest.
+ */
+export function needReload() {
+  if (stale) return
+  stale = true
+  subs.forEach((s) => s())
+}
+
 /** The action that switches to the newer version, or null when there is none. */
-export const currentUpdate = () => apply
+export const currentUpdate = () => apply ?? (stale ? reload : null)
 
 export const useUpdate = () =>
   useSyncExternalStore(

@@ -8,7 +8,8 @@ import { createStore, del, get, set, update, values, type UseStore } from 'idb-k
 import type { Region } from '../lib/find'
 import type { RunRead } from '../lib/readers'
 import type { Role } from '../lib/synth'
-import { READER_VERSION, tally, upgrade, withStep, type Run, type StoredRun, type Tap } from './run'
+import { READER_VERSION, SCHEMA, tally, upgrade, withStep, type Run, type StoredRun, type Tap } from './run'
+import { needReload } from './update'
 
 let db: UseStore | undefined
 const runs = () => (db ??= createStore('pathoscan-field', 'runs'))
@@ -18,14 +19,23 @@ const photos = () => (photoDb ??= createStore('pathoscan-photos', 'photos'))
 export const getPhoto = (key: string) => get<Blob>(key, photos())
 
 export const addRun = (run: Run) => set(run.id, run, runs())
-export const getRun = async (id: string) => {
-  const run = await get<StoredRun>(id, runs())
-  return run && upgrade(run)
+/** True for a run saved by a newer app (another tab already updated). This page leaves it alone and offers Reload. */
+function newer(run: StoredRun) {
+  if (run.schema <= SCHEMA) return false
+  needReload()
+  return true
 }
 
-/** Newest first. */
+/** Undefined if there's no such run, or this app is too old to read it. */
+export const getRun = async (id: string) => {
+  const run = await get<StoredRun>(id, runs())
+  return run && !newer(run) ? upgrade(run) : undefined
+}
+
+/** Newest first, leaving out any this app is too old to read. */
 export async function listRuns(): Promise<Run[]> {
-  return (await values<StoredRun>(runs())).map(upgrade).sort((a, b) => b.createdAt - a.createdAt)
+  const all = await values<StoredRun>(runs())
+  return all.filter((r) => !newer(r)).map(upgrade).sort((a, b) => b.createdAt - a.createdAt)
 }
 
 function change(id: string, edit: (run: Run) => Run): Promise<void> {
@@ -33,6 +43,8 @@ function change(id: string, edit: (run: Run) => Run): Promise<void> {
     id,
     (run) => {
       if (!run) throw new Error(`No run ${id}`)
+      // Throwing here writes nothing.
+      if (newer(run)) throw new Error(`Run ${id} is from a newer version of the app`)
       return edit(upgrade(run))
     },
     runs(),

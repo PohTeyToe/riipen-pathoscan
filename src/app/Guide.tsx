@@ -7,12 +7,14 @@ import { currentStep, type Run } from './run'
 import { getRun, setStepDone, startTimer } from './store'
 import { clock, remainingMs, sessionClock, type SessionClock } from './timer'
 import { Action, Bar } from './ui'
+import { useUpdate } from './update'
 import { useOnVisible } from './visible'
 
 export function Guide({ id }: { id: string }) {
   const [run, setRun] = useState<Run | null>()
   const [failed, setFailed] = useState(false)
   const [time] = useState(sessionClock)
+  const update = useUpdate()
   const load = useCallback(() => void getRun(id).then((r) => setRun(r ?? null), () => setFailed(true)), [id])
   useEffect(load, [load])
   useOnVisible(
@@ -28,7 +30,8 @@ export function Guide({ id }: { id: string }) {
     return (
       <div className="screen">
         <Bar />
-        <main className="body">{missing && <p className="alert">Run not found.</p>}</main>
+        {/* A run only a newer version can open shows as missing here, with Reload offered above. */}
+        <main className="body">{missing && <p className="alert">{update ? 'Reload to open this run.' : 'Run not found.'}</p>}</main>
       </div>
     )
   }

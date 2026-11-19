@@ -16,8 +16,11 @@ export interface StepProgress {
   timerStartedAt?: number
 }
 
+/** The newest run shape this app reads and writes. A run saved with a higher one came from a newer app. */
+export const SCHEMA = 2
+
 export interface Run {
-  schema: 2
+  schema: typeof SCHEMA
   id: string
   assay: string
   field: string
@@ -47,7 +50,7 @@ export interface Run {
 
 export function newRun(assay: Assay, input: Pick<Run, 'field' | 'notes' | 'gps'>, now = Date.now(), id: string = crypto.randomUUID()): Run {
   return {
-    schema: 2,
+    schema: SCHEMA,
     id,
     assay: assay.id,
     field: input.field.trim(),
@@ -80,11 +83,11 @@ const SCHEMA_1_STEPS: Record<string, string[]> = { sclerotinia: ['preheat', 'lab
  * came in after schema 1: a run already under way had its samples, so that step counts as done.
  */
 export function upgrade(run: StoredRun): Run {
-  if (run.schema === 2) return run
+  if (run.schema === SCHEMA) return run
   const ids = SCHEMA_1_STEPS[run.assay] ?? []
   const steps: Run['steps'] = Object.fromEntries(run.steps.flatMap((s, i) => (ids[i] ? [[ids[i], s]] : [])))
   if (run.steps.some((s) => s.done || s.timerStartedAt !== undefined)) steps.pick = { done: true }
-  return { ...run, schema: 2, steps }
+  return { ...run, schema: SCHEMA, steps }
 }
 
 export const OUTCOME_LABEL: Record<Outcome | 'open', string> = {

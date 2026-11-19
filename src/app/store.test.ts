@@ -7,6 +7,7 @@ import type { RunRead } from '../lib/readers'
 import { ROLES } from './reader'
 import { addRun, getPhoto, getRun, listRuns, saveRead, setStepDone, setTap, startTimer, takePhoto } from './store'
 import { remainingMs } from './timer'
+import { currentUpdate } from './update'
 
 const run = (field: string, createdAt: number) => newRun(sclerotinia, { field, notes: '' }, createdAt, `id-${field}`)
 
@@ -153,6 +154,21 @@ describe('a run saved by the 8-step guide (schema 1)', () => {
   it('starts at picking the samples if the run had not begun', async () => {
     await set('id-fresh', { ...old, id: 'id-fresh', steps: Array(8).fill({ done: false }) }, db)
     expect(currentStep((await getRun('id-fresh'))!, sclerotinia)).toBe(0)
+  })
+})
+
+describe('a run saved by a newer app (another tab already updated)', () => {
+  it('is left alone, unread and unwritten, and Reload is offered', async () => {
+    const db = createStore('pathoscan-field', 'runs')
+    const future = { schema: 3, id: 'id-future', createdAt: 99_000, steps: 'a shape this app has never seen' }
+    await set(future.id, future, db)
+    expect(currentUpdate()).toBeNull()
+    expect(await getRun(future.id)).toBeUndefined()
+    expect(currentUpdate()).toBeInstanceOf(Function)
+    expect((await listRuns()).map((r) => r.id)).not.toContain(future.id)
+    await expect(setStepDone(future.id, 'pick', true)).rejects.toThrow('newer version')
+    await expect(startTimer(future.id, 'preheat', 1)).rejects.toThrow('newer version')
+    expect(await get(future.id, db)).toEqual(future)
   })
 })
 

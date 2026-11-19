@@ -306,6 +306,23 @@ test('offline on a 360 x 740 phone, every guide step shows its picture with no s
   for (const src of await toPhoto(page, 'Pictures')) expect(cached).toContain(new URL(src).pathname)
 })
 
+/** Puts a run into the phone's store exactly as given, as another version of the app might have saved it. */
+function storeRaw(page: Page, run: { id: string }) {
+  return page.evaluate(
+    (run) =>
+      new Promise((done, fail) => {
+        const open = indexedDB.open('pathoscan-field')
+        open.onsuccess = () => {
+          const tx = open.result.transaction('runs', 'readwrite')
+          tx.objectStore('runs').put(run, run.id)
+          tx.oncomplete = () => done(open.result.close())
+          tx.onerror = () => fail(tx.error)
+        }
+      }),
+    run,
+  )
+}
+
 test('a run saved mid-guide by the 8-step app opens on its cool-down, each timer on its own step', async ({ page }) => {
   await page.goto('/app.html')
   await expect(page.getByRole('heading', { name: 'Runs', exact: true })).toBeVisible()
@@ -324,19 +341,7 @@ test('a run saved mid-guide by the 8-step app opens on its cool-down, each timer
     appVersion: '0.0.0',
     readerVersion: '1',
   }
-  await page.evaluate(
-    (run) =>
-      new Promise((done, fail) => {
-        const open = indexedDB.open('pathoscan-field')
-        open.onsuccess = () => {
-          const tx = open.result.transaction('runs', 'readwrite')
-          tx.objectStore('runs').put(run, run.id)
-          tx.oncomplete = () => done(open.result.close())
-          tx.onerror = () => fail(tx.error)
-        }
-      }),
-    old,
-  )
+  await storeRaw(page, old)
   await page.goto(`/app.html#/run/${old.id}`)
   await expect(page.getByRole('heading', { name: 'Cool the tubes', exact: true })).toBeVisible()
   await expect(page.getByText('Step 9 of 9')).toBeVisible()
@@ -351,6 +356,22 @@ test('a run saved mid-guide by the 8-step app opens on its cool-down, each timer
   await page.getByRole('button', { name: 'Back' }).click()
   await expect(page.getByRole('heading', { name: 'Add oil and run', exact: true })).toBeVisible()
   await expect(page.getByRole('timer')).toHaveText("Time's up")
+})
+
+test('a run saved by a newer version of the app is left alone, and Reload is offered', async ({ page }) => {
+  const errors: string[] = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await page.goto('/app.html')
+  await expect(page.getByRole('heading', { name: 'Runs', exact: true })).toBeVisible()
+  const future = { schema: 3, id: 'saved-by-a-newer-app', field: 'Future', createdAt: Date.now(), steps: 'a shape this app has never seen' }
+  await storeRaw(page, future)
+  await page.reload()
+  await expect(page.getByRole('status')).toContainText('New version ready.')
+  await expect(page.getByRole('status').getByRole('button', { name: 'Reload' })).toBeVisible()
+  await expect(page.getByText('Future')).toHaveCount(0)
+  await page.goto(`/app.html#/run/${future.id}`)
+  await expect(page.getByText('Reload to open this run.')).toBeVisible()
+  expect(errors).toEqual([])
 })
 
 test('every step picture moves, and none move when the phone asks for reduced motion', async ({ page }) => {
