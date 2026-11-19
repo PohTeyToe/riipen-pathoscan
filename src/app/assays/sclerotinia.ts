@@ -77,7 +77,7 @@ export const sclerotinia: Assay = {
     {
       id: 'cool',
       title: 'Cool the tubes',
-      body: `Let the tubes cool to room temperature. That takes about ${coolMin} minutes.`,
+      body: 'Let the tubes cool to room temperature. The timer reminds you to check them.',
       image: { src: cool, alt: 'The tubes cooling: a thermometer going down, next to a clock.' },
       timerMin: coolMin,
     },
