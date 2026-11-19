@@ -60,10 +60,10 @@ describe('the lab run', () => {
 describe('the case-study numbers', () => {
   it('match the README and the outreach', () => {
     expect(PLACEMENTS).toBe(27)
-    expect(MID).toBeCloseTo(10.9, 1)
+    expect(MID).toBeCloseTo(10.55, 2)
     expect(always).toEqual(['168', '169'])
-    expect(flips('PS163')).toBe(12)
-    expect(flips('PS164')).toBe(1)
+    expect(flips('PS163')).toBe(8)
+    expect(flips('PS164')).toBe(0)
     expect(allPosPastPc).toBe(27)
     expect(naiveAllEight).toBe(26)
   })

@@ -46,8 +46,8 @@
  "centrePlacementRadius4": [
   {
    "tube": "PC",
-   "rawHue": 25.6,
-   "clearPixels": 38,
+   "rawHue": 25,
+   "clearPixels": 39,
    "hand": "control",
    "naive": "pos",
    "midpoint": "pos",
@@ -55,8 +55,8 @@
   },
   {
    "tube": "NC",
-   "rawHue": -3.8,
-   "clearPixels": 14,
+   "rawHue": -3.9,
+   "clearPixels": 15,
    "hand": "control",
    "naive": "neg",
    "midpoint": "neg",
@@ -64,8 +64,8 @@
   },
   {
    "tube": "PS162",
-   "rawHue": 32.4,
-   "clearPixels": 11,
+   "rawHue": 31.2,
+   "clearPixels": 12,
    "hand": "pos",
    "naive": "pos",
    "midpoint": "pos",
@@ -73,8 +73,8 @@
   },
   {
    "tube": "PS163",
-   "rawHue": 11.5,
-   "clearPixels": 18,
+   "rawHue": 11.3,
+   "clearPixels": 17,
    "hand": "neg",
    "naive": "neg",
    "midpoint": "pos",
@@ -83,7 +83,7 @@
   {
    "tube": "PS164",
    "rawHue": 6,
-   "clearPixels": 9,
+   "clearPixels": 12,
    "hand": "neg",
    "naive": "neg",
    "midpoint": "neg",
@@ -92,7 +92,7 @@
   {
    "tube": "PS165",
    "rawHue": 37.6,
-   "clearPixels": 30,
+   "clearPixels": 32,
    "hand": "pos",
    "naive": "pos",
    "midpoint": "pos",
@@ -119,7 +119,7 @@
   {
    "tube": "PS168",
    "rawHue": 20,
-   "clearPixels": 16,
+   "clearPixels": 13,
    "hand": "neg",
    "naive": "neg",
    "midpoint": "pos",
@@ -127,15 +127,15 @@
   },
   {
    "tube": "PS169",
-   "rawHue": 16.2,
-   "clearPixels": 3,
+   "rawHue": 21.3,
+   "clearPixels": 12,
    "hand": "neg",
    "naive": "neg",
    "midpoint": "pos",
    "calibrated": "held"
   },
   {
-   "midpointRule": "Midpoint 10.9°",
+   "midpointRule": "Midpoint 10.5°",
    "calibratedFlags": [
     "A control has very few clear pixels, so the scale itself is uncertain.",
     "The positive control is weaker than 3 samples. Check it before trusting the run."
@@ -147,9 +147,8 @@
    "4": 27
   },
   "midpointDisagreesWithHand": {
-   "PS168+PS169": 15,
-   "PS163+PS168+PS169": 11,
-   "PS163+PS164+PS168+PS169": 1
+   "PS168+PS169": 19,
+   "PS163+PS168+PS169": 8
   },
   "naiveAgreesWithHandOf8": {
    "7": 1,
@@ -159,8 +158,8 @@
    "162:held 163:held 164:held 165:held 166:held 167:held 168:held 169:held": 1,
    "162:held 163:held 164:held 165:held 166:held 167:pos 168:held 169:held": 6,
    "162:held 163:held 164:held 165:held 166:pos 167:held 168:held 169:held": 2,
-   "162:held 163:held 164:held 165:held 166:pos 167:pos 168:held 169:held": 10,
-   "162:held 163:held 164:held 165:pos 166:pos 167:pos 168:held 169:held": 8
+   "162:held 163:held 164:held 165:pos 166:pos 167:pos 168:held 169:held": 10,
+   "162:held 163:held 164:held 165:held 166:pos 167:pos 168:held 169:held": 8
   }
  }
 }

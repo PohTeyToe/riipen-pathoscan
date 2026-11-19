@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-20",
+ "generated": "2026-11-19",
  "note": "Real photos, CC0. Truth from the paper (RT-qPCR, set status or controls), never from colour. See data/real/labels.json.",
  "images": 26,
  "excluded": [
@@ -17,17 +17,17 @@
      "neg": 4
     },
     "neg": {
-     "pos": 297,
+     "pos": 296,
      "held": 0,
-     "neg": 341
+     "neg": 342
     }
    },
    "samples": 664,
-   "wrong": 301,
+   "wrong": 300,
    "held": 0,
    "sensitivity": 0.8461538461538461,
-   "specificity": 0.5344827586206896,
-   "accuracyCalled": 0.5466867469879518
+   "specificity": 0.5360501567398119,
+   "accuracyCalled": 0.5481927710843374
   },
   "calibrated": {
    "confusion": {
@@ -38,16 +38,16 @@
     },
     "neg": {
      "pos": 18,
-     "held": 224,
-     "neg": 396
+     "held": 223,
+     "neg": 397
     }
    },
    "samples": 664,
    "wrong": 23,
-   "held": 233,
+   "held": 232,
    "sensitivity": 0.46153846153846156,
-   "specificity": 0.6206896551724138,
-   "accuracyCalled": 0.9466357308584686
+   "specificity": 0.622257053291536,
+   "accuracyCalled": 0.9467592592592593
   },
   "paper": {
    "confusion": {
@@ -80,17 +80,17 @@
      "neg": 17
     },
     "neg": {
-     "pos": 316,
+     "pos": 315,
      "held": 0,
-     "neg": 357
+     "neg": 358
     }
    },
    "samples": 872,
-   "wrong": 333,
+   "wrong": 332,
    "held": 0,
    "sensitivity": 0.914572864321608,
-   "specificity": 0.5304606240713224,
-   "accuracyCalled": 0.6181192660550459
+   "specificity": 0.5319465081723626,
+   "accuracyCalled": 0.6192660550458715
   },
   "calibrated": {
    "confusion": {
@@ -101,16 +101,16 @@
     },
     "neg": {
      "pos": 18,
-     "held": 259,
-     "neg": 396
+     "held": 258,
+     "neg": 397
     }
    },
    "samples": 872,
    "wrong": 23,
-   "held": 441,
+   "held": 440,
    "sensitivity": 0.06030150753768844,
-   "specificity": 0.5884101040118871,
-   "accuracyCalled": 0.9466357308584686
+   "specificity": 0.5898959881129272,
+   "accuracyCalled": 0.9467592592592593
   }
  },
  "noControls": 208,
@@ -157,25 +157,25 @@
   }
  },
  "hindsightCut": {
-  "cut": 48.5,
+  "cut": 50,
   "confusion": {
    "pos": {
-    "pos": 11,
+    "pos": 10,
     "held": 0,
-    "neg": 15
+    "neg": 16
    },
    "neg": {
-    "pos": 3,
+    "pos": 1,
     "held": 0,
-    "neg": 635
+    "neg": 637
    }
   },
   "samples": 664,
-  "wrong": 18,
+  "wrong": 17,
   "held": 0,
-  "sensitivity": 0.4230769230769231,
-  "specificity": 0.9952978056426333,
-  "accuracyCalled": 0.9728915662650602
+  "sensitivity": 0.38461538461538464,
+  "specificity": 0.9984326018808778,
+  "accuracyCalled": 0.9743975903614458
  },
  "gapWhatIf": {
   "minControlGap": 10,
@@ -188,16 +188,16 @@
     },
     "neg": {
      "pos": 18,
-     "held": 37,
-     "neg": 583
+     "held": 36,
+     "neg": 584
     }
    },
    "samples": 664,
    "wrong": 23,
-   "held": 45,
+   "held": 44,
    "sensitivity": 0.5,
-   "specificity": 0.9137931034482759,
-   "accuracyCalled": 0.962843295638126
+   "specificity": 0.9153605015673981,
+   "accuracyCalled": 0.9629032258064516
   }
  },
  "misses": [
@@ -285,7 +285,7 @@
    "truth": "neg",
    "naive": "positive",
    "calibrated": "positive",
-   "reason": "92% like the positive control.",
+   "reason": "91% like the positive control.",
    "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
    "paper": "not reported"
   },
@@ -362,7 +362,7 @@
    "truth": "neg",
    "naive": "positive",
    "calibrated": "positive",
-   "reason": "96% like the positive control.",
+   "reason": "95% like the positive control.",
    "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
    "paper": "not reported"
   },
@@ -457,9 +457,9 @@
  ],
  "finder": {
   "expected": 996,
-  "found": 730,
+  "found": 907,
   "onOtherWells": 21,
-  "offWells": 11
+  "offWells": 4
  },
- "seconds": 3
+ "seconds": 6
 }
