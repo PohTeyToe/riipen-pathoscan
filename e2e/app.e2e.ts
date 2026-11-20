@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { PNG } from 'pngjs'
-import { makeRun, photograph, type Conditions, type Lamp, type Layout } from '../src/lib/synth'
+import { darken as darkenBy, makeRun, photograph, type Conditions, type Img, type Lamp, type Layout } from '../src/lib/synth'
 
 // run.ts imports package.json, which this runner can't load, so its reader version is read from the source.
 const READER_VERSION = readFileSync(new URL('../src/app/run.ts', import.meta.url), 'utf8').match(/READER_VERSION = '([^']+)'/)![1]
@@ -117,15 +117,27 @@ type Pt = [number, number]
  * the liquid centres in the photo, in label order: +, −, then 1 to 8. `cond` pins the run's light as makeRun
  * does; `lamp`: a lamp of that colour temperature at one edge of the photo (`from`, the left by default),
  * fading to daylight at the far edge, or with 0 a plain shade, 15% darker there; `ev`: stops added to the
- * run's exposure. All as scripts/lamp-sweep.ts makes them (synth.ts photograph).
+ * run's exposure; `darken`: stops the photo is darkened by after the camera clipped it. All as
+ * scripts/lamp-sweep.ts makes them (synth.ts photograph and darken). `edit` changes the camera's pixels.
  */
 function syntheticPhoto(
   layout: Layout = 'row',
-  { seed = 0, cond, lamp, from = 'left', ev = 0 }: { seed?: number; cond?: Conditions; lamp?: number; from?: Lamp['from']; ev?: number } = {},
+  {
+    seed = 0,
+    cond,
+    lamp,
+    from = 'left',
+    ev = 0,
+    darken = 0,
+    edit,
+  }: { seed?: number; cond?: Conditions; lamp?: number; from?: Lamp['from']; ev?: number; darken?: number; edit?: (img: Img, tubes: Pt[]) => void } = {},
 ) {
   const run = makeRun(seed, 'typical', cond)
   run.ev += ev
-  const { img, tubes } = photograph(run, layout, lamp === undefined ? undefined : { kelvin: lamp, from })
+  const shot = photograph(run, layout, lamp === undefined ? undefined : { kelvin: lamp, from })
+  const img = darken ? darkenBy(shot.img, darken) : shot.img
+  const tubes = shot.tubes
+  edit?.(img, tubes)
   const png = new PNG({ width: img.width, height: img.height })
   png.data = Buffer.from(img.data.buffer)
   return { file: { name: 'tubes.png', mimeType: 'image/png', buffer: PNG.sync.write(png) }, size: [img.width, img.height] as Pt, tubes, run }
@@ -603,6 +615,72 @@ test('a run failed for a clipped control is retaken from the result, keeping the
   await expect(page.getByRole('heading', { name: '2 of 8 positive', exact: true })).toBeVisible()
   await page.goto('/app.html')
   await expect(page.getByRole('listitem').filter({ hasText: 'Retake' })).toHaveCount(1)
+})
+
+test("a stop brighter and darkened after the camera clipped, seed 3's acidic negative is not called positive", async ({ page }) => {
+  // A phone's tone curve can lower the clipped paper to 247, under the 250 a fixed cut-off looked for: the
+  // acidic negative read 98% like the positive control, with nothing held. The clipped light still piles up
+  // on one value, and the reader finds it there.
+  await page.goto('/app.html')
+  await toPhoto(page, 'Tone mapped')
+  const photo = syntheticPhoto('row', { seed: 3, ev: 1, darken: 0.1 })
+  await readPhoto(page, photo)
+  const { calls, wrong } = await wrongCalls(page, photo)
+  expect(wrong).toEqual([])
+  expect(calls[2]).not.toBe('Positive')
+  await expect(page.getByRole('button', { name: 'Retake photo' })).toBeVisible()
+})
+
+test('a positive control whose paper is blown out on its upper side fails the run, since that side sets its range', async ({ page }) => {
+  // The rest of the photo reads as usual; only the paper above the positive control and beside its upper half
+  // is at 255, so the white the range takes from that side has lost light.
+  await page.goto('/app.html')
+  await toPhoto(page, 'Blown side')
+  const photo = syntheticPhoto('row', {
+    edit: (img, [[x, y]]) => {
+      const top = y - 70 // the liquid's top: it reaches 140 px up from the tip, and y is halfway
+      const white = (x0: number, y0: number, x1: number, y1: number) => {
+        for (let py = Math.round(y0); py <= y1; py++) for (let px = Math.round(x0); px <= x1; px++) img.data.set([255, 255, 255], (py * img.width + px) * 4)
+      }
+      white(x - 56, top - 32, x + 56, top - 3)
+      white(x - 56, top, x - 28, y)
+      white(x + 28, top, x + 56, y)
+    },
+  })
+  await readPhoto(page, photo)
+  await expect(page.getByRole('heading', { name: 'Run failed', exact: true })).toBeVisible()
+  await expect(page.getByText('Too bright at the positive control. Retake with less light.')).toBeVisible()
+})
+
+test("a tap on a stale tab's old result can't change the result of the photo taken since", async ({ page, context }) => {
+  // Tab B still shows the failed result of a clipped photo, every sample held. Tab A retakes it with less
+  // light: two positives and sample 1 held. Yellow for sample 1 on tab B must not make that three and Treat.
+  await page.goto('/app.html')
+  await toPhoto(page, 'Two tabs')
+  await readPhoto(page, syntheticPhoto('row', { seed: 3, ev: 0.5 }))
+  await expect(page.getByRole('heading', { name: 'Run failed', exact: true })).toBeVisible()
+  const stale = await context.newPage()
+  await stale.goto(page.url())
+  await expect(stale.getByRole('heading', { name: 'Run failed', exact: true })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Retake photo' }).click()
+  await page.getByRole('button', { name: 'Back' }).click()
+  await page.getByRole('button', { name: 'Done' }).click()
+  const darker = syntheticPhoto('row', { seed: 3, ev: -1 })
+  await readPhoto(page, darker)
+  await expect(page.getByRole('heading', { name: '2 of 8 positive', exact: true })).toBeVisible()
+  await expect(page.getByText('Call the held tubes below.')).toBeVisible()
+  const before = await exportCsv(page)
+
+  await stale.locator('ol.tubes li').first().getByRole('button', { name: 'Yellow' }).click()
+  // The stale tab is refused and shows the run as it is now.
+  await expect(stale.getByRole('heading', { name: '2 of 8 positive', exact: true })).toBeVisible()
+  await expect(stale.getByText('Call the held tubes below.')).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('heading', { name: '2 of 8 positive', exact: true })).toBeVisible()
+  await expect(page.locator('ol.tubes li').first().getByRole('button', { name: 'Yellow' })).toHaveAttribute('aria-pressed', 'false')
+  const after = await exportCsv(page)
+  for (const column of ['Reader call', 'Grower call', 'Final call', 'Result', 'Positives']) expect(after(column)).toEqual(before(column))
 })
 
 test("a finger on a tube whose ring was removed adds it back, though a neighbour's ring button covers it", async ({ page }) => {
