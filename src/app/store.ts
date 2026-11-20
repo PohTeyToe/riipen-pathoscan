@@ -104,6 +104,23 @@ export async function saveRead(id: string, photoKey: string, regions: Region[], 
   return saved
 }
 
+/**
+ * Back to the photo step for a new photo: the photo at `photoKey` is deleted, with its rings, its read and the
+ * grower's calls on it. The guide's progress, the field and the notes stay. Refused (false) if the run holds
+ * another photo by now (another tab has retaken it).
+ */
+export async function retakePhoto(id: string, photoKey: string): Promise<boolean> {
+  let done = false
+  await change(id, (run) => {
+    if (run.photoKey !== photoKey) return run
+    done = true
+    const { photoKey: _photo, regions: _regions, roles: _roles, read: _read, readerPositives: _rp, tappedPositives: _tp, rule: _rule, outcome: _outcome, ...rest } = run
+    return { ...rest, taps: run.taps.map(() => null) }
+  })
+  if (done) await del(photoKey, photos())
+  return done
+}
+
 /** The grower's eye call on tube i, kept apart from the reader's. Recounts the outcome under the current rule. */
 export const setTap = (id: string, i: number, tap: Tap, treatAt: number) =>
   change(id, (run) => {

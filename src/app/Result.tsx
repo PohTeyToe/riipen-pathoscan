@@ -2,9 +2,9 @@ import { useEffect, useState, type ReactNode } from 'react'
 import type { Assay } from './assays/assay'
 import { exportRun } from './csv'
 import { LABELS } from './reader'
-import { finalCalls, tapsDecided, type Run, type Tap } from './run'
+import { asksRetake, finalCalls, heldReason, tapsDecided, type Run, type Tap } from './run'
 import { Shot } from './Shot'
-import { getPhoto, setTap } from './store'
+import { getPhoto, retakePhoto, setTap } from './store'
 import { Action, Bar } from './ui'
 
 const MARK = { pos: '+', neg: '−', held: '?' }
@@ -59,6 +59,12 @@ export function Result({ run, assay, act, error }: { run: Run; assay: Assay; act
             <p className="note">{assay.advice.disclaimer}</p>
           </>
         )}
+        {asksRetake(read) && (
+          // Back to the photo step for this run: the guide's progress stays, the photo and its read go.
+          <Action ghost onClick={() => act(async () => void (await retakePhoto(run.id, run.photoKey!)))}>
+            Retake photo
+          </Action>
+        )}
         <Shot src={url} rings={run.regions!.map((region, i) => ({ region, label: LABELS[i] + (roles[i] === 'sample' ? MARK[calls[i]] : ''), tone: calls[i] }))} />
         {failed && <p className="note">Your calls are notes. They don't count.</p>}
         <ol className="tubes">
@@ -67,6 +73,7 @@ export function Result({ run, assay, act, error }: { run: Run; assay: Assay; act
               <span className="no">{LABELS[i]}</span>
               {read.tubes[i].call === 'held' ? (
                 <span className="pick">
+                  {heldReason(read, i) && <span className="why">{heldReason(read, i)}</span>}
                   <span>Look again: yellow or pink?</span>
                   <span className="choices">
                     {(['pos', 'neg'] as const).map((t) => (

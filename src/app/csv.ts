@@ -3,7 +3,7 @@
 
 import type { Call } from '../lib/readers'
 import { LABELS } from './reader'
-import { finalCalls, OUTCOME_LABEL, type Run, type Tap } from './run'
+import { finalCalls, heldReason, OUTCOME_LABEL, type Run, type Tap } from './run'
 
 type Cell = string | number | undefined
 
@@ -51,7 +51,7 @@ export function runCsv(run: Run): string {
       tap ? TAP[tap] : undefined,
       CALL[final[i]],
       run.notes,
-      read.flags.join('; '),
+      [heldReason(read, i) ?? [], read.flags].flat().join('; '),
       run.gps && Number(run.gps.lat.toFixed(5)),
       run.gps && Number(run.gps.lon.toFixed(5)),
       run.gps && Math.round(run.gps.acc),

@@ -5,7 +5,7 @@ import { sclerotinia } from './assays/sclerotinia'
 import { currentStep, newRun, READER_VERSION, withStep } from './run'
 import type { RunRead } from '../lib/readers'
 import { ROLES } from './reader'
-import { addRun, getPhoto, getRun, listRuns, NewerRun, saveRead, setStepDone, setTap, startTimer, takePhoto } from './store'
+import { addRun, getPhoto, getRun, listRuns, NewerRun, retakePhoto, saveRead, setStepDone, setTap, startTimer, takePhoto } from './store'
 import { remainingMs } from './timer'
 import { currentUpdate } from './update'
 
@@ -254,6 +254,31 @@ describe('the read and the taps', () => {
     expect((await getRun('id-swap'))?.read).toBeUndefined()
     expect(await tabB.saveRead('id-swap', b, regions, roles, twoHeld, 3)).toBe(true)
     expect((await getRun('id-swap'))?.photoKey).toBe(b)
+  })
+
+  it('goes back to the photo step for a retake: the photo, its read and the taps go, the guide progress stays', async () => {
+    const key = await readRun('retake', 7170)
+    await setStepDone('id-retake', 'cool', true)
+    await setTap('id-retake', 4, 'pos', 3)
+    expect(await retakePhoto('id-retake', key)).toBe(true)
+    const r = (await getRun('id-retake'))!
+    for (const k of ['photoKey', 'regions', 'roles', 'read', 'readerPositives', 'tappedPositives', 'rule', 'outcome']) expect(r).not.toHaveProperty(k)
+    expect(r.taps).toEqual(Array(10).fill(null))
+    expect(r.steps.cool).toEqual({ done: true })
+    expect(r.field).toBe('retake')
+    expect(await getPhoto(key)).toBeUndefined()
+    // The new photo is read as a first one would be.
+    const next = (await takePhoto('id-retake', jpeg('second')))!
+    expect(await saveRead('id-retake', next, regions, roles, twoHeld, 3)).toBe(true)
+  })
+
+  it('refuses a retake from a stale tab once another tab has a new photo on the run', async () => {
+    const key = await readRun('retake2', 7180)
+    expect(await retakePhoto('id-retake2', key)).toBe(true)
+    const next = (await takePhoto('id-retake2', jpeg('second')))!
+    expect(await retakePhoto('id-retake2', key)).toBe(false)
+    expect((await getRun('id-retake2'))?.photoKey).toBe(next)
+    expect(await (await getPhoto(next))!.text()).toBe('second')
   })
 
   it("keeps taps apart from the read and recounts, without losing a stale tab's tap", async () => {

@@ -97,6 +97,15 @@ export const OUTCOME_LABEL: Record<Outcome | 'open', string> = {
   open: 'In progress',
 }
 
+/** Why the reader held tube i, unless a run flag already says so (a failed run holds every sample for its flag). */
+export function heldReason(read: RunRead, i: number): string | undefined {
+  const t = read.tubes[i]
+  return t.call === 'held' && t.reason && !read.flags.includes(t.reason) ? t.reason : undefined
+}
+
+/** True when the reader asks for a new photo: a run flag or a held tube's reason says to retake it. */
+export const asksRetake = (read: RunRead) => [...read.flags, ...read.tubes.flatMap((_, i) => heldReason(read, i) ?? [])].some((s) => /\bretake\b/i.test(s))
+
 /** Samples the reader held: the only tubes a grower's tap fills in. */
 export const heldSamples = (read: RunRead, roles: Role[]) => roles.flatMap((r, i) => (r === 'sample' && read.tubes[i].call === 'held' ? [i] : []))
 

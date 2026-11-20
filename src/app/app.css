@@ -402,6 +402,10 @@ h1 {
   font-weight: 700;
   color: var(--alert);
 }
+.pick .why {
+  font-weight: 500;
+  color: var(--ink);
+}
 .choices {
   display: flex;
   gap: 10px;

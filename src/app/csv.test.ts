@@ -137,6 +137,19 @@ describe('the run CSV', () => {
     expect(column(rows, 'Final call').slice(2)).toEqual(Array(8).fill('Held'))
   })
 
+  it("puts a held tube's reason in its own row's warnings, ahead of the run's, and a failed run's flag once", () => {
+    const run = readRun(['pos', 'held', 'neg', 'neg', 'neg', 'neg', 'neg', 'neg'])
+    const weak = 'The positive control is weaker than 1 sample. Check it before trusting the run.'
+    run.read!.tubes[3].reason = 'Too bright here. Retake with less light.'
+    run.read!.flags.push(weak)
+    const rows = table(run)
+    expect(rows[3]['Reader warnings']).toBe(`Too bright here. Retake with less light.; ${weak}`)
+    expect(column(rows, 'Reader warnings').filter((w) => w !== weak)).toEqual([rows[3]['Reader warnings']])
+    const failed = readRun(Array(8).fill('held'), {}, 'failed')
+    failed.read!.tubes.forEach((t, i) => i > 1 && (t.reason = failed.read!.flags[0]))
+    expect(new Set(column(table(failed), 'Reader warnings'))).toEqual(new Set(['The controls are too close to call.']))
+  })
+
   it('carries notes with commas, quotes and line breaks whole, and defuses formulas in free text', () => {
     const notes = 'Wet, after rain.\nSample 3 from the "low" corner'
     const rows = table(readRun(Array(8).fill('neg'), {}, 'ok', { field: '=1+1', notes }))
