@@ -104,7 +104,7 @@ export function readCalibrated(feats: (Features | null)[], roles: Role[], model:
 
   if (pcs.length === 0 || ncs.length === 0) {
     const missing = pcs.length === 0 && ncs.length === 0 ? 'either control' : pcs.length === 0 ? 'a positive control' : 'a negative control'
-    flags.push(`Can't find ${missing}, so there's no scale to read against.`)
+    flags.push(`Can't find ${missing}, so there's no scale to read against. Retake the photo with both controls in clear view.`)
     return { status: 'failed', flags, tubes: feats.map(() => held(flags[0])) }
   }
   // Several positive controls: read against the one that turned furthest, and say if another didn't. A
@@ -130,7 +130,7 @@ export function readCalibrated(feats: (Features | null)[], roles: Role[], model:
     return notRead(
       hPc <= hNc
         ? 'The positive control is pinker than the negative one. Run not read; check the controls.'
-        : `The controls are only ${(hPc - hNc).toFixed(0)}° apart, too close to read against. Run not read.`,
+        : `The controls are only ${(hPc - hNc).toFixed(0)}° apart, too close to read against. Run not read; rerun with fresh reagents.`,
     )
 
   if ([...pcs, ...ncs].some((f) => f.clear < QC.minClear)) flags.push('A control has very few clear pixels, so the scale itself is uncertain.')

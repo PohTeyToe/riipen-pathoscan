@@ -31,7 +31,12 @@ export function Result({ run, assay, act, error }: { run: Run; assay: Assay; act
         {failed ? (
           <>
             <h1>Run failed</h1>
-            <p className="lead">The controls didn't separate. Rerun with fresh reagents.</p>
+            {/* The reader's own reason, which says what to do: retake the photo, check the controls, or rerun. */}
+            {(read.flags.length ? read.flags : ["The controls didn't separate. Rerun with fresh reagents."]).map((f) => (
+              <p key={f} className="lead">
+                {f}
+              </p>
+            ))}
           </>
         ) : (
           <>
