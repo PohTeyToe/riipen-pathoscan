@@ -13,7 +13,7 @@ import { Bar } from './ui'
 interface Props {
   run: Run
   assay: Assay
-  act: (write: () => Promise<void>) => Promise<void>
+  act: (write: () => Promise<unknown>) => Promise<void>
   back: ReactNode
   error: ReactNode
 }
@@ -53,13 +53,13 @@ export function Photo({ run, assay, act, back, error }: Props) {
     if (shot) return () => URL.revokeObjectURL(shot.url)
   }, [shot])
 
-  // The store refuses a photo for a run another tab has read meanwhile; the refresh then shows that result.
+  // The store refuses a photo if another tab has taken one or read the run meanwhile; the refresh then shows that.
   const take = async (file: File) => {
     setBusy(true)
     setBad(false)
     try {
       const jpeg = await encodePhoto(file)
-      await act(async () => void (await takePhoto(run.id, jpeg)))
+      await act(() => takePhoto(run, jpeg))
     } catch {
       setBad(true)
     }
@@ -71,8 +71,8 @@ export function Photo({ run, assay, act, back, error }: Props) {
   // Stored in label order, so each tube's role and name is its position.
   const save = () => {
     const tubes = order.map((i) => rings[i])
-    // Refused if the run was read or retaken in another tab meanwhile; the refresh shows what's stored.
-    void act(async () => void (await saveRead(run.id, run.photoKey!, tubes, ROLES, readTubes(shot!.img, tubes, ROLES), assay.treatAt)))
+    // Refused if the run was read or its photo changed in another tab meanwhile; the refresh shows what's stored.
+    void act(() => saveRead(run, tubes, ROLES, readTubes(shot!.img, tubes, ROLES), assay.treatAt))
   }
   const tap = (x: number, y: number, reach: number) => {
     const i = ringAt(rings, x, y, reach)

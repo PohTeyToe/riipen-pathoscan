@@ -16,8 +16,12 @@ export interface StepProgress {
   timerStartedAt?: number
 }
 
-/** The newest run shape this app reads and writes. A run saved with a higher one came from a newer app. */
-export const SCHEMA = 2
+/**
+ * The newest run shape this app reads and writes. A run saved with a higher one came from a newer app, which
+ * that app leaves alone. Schema 3 added `take`: an app of schema 2 can't bind its writes to the photo on show,
+ * so the bump also fences its tabs off the runs this app has opened.
+ */
+export const SCHEMA = 3
 
 export interface Run {
   schema: typeof SCHEMA
@@ -29,6 +33,8 @@ export interface Run {
   createdAt: number
   /** Keyed by step id, so a guide that gains, loses or reorders steps keeps each step's progress on that step. */
   steps: Partial<Record<string, StepProgress>>
+  /** Which photo the run is on: 0 before the first, one more each time a photo is taken, replaced or cleared for a retake. */
+  take: number
   /** IndexedDB key of the saved JPEG. */
   photoKey?: string
   /** The 10 labelled rings, in the order the grower tapped them: +, −, then samples 1 to 8. */
@@ -58,6 +64,7 @@ export function newRun(assay: Assay, input: Pick<Run, 'field' | 'notes' | 'gps'>
     ...(input.gps && { gps: input.gps }),
     createdAt: now,
     steps: {},
+    take: 0,
     taps: Array(assay.tubes).fill(null),
     appVersion: version,
     readerVersion: READER_VERSION,
@@ -73,21 +80,26 @@ export function withStep(run: Run, stepId: string, patch: Partial<StepProgress>)
 }
 
 /** A run as IndexedDB may hold it: the current shape, or one saved by an older app. */
-export type StoredRun = Run | (Omit<Run, 'schema' | 'steps'> & { schema: 1; steps: StepProgress[] })
+export type StoredRun =
+  | Run
+  | (Omit<Run, 'schema' | 'take'> & { schema: 2 })
+  | (Omit<Run, 'schema' | 'take' | 'steps'> & { schema: 1; steps: StepProgress[] })
 
 /** Schema 1 kept step progress in an array, by position in the guide of the day: these steps, in this order. */
 const SCHEMA_1_STEPS: Record<string, string[]> = { sclerotinia: ['preheat', 'label', 'mix', 'crush', 'dip', 'oil', 'shade', 'cool'] }
 
 /**
- * A stored run in the current shape. A schema-1 run's progress moves onto its steps' ids. Picking the samples
- * came in after schema 1: a run already under way had its samples, so that step counts as done.
+ * A stored run in the current shape. An older run is on its first take. A schema-1 run's progress moves onto
+ * its steps' ids. Picking the samples came in after schema 1: a run already under way had its samples, so that
+ * step counts as done.
  */
 export function upgrade(run: StoredRun): Run {
   if (run.schema === SCHEMA) return run
+  if (run.schema === 2) return { ...run, schema: SCHEMA, take: 0 }
   const ids = SCHEMA_1_STEPS[run.assay] ?? []
   const steps: Run['steps'] = Object.fromEntries(run.steps.flatMap((s, i) => (ids[i] ? [[ids[i], s]] : [])))
   if (run.steps.some((s) => s.done || s.timerStartedAt !== undefined)) steps.pick = { done: true }
-  return { ...run, schema: SCHEMA, steps }
+  return { ...run, schema: SCHEMA, take: 0, steps }
 }
 
 export const OUTCOME_LABEL: Record<Outcome | 'open', string> = {

@@ -363,7 +363,7 @@ test('a run saved by a newer version of the app is left alone, and Reload is off
   page.on('pageerror', (e) => errors.push(e.message))
   await page.goto('/app.html')
   await expect(page.getByRole('heading', { name: 'Runs', exact: true })).toBeVisible()
-  const future = { schema: 3, id: 'saved-by-a-newer-app', field: 'Future', createdAt: Date.now(), steps: 'a shape this app has never seen' }
+  const future = { schema: 4, id: 'saved-by-a-newer-app', field: 'Future', createdAt: Date.now(), steps: 'a shape this app has never seen' }
   await storeRaw(page, future)
   await page.reload()
   await expect(page.getByRole('status')).toContainText('New version ready.')
@@ -681,6 +681,153 @@ test("a tap on a stale tab's old result can't change the result of the photo tak
   await expect(page.locator('ol.tubes li').first().getByRole('button', { name: 'Yellow' })).toHaveAttribute('aria-pressed', 'false')
   const after = await exportCsv(page)
   for (const column of ['Reader call', 'Grower call', 'Final call', 'Result', 'Positives']) expect(after(column)).toEqual(before(column))
+})
+
+/** The run as stored. A readwrite transaction, so it waits for any write a page has under way. */
+function storedRun(page: Page, id: string) {
+  return page.evaluate(
+    (id) =>
+      new Promise<Record<string, unknown>>((done, fail) => {
+        const open = indexedDB.open('pathoscan-field')
+        open.onsuccess = () => {
+          const get = open.result.transaction('runs', 'readwrite').objectStore('runs').get(id)
+          get.onsuccess = () => done((open.result.close(), get.result))
+          get.onerror = () => fail(get.error)
+        }
+      }),
+    id,
+  )
+}
+
+/** The keys of the saved photos. */
+function photoKeys(page: Page) {
+  return page.evaluate(
+    () =>
+      new Promise<string[]>((done, fail) => {
+        const open = indexedDB.open('pathoscan-photos')
+        open.onsuccess = () => {
+          const all = open.result.transaction('photos').objectStore('photos').getAllKeys()
+          all.onsuccess = () => done((open.result.close(), all.result.map(String)))
+          all.onerror = () => fail(all.error)
+        }
+      }),
+  )
+}
+
+const runId = (page: Page) => decodeURIComponent(page.url().split('#/run/')[1])
+
+/** The live app's store (e2e/live-store-8ea660e.js), as an old tab of that app has it. */
+interface LiveStore {
+  getRun(id: string): Promise<{ schema: number }>
+  listRuns(): Promise<unknown[]>
+  setTap(id: string, i: number, tap: 'pos' | 'neg' | null, treatAt: number): Promise<void>
+  setStepDone(id: string, step: string, done: boolean): Promise<void>
+  startTimer(id: string, step: string, at: number): Promise<void>
+  takePhoto(id: string, jpeg: Blob): Promise<string | null>
+  saveRead(id: string, photoKey: string, regions: unknown[], roles: unknown[], read: unknown, treatAt: number): Promise<boolean>
+  currentUpdate(): (() => void) | null
+}
+declare global {
+  interface Window {
+    live: LiveStore
+  }
+}
+
+test("an old tab of the live app (schema 2) can't change a run this app has opened, and is offered Reload", async ({ page, context }) => {
+  // The live app's store binds a tap to no photo. Left open on a result while this app retakes and reads
+  // another photo, its Yellow made an undecided result Treat. This app stores the run as schema 3 once it opens
+  // it, and that store leaves alone a run of a schema over its own.
+  await page.goto('/app.html')
+  await toPhoto(page, 'Live tab')
+  await readPhoto(page, syntheticPhoto('row', { seed: 3, ev: 0.5 }))
+  await expect(page.getByRole('heading', { name: 'Run failed', exact: true })).toBeVisible()
+  const id = runId(page)
+  // As the live app saved it: schema 2, no take.
+  const { take, ...saved } = await storedRun(page, id)
+  expect(take).toBe(1)
+  const asLiveSaved = { ...saved, id, schema: 2 }
+  await storeRaw(page, asLiveSaved)
+
+  // The old tab runs that app's store alone, on a page of this origin that loads none of this app.
+  const old = await context.newPage()
+  await old.goto('/app-version.json')
+  const src = readFileSync(new URL('./live-store-8ea660e.js', import.meta.url), 'utf8')
+  await old.evaluate((src) => void (window.live = new Function(`${src}\nreturn live`)()), src)
+  // Its result is on show, and it can write the run as that app saved it: a tap on a failed run is a note.
+  expect(await old.evaluate((id) => window.live.getRun(id).then((r) => r.schema), id)).toBe(2)
+  await old.evaluate((id) => window.live.setTap(id, 2, 'neg', 3), id)
+  expect(await storedRun(page, id)).toMatchObject({ schema: 2, taps: [null, null, 'neg', ...Array(7).fill(null)] })
+
+  // This app opens the run, retakes it and reads a photo with less light: two positives, sample 1 held.
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Run failed', exact: true })).toBeVisible()
+  expect(await storedRun(page, id)).toMatchObject({ schema: 3, take: 0 })
+  await page.getByRole('button', { name: 'Retake photo' }).click()
+  await page.getByRole('button', { name: 'Back' }).click()
+  await page.getByRole('button', { name: 'Done' }).click()
+  await readPhoto(page, syntheticPhoto('row', { seed: 3, ev: -1 }))
+  await expect(page.getByRole('heading', { name: '2 of 8 positive', exact: true })).toBeVisible()
+  await expect(page.getByText('Call the held tubes below.')).toBeVisible()
+  const before = { run: await storedRun(page, id), photos: await photoKeys(page), csv: await exportCsv(page) }
+
+  // Every write path of the old tab's store is refused before it edits, and Reload is offered there.
+  expect(await old.evaluate(() => window.live.currentUpdate())).toBeNull()
+  const refused = await old.evaluate(
+    async ({ id, photoKey }) => {
+      const writes = [
+        () => window.live.setTap(id, 2, 'pos', 3), // Yellow for sample 1
+        () => window.live.setStepDone(id, 'cool', false),
+        () => window.live.startTimer(id, 'preheat', Date.now()),
+        () => window.live.takePhoto(id, new Blob(['late'], { type: 'image/jpeg' })),
+        () => window.live.saveRead(id, photoKey, [], [], { status: 'ok', flags: [], tubes: [] }, 3),
+        () => window.live.getRun(id),
+      ]
+      const out: string[] = []
+      for (const write of writes) await write().then(() => out.push('written'), (e: Error) => out.push(e.message))
+      return out
+    },
+    { id, photoKey: before.run.photoKey as string },
+  )
+  expect(refused).toEqual(Array(6).fill(`Run ${id} is from a newer version of the app`))
+  expect(await old.evaluate(() => typeof window.live.currentUpdate())).toBe('function')
+  expect(await old.evaluate(() => window.live.listRuns().then((runs) => runs.length))).toBe(0)
+
+  expect(await storedRun(page, id)).toEqual(before.run)
+  expect(await photoKeys(page)).toEqual(before.photos)
+  await page.reload()
+  await expect(page.getByRole('heading', { name: '2 of 8 positive', exact: true })).toBeVisible()
+  await expect(page.locator('ol.tubes li').first().getByRole('button', { name: 'Yellow' })).toHaveAttribute('aria-pressed', 'false')
+  const after = await exportCsv(page)
+  for (const column of ['Reader call', 'Grower call', 'Final call', 'Result', 'Positives']) expect(after(column)).toEqual(before.csv(column))
+})
+
+test("a stale Photo screen's Back can't reopen the guide of a run retaken in another tab", async ({ page, context }) => {
+  // Tab B was left on the Photo screen before any photo. Tab A reads a photo and retakes it: the run is on the
+  // photo step again, with no photo, as B shows it. B's screen is still of the take before.
+  await page.goto('/app.html')
+  await toPhoto(page, 'Stale photo')
+  const stale = await context.newPage()
+  await stale.goto(page.url())
+  await expect(stale.getByRole('heading', { name: 'Take photo', exact: true })).toBeVisible()
+  await readPhoto(page, syntheticPhoto('row', { seed: 3, ev: 0.5 }))
+  await page.getByRole('button', { name: 'Retake photo' }).click()
+  await expect(page.getByRole('heading', { name: 'Take photo', exact: true })).toBeVisible()
+  const id = runId(page)
+  const before = await storedRun(page, id)
+  expect(before).toMatchObject({ take: 2, steps: { cool: { done: true } } })
+
+  // The click's write is under way before the read, which waits for it.
+  await stale.getByRole('button', { name: 'Back' }).click()
+  expect(await storedRun(stale, id)).toEqual(before)
+  // Refused, the stale tab shows the run as it is now.
+  await expect(stale.getByRole('heading', { name: 'Take photo', exact: true })).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Take photo', exact: true })).toBeVisible()
+
+  // Now drawn from the run as it is, Back works.
+  await stale.getByRole('button', { name: 'Back' }).click()
+  await expect(stale.getByText(`Step ${steps} of ${steps}`)).toBeVisible()
+  expect(await storedRun(page, id)).toMatchObject({ take: 2, steps: { cool: { done: false } } })
 })
 
 test("a finger on a tube whose ring was removed adds it back, though a neighbour's ring button covers it", async ({ page }) => {

@@ -14,7 +14,7 @@ export const yourCalls = (tapped: number, positives: number) =>
   `${tapped} of the ${positives} positives ${tapped === 1 ? 'is your call' : 'are your calls'}.`
 
 /** Drawn from the stored run only. The reader doesn't run again. */
-export function Result({ run, assay, act, error }: { run: Run; assay: Assay; act: (write: () => Promise<void>) => Promise<void>; error: ReactNode }) {
+export function Result({ run, assay, act, error }: { run: Run; assay: Assay; act: (write: () => Promise<unknown>) => Promise<void>; error: ReactNode }) {
   const url = usePhoto(run.photoKey)
   const read = run.read!
   const roles = run.roles!
@@ -22,12 +22,12 @@ export function Result({ run, assay, act, error }: { run: Run; assay: Assay; act
   const failed = run.outcome === 'failed'
   const positives = (run.readerPositives ?? 0) + (run.tappedPositives ?? 0)
   const calls = finalCalls(run)
-  // Every write and the export name the photo on show. A stale tab's is refused; the refresh shows the run now.
-  const tap = (i: number, t: Tap) => act(async () => void (await setTap(run.id, run.photoKey!, i, run.taps[i] === t ? null : t, assay.treatAt)))
+  // Every write and the export name the take on show. A stale tab's is refused; the refresh shows the run now.
+  const tap = (i: number, t: Tap) => act(() => setTap(run, i, run.taps[i] === t ? null : t, assay.treatAt))
   const exportNow = () =>
     act(async () => {
       const now = await getRun(run.id)
-      if (now?.read && now.photoKey === run.photoKey) await exportRun(now)
+      if (now?.read && now.take === run.take) await exportRun(now)
     })
 
   return (
@@ -67,7 +67,7 @@ export function Result({ run, assay, act, error }: { run: Run; assay: Assay; act
         )}
         {asksRetake(read) && (
           // Back to the photo step for this run: the guide's progress stays, the photo and its read go.
-          <Action ghost onClick={() => act(async () => void (await retakePhoto(run.id, run.photoKey!)))}>
+          <Action ghost onClick={() => act(() => retakePhoto(run))}>
             Retake photo
           </Action>
         )}

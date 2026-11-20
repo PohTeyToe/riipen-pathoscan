@@ -37,7 +37,8 @@ export function Guide({ id }: { id: string }) {
   }
 
   // Each tap writes only its own change, then shows the run as stored, which may include another tab's progress.
-  const act = async (write: () => Promise<void>) => {
+  // A write from a screen another tab has moved on from is refused, and the run as it is now shows instead.
+  const act = async (write: () => Promise<unknown>) => {
     try {
       await write()
       setRun((await getRun(id)) ?? null)
@@ -49,7 +50,7 @@ export function Guide({ id }: { id: string }) {
   const i = currentStep(run, assay)
   const prev = assay.steps[(i === -1 ? assay.steps.length : i) - 1]
   const back = prev && (
-    <Action ghost onClick={() => act(() => setStepDone(id, prev.id, false))}>
+    <Action ghost onClick={() => act(() => setStepDone(run, prev.id, false))}>
       Back
     </Action>
   )
@@ -67,8 +68,8 @@ export function Guide({ id }: { id: string }) {
         step={step}
         startedAt={run.steps[step.id]?.timerStartedAt}
         time={time}
-        onStart={() => act(() => startTimer(id, step.id, time.now()))}
-        onDone={() => act(() => setStepDone(id, step.id, true))}
+        onStart={() => act(() => startTimer(run, step.id, time.now()))}
+        onDone={() => act(() => setStepDone(run, step.id, true))}
         back={back}
         error={error}
       />
