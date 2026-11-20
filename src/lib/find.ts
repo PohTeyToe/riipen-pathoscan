@@ -30,8 +30,12 @@ export interface Features {
   glare: number
   /** A found region's box in pixels. Unset for a placed disc, whose size the reader chose. */
   area?: number
-  /** How the paper reference was found. */
-  paperFrom: 'local' | 'global'
+  /**
+   * The white the colour was divided by: the paper beside the tube, or the whole photo's when the ring has no
+   * paper. 'none' when the ring's paper only reads as paper under a lamp's tint and then reads as liquid, so
+   * no white here matches the tube's light and the corrected colour can't be trusted.
+   */
+  paperFrom: 'local' | 'global' | 'none'
 }
 
 const WORK = 480
@@ -112,32 +116,100 @@ function areaPaper(img: Img, x: number, y: number, paper: RGB, skip?: Region): R
   return !c || lumOf(c) < DARK * lumOf(paper) ? paper : c
 }
 
-/**
- * areaPaper on a grid of points an eighth of the long side apart, blended between the four nearest: the
- * finder's white at any pixel, written into `out` (the finder asks for it at every work pixel).
- */
-function paperField(img: Img, paper: RGB): (x: number, y: number, out: RGB) => void {
+/** The white at a pixel, written into `out` (the finder asks for it at every work pixel). */
+type Field = (x: number, y: number, out: RGB) => void
+const fields = new WeakMap<Img, { paper: RGB; field: Field }>()
+
+/** paperField, built once per photo and white. */
+function fieldOf(img: Img, paper: RGB): Field {
+  const hit = fields.get(img)
+  if (hit && hit.paper.every((v, i) => v === paper[i])) return hit.field
+  const field = paperField(img, paper)
+  fields.set(img, { paper, field })
+  return field
+}
+
+/** areaPaper on a grid of points an eighth of the long side apart, blended between the four nearest. */
+function paperField(img: Img, paper: RGB): Field {
   const step = Math.max(img.width, img.height) / 8
   const cols = Math.max(1, Math.round(img.width / step))
   const rows = Math.max(1, Math.round(img.height / step))
   const cw = img.width / cols
   const ch = img.height / rows
-  const cells: RGB[] = []
-  for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) cells.push(areaPaper(img, (i + 0.5) * cw, (j + 0.5) * ch, paper))
+  const centre = (k: number) => [((k % cols) + 0.5) * cw, (Math.floor(k / cols) + 0.5) * ch]
+  const rough = Array.from({ length: rows * cols }, (_, k) => areaPaper(img, ...(centre(k) as [number, number]), paper))
+  const blend = blendOf(rough, cols, rows, cw, ch)
+  // A box's brightest third sits on its less-lit side when the light changes across it, so the first cells
+  // run cool beside a warm lamp. Second pass: each cell's box taken against that first field, pixel by pixel,
+  // which flattens the change, and the white at the centre from the brightest third of those shares.
+  const r = step
+  const f: RGB = [0, 0, 0]
+  const shares = new Float32Array(3 * 4 * 1000)
+  const lumHist = new Uint32Array(SHARE_BINS)
+  const hist = new Uint32Array(3 * SHARE_BINS)
+  const cells = rough.map((c, k) => {
+    if (c === paper) return c // too dark to hold paper: the whole photo's white
+    const [cx, cy] = centre(k)
+    const x0 = Math.max(0, Math.floor(cx - r))
+    const y0 = Math.max(0, Math.floor(cy - r))
+    const x1 = Math.min(img.width - 1, Math.ceil(cx + r))
+    const y1 = Math.min(img.height - 1, Math.ceil(cy + r))
+    const stride = Math.max(1, Math.floor(Math.sqrt(((x1 - x0 + 1) * (y1 - y0 + 1)) / 1000)))
+    lumHist.fill(0)
+    hist.fill(0)
+    let n = 0
+    for (let y = y0; y <= y1; y += stride)
+      for (let x = x0; x <= x1 && n < shares.length / 3; x += stride) {
+        const o = (y * img.width + x) * 4
+        blend(x, y, f)
+        const s = 3 * n++
+        shares[s] = LIN8[img.data[o]] / f[0]
+        shares[s + 1] = LIN8[img.data[o + 1]] / f[1]
+        shares[s + 2] = LIN8[img.data[o + 2]] / f[2]
+        lumHist[shareBin(0.2126 * shares[s] + 0.7152 * shares[s + 1] + 0.0722 * shares[s + 2])]++
+      }
+    let cut = SHARE_BINS - 1
+    for (let acc = 0; cut > 0; cut--) if ((acc += lumHist[cut]) * 3 >= n) break
+    let m = 0
+    for (let s = 0; s < 3 * n; s += 3) {
+      if (shareBin(0.2126 * shares[s] + 0.7152 * shares[s + 1] + 0.0722 * shares[s + 2]) < cut) continue
+      for (let ch = 0; ch < 3; ch++) hist[ch * SHARE_BINS + shareBin(shares[s + ch])]++
+      m++
+    }
+    blend(cx, cy, f)
+    return f.map((v, ch) => Math.max(1e-3, v * shareMedian(hist, ch, m))) as RGB
+  })
+  return blendOf(cells, cols, rows, cw, ch)
+}
+
+/** Shares of a white (near 1) binned in steps of 1/512 from 0 to 2, so their medians need no sort. */
+const SHARE_BINS = 1024
+const shareBin = (v: number) => (v >= 2 ? SHARE_BINS - 1 : v > 0 ? Math.floor(v * 512) : 0)
+function shareMedian(hist: Uint32Array, ch: number, n: number): number {
+  for (let i = 0, acc = 0; i < SHARE_BINS; i++) if ((acc += hist[ch * SHARE_BINS + i]) * 2 >= n) return (i + 0.5) / 512
+  return 2
+}
+
+/**
+ * A white at any pixel from whites on a grid of cell centres, blended between the four nearest. Between the
+ * outer centres and the frame the light keeps changing the way it does between the last two (a lamp just
+ * past the edge), so the blend carries on past them instead of holding flat.
+ */
+function blendOf(cells: RGB[], cols: number, rows: number, cw: number, ch: number): Field {
   return (x, y, out) => {
-    const fx = Math.min(cols - 1, Math.max(0, x / cw - 0.5))
-    const fy = Math.min(rows - 1, Math.max(0, y / ch - 0.5))
-    const i = Math.floor(fx)
-    const j = Math.floor(fy)
+    const fx = Math.min(cols - 0.5, Math.max(-0.5, x / cw - 0.5))
+    const fy = Math.min(rows - 0.5, Math.max(-0.5, y / ch - 0.5))
+    const i = Math.min(Math.max(0, cols - 2), Math.max(0, Math.floor(fx)))
+    const j = Math.min(Math.max(0, rows - 2), Math.max(0, Math.floor(fy)))
     const i1 = Math.min(cols - 1, i + 1)
     const j1 = Math.min(rows - 1, j + 1)
-    const tx = fx - i
-    const ty = fy - j
+    const tx = i1 > i ? fx - i : 0
+    const ty = j1 > j ? fy - j : 0
     const a = cells[j * cols + i]
     const b = cells[j * cols + i1]
     const c = cells[j1 * cols + i]
     const d = cells[j1 * cols + i1]
-    for (let k = 0; k < 3; k++) out[k] = (a[k] * (1 - tx) + b[k] * tx) * (1 - ty) + (c[k] * (1 - tx) + d[k] * tx) * ty
+    for (let k = 0; k < 3; k++) out[k] = Math.max(1e-3, (a[k] * (1 - tx) + b[k] * tx) * (1 - ty) + (c[k] * (1 - tx) + d[k] * tx) * ty)
   }
 }
 
@@ -159,7 +231,7 @@ export function isLiquid(r: number, g: number, b: number, paper: RGB): boolean {
 
 export function findRegions(img: Img): { regions: Region[]; paper: RGB } {
   const paper = globalPaper(img)
-  const white = paperField(img, paper)
+  const white = fieldOf(img, paper)
   const p: RGB = [0, 0, 0]
   const f = Math.max(1, Math.max(img.width, img.height) / WORK)
   const w = Math.max(1, Math.floor(img.width / f))
@@ -356,13 +428,35 @@ export const discRegion = (cx: number, cy: number, r: number, r0?: number): Regi
 })
 
 /**
- * Measure one region: its clear liquid colour, raw and paper-corrected. Liquid is told from paper against the
- * paper around the region (areaPaper), not the whole photo's `paper`, so paper warmed by a lamp on one side
- * isn't taken for liquid. The colour is then corrected by the paper right beside it.
+ * Measure one region: its clear liquid colour, raw and paper-corrected by the paper right beside it. Liquid
+ * is told from paper against a white that matches the light here, not the whole photo's `paper`, so paper
+ * warmed by a lamp on one side isn't taken for liquid.
  */
 export function measure(img: Img, region: Region, paper: RGB): Features | null {
   const { width: w, height: h, data } = img
+  // The colour is corrected by the ring's paper: pale, neutral pixels taken against the photo's white.
+  // Where the white map at the tube is off the photo's white (a lamp at one end of the rack), the ring is
+  // also taken against the map's white where each pixel sits, so a ring the light changes across gives the
+  // white at the tube, not the white of whichever side looks most neutral. The way more ring pixels pass as
+  // paper wins: on a plate the map can lean towards the wells' colour, and the plastic then still reads
+  // neutral against the photo's white. A ring white that reads as liquid (a close-up) is no white. With no
+  // ring paper the photo's white stands in. Under the map's light with no white from the ring, the tube is
+  // held ('none'). Liquid is told from paper against the light the white came from: the map's white at each
+  // pixel when the map's ring white is used, as the finder does, else the white of the area around the tube.
+  const field = fieldOf(img, paper)
+  const here: RGB = [0, 0, 0]
+  field(region.cx, region.cy, here)
+  const even = sameLight(here, paper)
   const near = areaPaper(img, region.cx, region.cy, paper, region)
+  const byPhoto = localPaper(img, region, flat(paper), paper)
+  const byMap = even ? null : localPaper(img, region, field, paper)
+  const lamp = !!byMap && byMap.n > (byPhoto?.n ?? 0)
+  const ring = lamp ? byMap.white : (byPhoto?.white ?? null)
+  const local = ring && !isLiquid(ring[0], ring[1], ring[2], near) ? ring : null
+  const lost = lamp && !local
+  const mapped = lamp && !!local
+  const ref = local ?? (lost ? near : paper)
+  const at: RGB = [0, 0, 0]
   const hist = new Uint32Array(768)
   let n = 0
   let glare = 0
@@ -379,7 +473,8 @@ export function measure(img: Img, region: Region, paper: RGB): Features | null {
         if (d2 > region.r ** 2 || (region.r0 && d2 < region.r0 ** 2)) continue
       }
       const o = (y * w + x) * 4
-      if (!isLiquid(LIN8[data[o]], LIN8[data[o + 1]], LIN8[data[o + 2]], near)) {
+      if (mapped) field(x, y, at)
+      if (!isLiquid(LIN8[data[o]], LIN8[data[o + 1]], LIN8[data[o + 2]], mapped ? at : near)) {
         // Inside a placed disc, a washed-out pixel is glare, a bubble or a reflection. In a found region
         // it is just the background around the liquid.
         if (region.r !== undefined) glare++
@@ -395,8 +490,6 @@ export function measure(img: Img, region: Region, paper: RGB): Features | null {
   // monotonic, so one set of histograms serves both.
   const raw = histMedian(hist, n)
   const rawHsv = hsv(raw[0] / 255, raw[1] / 255, raw[2] / 255)
-  const local = localPaper(img, region, paper)
-  const ref = local ?? paper
   const cl = raw.map((v, i) => Math.min(1.2, LIN8[v] / ref[i])) as RGB
   const lab = linToLab(cl[0], cl[1], cl[2])
   return {
@@ -408,39 +501,63 @@ export function measure(img: Img, region: Region, paper: RGB): Features | null {
     clear: n * step * step,
     glare: glare * step * step,
     area: region.r === undefined ? area : undefined,
-    paperFrom: local ? 'local' : 'global',
+    paperFrom: local ? 'local' : lost ? 'none' : 'global',
   }
 }
 
-/** Median of the pale, neutral pixels in a ring around the region: the paper right next to the liquid. */
-function localPaper(img: Img, region: Region, paper: RGB): RGB | null {
+/** The same white everywhere. */
+const flat = (white: RGB): Field => (_x, _y, out) => {
+  out[0] = white[0]
+  out[1] = white[1]
+  out[2] = white[2]
+}
+
+/** Two whites under the same light: their channel ratios differ by under a tenth (brightness alone doesn't count). */
+function sameLight(a: RGB, b: RGB): boolean {
+  const q = a.map((v, i) => v / b[i])
+  return Math.min(...q) >= LIGHT_MATCH * Math.max(...q)
+}
+const LIGHT_MATCH = 0.9
+
+/**
+ * The paper's white at the region, from the pale, neutral paper in a ring around it, and how many ring
+ * samples passed as paper. Each ring pixel is taken against `field`'s white where it sits (the photo's
+ * white, or the white map), and the median of those shares, times that white at the region, is the white
+ * there. Pale means pale against the whole photo's white too: grey plastic between a plate's wells is
+ * neutral, but no white to correct by.
+ */
+function localPaper(img: Img, region: Region, field: Field, paper: RGB): { white: RGB; n: number } | null {
   const { width: w, height: h, data } = img
   const half = Math.max(region.x1 - region.x0, region.y1 - region.y0) / 2 + 1
   const rIn = half * 1.25
   const rOut = half * 2.2
   const step = Math.max(1, Math.floor(rOut / 40))
   const paperL = paper[0] + paper[1] + paper[2]
-  const hist = new Uint32Array(768)
+  const f: RGB = [0, 0, 0]
+  const hist = new Uint32Array(3 * SHARE_BINS)
   let n = 0
   for (let y = Math.max(0, Math.floor(region.cy - rOut)); y < Math.min(h, region.cy + rOut); y += step)
     for (let x = Math.max(0, Math.floor(region.cx - rOut)); x < Math.min(w, region.cx + rOut); x += step) {
       const d2 = (x - region.cx) ** 2 + (y - region.cy) ** 2
       if (d2 < rIn * rIn || d2 > rOut * rOut) continue
       const o = (y * w + x) * 4
-      const r = LIN8[data[o]]
-      const g = LIN8[data[o + 1]]
-      const b = LIN8[data[o + 2]]
-      if (r + g + b < 0.45 * paperL) continue
-      const R = fastSrgb(r / paper[0])
-      const G = fastSrgb(g / paper[1])
-      const B = fastSrgb(b / paper[2])
+      if (LIN8[data[o]] + LIN8[data[o + 1]] + LIN8[data[o + 2]] < 0.45 * paperL) continue
+      field(x, y, f)
+      const r = LIN8[data[o]] / f[0]
+      const g = LIN8[data[o + 1]] / f[1]
+      const b = LIN8[data[o + 2]] / f[2]
+      if (r + g + b < 0.45 * 3) continue
+      const R = fastSrgb(r)
+      const G = fastSrgb(g)
+      const B = fastSrgb(b)
       const max = Math.max(R, G, B)
       if (max - Math.min(R, G, B) >= 0.12 * max) continue
-      hist[data[o]]++
-      hist[256 + data[o + 1]]++
-      hist[512 + data[o + 2]]++
+      hist[shareBin(r)]++
+      hist[SHARE_BINS + shareBin(g)]++
+      hist[2 * SHARE_BINS + shareBin(b)]++
       n++
     }
   if (n < 20) return null
-  return histMedian(hist, n).map((v) => Math.max(1e-3, LIN8[v])) as RGB
+  field(region.cx, region.cy, f)
+  return { white: f.map((v, k) => Math.max(1e-3, v * shareMedian(hist, k, n))) as RGB, n }
 }

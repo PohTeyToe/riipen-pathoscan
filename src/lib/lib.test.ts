@@ -215,33 +215,55 @@ describe('finding and measuring', () => {
     expect(regions).toHaveLength(3)
     for (const r of regions) expect(measure(img, r, paper)?.clear).toBeGreaterThan(5000)
   })
-  it('reads the same tubes the same way under a warm lamp on one side', () => {
-    // A 3000 K lamp at one end of the rack and daylight at the other: the paper goes from orange to white.
-    const lit = lightCast(3000)
+  // A lamp of this colour at one end of the photo, fading to daylight at the other.
+  const underLamp = (img: Img, kelvin: number, fromLeft: boolean): Img => {
     const day = lightCast(6500)
+    const lit = lightCast(kelvin)
     const gain = norm([lit[0] / day[0], lit[1] / day[1], lit[2] / day[2]])
-    for (const fromLeft of [true, false])
-      for (const seed of [1, 2, 3]) {
-        const spec = makeRun(seed, 'typical', { kelvin: 5500, ev: 0, drift: 0 })
-        const img = render(spec, 0.5)
-        const roles = spec.tubes.map((t) => t.role)
-        const read = (im: Img) => {
-          const { regions, paper } = findRegions(im)
-          return { n: regions.length, calls: readCalibrated(regions.map((r) => measure(im, r, paper)), roles, model, band).tubes.map((t) => t.call) }
-        }
-        const clean = read(img)
-        const lamp = new Uint8ClampedArray(img.data)
-        for (let y = 0; y < img.height; y++)
-          for (let x = 0; x < img.width; x++) {
-            const t = fromLeft ? x / (img.width - 1) : 1 - x / (img.width - 1)
-            const o = (y * img.width + x) * 4
-            for (let c = 0; c < 3; c++) lamp[o + c] = Math.round(toSrgb(LIN8[lamp[o + c]] * (gain[c] + (1 - gain[c]) * t)) * 255)
-          }
-        // Every tube is still found, and none swaps positive for negative. Tubes on the lit side may be held.
-        const lampRead = read({ ...img, data: lamp })
-        expect(lampRead.n).toBe(clean.n)
-        expect(lampRead.calls.filter((c, i) => c !== clean.calls[i] && c !== 'held' && clean.calls[i] !== 'held')).toEqual([])
+    const data = new Uint8ClampedArray(img.data)
+    for (let y = 0; y < img.height; y++)
+      for (let x = 0; x < img.width; x++) {
+        const t = fromLeft ? x / (img.width - 1) : 1 - x / (img.width - 1)
+        const o = (y * img.width + x) * 4
+        for (let c = 0; c < 3; c++) data[o + c] = Math.round(toSrgb(LIN8[data[o + c]] * (gain[c] + (1 - gain[c]) * t)) * 255)
       }
+    return { ...img, data }
+  }
+  // Every tube is still found, and none gets a call it didn't get in even light. A tube may be held.
+  const sameUnderLamp = (img: Img, roles: Role[], kelvin: number, fromLeft: boolean) => {
+    const read = (im: Img) => {
+      const { regions, paper } = findRegions(im)
+      return { n: regions.length, calls: readCalibrated(regions.map((r) => measure(im, r, paper)), roles, model, band).tubes.map((t) => t.call) }
+    }
+    const clean = read(img)
+    const lamp = read(underLamp(img, kelvin, fromLeft))
+    expect(lamp.n).toBe(clean.n)
+    expect(lamp.calls.filter((c, i) => c !== clean.calls[i] && c !== 'held')).toEqual([])
+  }
+  const lamps = [3000, 2400].flatMap((kelvin) => [true, false].map((fromLeft) => ({ kelvin, fromLeft })))
+  it('reads the same tubes the same way under a warm lamp on one side', { timeout: 30_000 }, () => {
+    // A 3000 or 2400 K lamp at one end of the rack and daylight at the other: the paper goes from orange to
+    // white. Seed 70's positives 5 and 8 turned only part way: uncorrected, the cast reads them as negative.
+    for (const spec of [1, 2, 3].map((seed) => makeRun(seed, 'typical', { kelvin: 5500, ev: 0, drift: 0 })).concat(makeRun(70)))
+      for (const { kelvin, fromLeft } of lamps) sameUnderLamp(render(spec, 0.5), spec.tubes.map((t) => t.role), kelvin, fromLeft)
+  })
+  it('reads two rows of five the same way under a warm lamp on one side', { timeout: 30_000 }, () => {
+    // A tube's found region can reach into the lamp-warmed paper beside it. Told from paper against one white
+    // for the whole area, that paper counted as liquid: seed 14's negative sample 3 read positive at 2400 K.
+    // (With the lamp at the left, seeds 14 and 59 lose a tube to the finder; the grower taps it back.)
+    for (const [seed, sides] of [[14, [false]], [59, [false]], [93, [true, false]]] as const) {
+      const spec = makeRun(seed)
+      const img = render(spec, 0.5)
+      const [W, H] = [img.width, img.height]
+      const w = Math.floor(W / 2)
+      const rows: Img = { width: w, height: 2 * H, data: new Uint8ClampedArray(w * 2 * H * 4) }
+      for (let y = 0; y < 2 * H; y++)
+        for (let x = 0; x < w; x++) {
+          const from = (y < H ? y * W + x : (y - H) * W + x + Math.round(W / 2)) * 4
+          rows.data.set(img.data.subarray(from, from + 4), (y * w + x) * 4)
+        }
+      for (const fromLeft of sides) sameUnderLamp(rows, spec.tubes.map((t) => t.role), 2400, fromLeft)
+    }
   })
   it('matches every tube in clean runs', () => {
     for (const seed of [1, 2, 3, 4, 5]) expect(readSynthetic(makeRun(seed, 'typical', { ev: 0 }), 0.5).missed).toBe(0)

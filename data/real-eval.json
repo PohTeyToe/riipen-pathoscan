@@ -17,17 +17,17 @@
      "neg": 4
     },
     "neg": {
-     "pos": 296,
+     "pos": 297,
      "held": 0,
-     "neg": 342
+     "neg": 341
     }
    },
    "samples": 664,
-   "wrong": 300,
+   "wrong": 301,
    "held": 0,
    "sensitivity": 0.8461538461538461,
-   "specificity": 0.5360501567398119,
-   "accuracyCalled": 0.5481927710843374
+   "specificity": 0.5344827586206896,
+   "accuracyCalled": 0.5466867469879518
   },
   "calibrated": {
    "confusion": {
@@ -38,16 +38,16 @@
     },
     "neg": {
      "pos": 18,
-     "held": 223,
-     "neg": 397
+     "held": 234,
+     "neg": 386
     }
    },
    "samples": 664,
    "wrong": 23,
-   "held": 232,
+   "held": 243,
    "sensitivity": 0.46153846153846156,
-   "specificity": 0.622257053291536,
-   "accuracyCalled": 0.9467592592592593
+   "specificity": 0.6050156739811913,
+   "accuracyCalled": 0.9453681710213777
   },
   "paper": {
    "confusion": {
@@ -80,17 +80,17 @@
      "neg": 17
     },
     "neg": {
-     "pos": 315,
+     "pos": 316,
      "held": 0,
-     "neg": 358
+     "neg": 357
     }
    },
    "samples": 872,
-   "wrong": 332,
+   "wrong": 333,
    "held": 0,
    "sensitivity": 0.914572864321608,
-   "specificity": 0.5319465081723626,
-   "accuracyCalled": 0.6192660550458715
+   "specificity": 0.5304606240713224,
+   "accuracyCalled": 0.6181192660550459
   },
   "calibrated": {
    "confusion": {
@@ -101,16 +101,16 @@
     },
     "neg": {
      "pos": 18,
-     "held": 258,
-     "neg": 397
+     "held": 269,
+     "neg": 386
     }
    },
    "samples": 872,
    "wrong": 23,
-   "held": 440,
+   "held": 451,
    "sensitivity": 0.06030150753768844,
-   "specificity": 0.5898959881129272,
-   "accuracyCalled": 0.9467592592592593
+   "specificity": 0.5735512630014858,
+   "accuracyCalled": 0.9453681710213777
   }
  },
  "noControls": 208,
@@ -188,16 +188,16 @@
     },
     "neg": {
      "pos": 18,
-     "held": 36,
-     "neg": 584
+     "held": 47,
+     "neg": 573
     }
    },
    "samples": 664,
    "wrong": 23,
-   "held": 44,
+   "held": 55,
    "sensitivity": 0.5,
-   "specificity": 0.9153605015673981,
-   "accuracyCalled": 0.9629032258064516
+   "specificity": 0.8981191222570533,
+   "accuracyCalled": 0.9622331691297209
   }
  },
  "misses": [
@@ -219,18 +219,7 @@
    "truth": "neg",
    "naive": "positive",
    "calibrated": "positive",
-   "reason": "94% like the positive control.",
-   "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
-   "paper": "not reported"
-  },
-  {
-   "file": "LAMP11_SuppFig5_a_cv15-20.jpg",
-   "figure": "Supp. Fig. 5a (Zenodo label SuppFig5_a)",
-   "well": "A1 (CV15-20)",
-   "truth": "neg",
-   "naive": "positive",
-   "calibrated": "positive",
-   "reason": "84% like the positive control.",
+   "reason": "91% like the positive control.",
    "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
    "paper": "not reported"
   },
@@ -241,7 +230,7 @@
    "truth": "neg",
    "naive": "positive",
    "calibrated": "positive",
-   "reason": "91% like the positive control.",
+   "reason": "90% like the positive control.",
    "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
    "paper": "not reported"
   },
@@ -252,14 +241,14 @@
    "truth": "neg",
    "naive": "positive",
    "calibrated": "positive",
-   "reason": "94% like the positive control.",
+   "reason": "93% like the positive control.",
    "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
    "paper": "not reported"
   },
   {
    "file": "LAMP11_SuppFig5_a_cv15-20.jpg",
    "figure": "Supp. Fig. 5a (Zenodo label SuppFig5_a)",
-   "well": "F2 (CV15-20)",
+   "well": "B2 (CV15-20)",
    "truth": "neg",
    "naive": "positive",
    "calibrated": "positive",
@@ -274,7 +263,7 @@
    "truth": "neg",
    "naive": "positive",
    "calibrated": "positive",
-   "reason": "94% like the positive control.",
+   "reason": "97% like the positive control.",
    "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
    "paper": "not reported"
   },
@@ -285,7 +274,7 @@
    "truth": "neg",
    "naive": "positive",
    "calibrated": "positive",
-   "reason": "91% like the positive control.",
+   "reason": "88% like the positive control.",
    "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
    "paper": "not reported"
   },
@@ -296,7 +285,7 @@
    "truth": "neg",
    "naive": "positive",
    "calibrated": "positive",
-   "reason": "88% like the positive control.",
+   "reason": "94% like the positive control.",
    "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
    "paper": "not reported"
   },
@@ -307,7 +296,18 @@
    "truth": "neg",
    "naive": "positive",
    "calibrated": "positive",
-   "reason": "85% like the positive control.",
+   "reason": "80% like the positive control.",
+   "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
+   "paper": "not reported"
+  },
+  {
+   "file": "LAMP11_SuppFig5_a_cv15-20.jpg",
+   "figure": "Supp. Fig. 5a (Zenodo label SuppFig5_a)",
+   "well": "F6 (CV15-20)",
+   "truth": "neg",
+   "naive": "positive",
+   "calibrated": "positive",
+   "reason": "89% like the positive control.",
    "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
    "paper": "not reported"
   },
@@ -318,7 +318,7 @@
    "truth": "neg",
    "naive": "positive",
    "calibrated": "positive",
-   "reason": "94% like the positive control.",
+   "reason": "93% like the positive control.",
    "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
    "paper": "not reported"
   },
@@ -362,7 +362,7 @@
    "truth": "neg",
    "naive": "positive",
    "calibrated": "positive",
-   "reason": "95% like the positive control.",
+   "reason": "99% like the positive control.",
    "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
    "paper": "not reported"
   },
@@ -457,9 +457,9 @@
  ],
  "finder": {
   "expected": 996,
-  "found": 907,
+  "found": 910,
   "onOtherWells": 21,
-  "offWells": 4
+  "offWells": 8
  },
- "seconds": 6
+ "seconds": 10
 }

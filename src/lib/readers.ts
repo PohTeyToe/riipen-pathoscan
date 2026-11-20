@@ -121,6 +121,8 @@ export function readCalibrated(feats: (Features | null)[], roles: Role[], model:
     flags.push(flag)
     return { status: 'failed', flags, scale, tubes: feats.map((_, i) => (roles[i] === 'sample' ? held(flag) : controlRead(roles[i]))) }
   }
+  if ([...pcs, ...ncs].some((f) => f.paperFrom === 'none'))
+    return notRead("A control is under a lamp's tint, and the paper beside it gives no white to correct by. Run not read; retake it in even light.")
   const ncSpread = Math.max(...ncHues) - Math.min(...ncHues)
   if (ncs.length > 1 && ncSpread >= (hPc - Math.min(...ncHues)) / 2)
     return notRead(`The negative controls disagree (${ncSpread.toFixed(0)}° apart); one may be contaminated. Run not read; check them.`)
@@ -142,6 +144,7 @@ export function readCalibrated(feats: (Features | null)[], roles: Role[], model:
     if (!f) return held('No liquid colour found.')
     if (f.clear < QC.minClear) return held('Too few clear pixels (glare, a bubble or low volume).')
     if (f.glare > f.clear * 1.5) return held('Mostly glare or reflection.')
+    if (f.paperFrom === 'none') return held("Under a lamp's tint, and the paper beside it gives no white to correct by. Read by eye.")
     if ((f.area ?? 0) > maxArea) return held('Much bigger than the other tubes, so it may take in paper or table. Read by eye.')
     const s = (f.labHue - hNc) / (hPc - hNc)
     if (chroma(f) < QC.minChromaShare * cRef) return { ...held('Too pale to read against the controls.'), s }

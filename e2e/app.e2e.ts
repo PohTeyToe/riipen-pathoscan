@@ -3,7 +3,11 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { PNG } from 'pngjs'
+import { LIN8, lightCast, toSrgb } from '../src/lib/color'
 import { liquidCentre, makeRun, render } from '../src/lib/synth'
+
+// run.ts imports package.json, which this runner can't load, so its reader version is read from the source.
+const READER_VERSION = readFileSync(new URL('../src/app/run.ts', import.meta.url), 'utf8').match(/READER_VERSION = '([^']+)'/)![1]
 
 const secondsLeft = async (page: Page) => {
   const [m, s] = (await page.getByRole('timer').textContent())!.split(':').map(Number)
@@ -111,12 +115,25 @@ type Pt = [number, number]
  * A synthetic run from the demo's own renderer, as a camera file, laid out as a row, two rows of five, a row
  * tilted 12 degrees, or a small row on a big sheet (tubes 23 px apart, so a ring's button reaches over its
  * neighbours). Seed 4: two positives and one tube the reader holds. `tubes` are the liquid centres in the
- * photo, in label order: +, −, then 1 to 8.
+ * photo, in label order: +, −, then 1 to 8. `lamp`: a lamp of that colour temperature at the left end of
+ * the rack, fading to daylight at the right.
  */
-function syntheticPhoto(layout: 'row' | '2x5' | 'tilted' | 'small' = 'row') {
-  const run = makeRun(4)
+function syntheticPhoto(layout: 'row' | '2x5' | 'tilted' | 'small' = 'row', { seed = 4, lamp }: { seed?: number; lamp?: number } = {}) {
+  const run = makeRun(seed)
   const scale = layout === 'small' ? 0.24 : 1
   const img = render(run, scale)
+  if (lamp) {
+    const [lit, day] = [lightCast(lamp), lightCast(6500)]
+    const gain = lit.map((v, c) => v / day[c])
+    const top = Math.max(...gain)
+    for (let y = 0; y < img.height; y++)
+      for (let x = 0; x < img.width; x++)
+        for (let c = 0; c < 3; c++) {
+          const o = (y * img.width + x) * 4 + c
+          const g = gain[c] / top
+          img.data[o] = Math.round(toSrgb(LIN8[img.data[o]] * (g + ((1 - g) * x) / (img.width - 1))) * 255)
+        }
+  }
   const [W, H] = [img.width, img.height]
   const src = new Uint32Array(img.data.buffer)
   const tubes = run.tubes.map((_, i) => [liquidCentre(run, i).x * scale, liquidCentre(run, i).y * scale] as Pt)
@@ -150,7 +167,17 @@ function syntheticPhoto(layout: 'row' | '2x5' | 'tilted' | 'small' = 'row') {
     }
   const png = new PNG({ width: w, height: h })
   png.data = Buffer.from(out.buffer)
-  return { file: { name: 'tubes.png', mimeType: 'image/png', buffer: PNG.sync.write(png) }, size: [w, h] as Pt, tubes: tubes.map(to) }
+  return { file: { name: 'tubes.png', mimeType: 'image/png', buffer: PNG.sync.write(png) }, size: [w, h] as Pt, tubes: tubes.map(to), run }
+}
+
+/** The exported CSV, downloaded: its rows by column name. */
+async function exportCsv(page: Page) {
+  await page.evaluate(() => Object.defineProperty(navigator, 'canShare', { value: undefined, configurable: true }))
+  const downloaded = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Export' }).click()
+  const csv = readFileSync((await (await downloaded).path())!, 'utf8')
+  const [head, ...rows] = csv.slice(1).trimEnd().split('\r\n').map((line) => line.split(','))
+  return (name: string) => rows.map((r) => r[head.indexOf(name)])
 }
 
 /** A finger's tap on the photo, at a point in its pixels, scrolled into view first as a grower would. */
@@ -474,6 +501,24 @@ test('two rows of five and a tilted row are labelled by taps in order and read',
     await expect(page.getByRole('heading', { name: '2 of 8 positive', exact: true })).toBeVisible()
     await page.getByRole('link', { name: 'Done' }).click()
   }
+})
+
+test('under a warm lamp at one end of the rack, the reader holds the tubes it cannot read and calls none wrong', async ({ page }) => {
+  // Seed 70: positives 5 and 8 turned only part way, so the lamp's cast, left uncorrected, reads them as
+  // negative. Through the app's own path: the camera file, the saved JPEG, the rings, the taps, the export.
+  await page.goto('/app.html')
+  await toPhoto(page, 'Lamp')
+  const photo = syntheticPhoto('row', { seed: 70, lamp: 3000 })
+  await page.locator('input[type=file]').setInputFiles(photo.file)
+  await expect(page.getByRole('heading', { name: '10 tubes', exact: true })).toBeVisible()
+  await label(page, photo)
+  await expect(page.getByText('Call the held tubes below.')).toBeVisible()
+  const column = await exportCsv(page)
+  const truth = photo.run.tubes.map((t) => (t.truth === 'pos' ? 'Positive' : 'Negative'))
+  const calls = column('Reader call')
+  expect(calls.filter((c, i) => c !== 'Held' && c !== truth[i])).toEqual([])
+  expect([calls[6], calls[9]]).not.toContain('Negative')
+  expect(column('Reader version')).toEqual(Array(10).fill(READER_VERSION))
 })
 
 test("a finger on a tube whose ring was removed adds it back, though a neighbour's ring button covers it", async ({ page }) => {

@@ -116,7 +116,7 @@ export function Detail({ tube, naive, calibrated, midpoint, onClose, edit }: Pro
             <div>
               <dt>Pixels</dt>
               <dd>
-                {f.clear} clear{f.glare ? `, ${f.glare} washed out` : ''} · paper {f.paperFrom === 'local' ? 'beside the tube' : 'from the whole photo'}
+                {f.clear} clear{f.glare ? `, ${f.glare} washed out` : ''} · paper {f.paperFrom === 'local' ? 'beside the tube' : f.paperFrom === 'global' ? 'from the whole photo' : 'none under this light'}
               </dd>
             </div>
           )}
