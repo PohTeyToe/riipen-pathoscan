@@ -78,11 +78,12 @@ const DARK = 0.2
  */
 
 /**
- * Below this no pile is taken for clipped light. A tone curve or edit that takes 0.4 of a stop off the
- * highlights moves 255 to 226, and a JPEG spreads that by SPREAD. One that takes more is out of this check's
- * reach. Bright paper above it is told from a pile by RISE and by what lies above it.
+ * Below this no pile is taken for clipped light. A tone curve or edit that takes a third of a stop off the
+ * highlights moves 255 to 230, and a JPEG spreads that by SPREAD. One that takes more is out of this check's
+ * reach: evenly lit paper makes humps as sharp as a pile not far below this. Bright paper above it is told
+ * from a pile by RISE.
  */
-const PILE_FLOOR = 224
+const PILE_FLOOR = 228
 
 /**
  * How much taller a pile is than the values just below its spread. Where the light runs past the top over a
