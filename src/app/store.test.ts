@@ -257,9 +257,11 @@ describe('the read and the taps', () => {
   })
 
   it('goes back to the photo step for a retake: the photo, its read and the taps go, the guide progress stays', async () => {
-    const key = await readRun('retake', 7170)
+    await addRun(run('retake', 7170))
     await setStepDone('id-retake', 'cool', true)
-    await setTap('id-retake', 4, 'pos', 3)
+    const key = (await takePhoto('id-retake', jpeg('first')))!
+    expect(await saveRead('id-retake', key, regions, roles, twoHeld, 3)).toBe(true)
+    expect(await setTap('id-retake', key, 4, 'pos', 3)).toBe(true)
     expect(await retakePhoto('id-retake', key)).toBe(true)
     const r = (await getRun('id-retake'))!
     for (const k of ['photoKey', 'regions', 'roles', 'read', 'readerPositives', 'tappedPositives', 'rule', 'outcome']) expect(r).not.toHaveProperty(k)
@@ -282,22 +284,61 @@ describe('the read and the taps', () => {
   })
 
   it("keeps taps apart from the read and recounts, without losing a stale tab's tap", async () => {
-    await readRun('taps', 7200)
+    const key = await readRun('taps', 7200)
     vi.resetModules()
     const tabB = await import('./store')
-    await setTap('id-taps', 4, 'neg', 3)
-    await tabB.setTap('id-taps', 5, 'pos', 3) // B never saw A's tap
+    await setTap('id-taps', key, 4, 'neg', 3)
+    await tabB.setTap('id-taps', key, 5, 'pos', 3) // B never saw A's tap
     const r = await getRun('id-taps')
     expect(r?.taps.slice(4, 6)).toEqual(['neg', 'pos'])
     expect(r?.read).toEqual(twoHeld)
     expect(r).toMatchObject({ readerPositives: 2, tappedPositives: 1, outcome: 'treat' })
-    await setTap('id-taps', 5, null, 3)
+    await setTap('id-taps', key, 5, null, 3)
     expect((await getRun('id-taps'))?.outcome).toBeUndefined()
   })
 
+  it('refuses a tap on a tube the reader called', async () => {
+    const key = await readRun('called', 7250)
+    expect(await setTap('id-called', key, 2, 'neg', 3)).toBe(false) // sample 1 read positive
+    expect((await getRun('id-called'))?.taps).toEqual(Array(10).fill(null))
+  })
+
+  it("refuses a stale tab's tap on the result of a photo since retaken, so the new photo's result stands", async () => {
+    // Tab B still shows the first photo's result; tab A retakes and reads a new photo with sample 1 held.
+    const old = await readRun('stale-tap', 7260, read(Array(8).fill('held')))
+    vi.resetModules()
+    const tabB = await import('./store')
+    expect(await retakePhoto('id-stale-tap', old)).toBe(true)
+    const next = (await takePhoto('id-stale-tap', jpeg('second')))!
+    expect(await saveRead('id-stale-tap', next, regions, roles, twoHeld, 3)).toBe(true)
+    const before = await getRun('id-stale-tap')
+    expect(await tabB.setTap('id-stale-tap', old, 4, 'pos', 3)).toBe(false)
+    expect(await getRun('id-stale-tap')).toEqual(before)
+    expect(before).toMatchObject({ readerPositives: 2, tappedPositives: 0 })
+    expect(before?.outcome).toBeUndefined()
+    // A tap on the result on show still counts.
+    expect(await setTap('id-stale-tap', next, 4, 'pos', 3)).toBe(true)
+    expect(await getRun('id-stale-tap')).toMatchObject({ tappedPositives: 1, outcome: 'treat' })
+  })
+
+  it("won't let a stale tab reopen or time a step of a run another tab has read", async () => {
+    await addRun(run('stale-step', 7270))
+    await setStepDone('id-stale-step', 'cool', true)
+    const key = (await takePhoto('id-stale-step', jpeg('first')))!
+    expect(await saveRead('id-stale-step', key, regions, roles, twoHeld, 3)).toBe(true)
+    const before = await getRun('id-stale-step')
+    await setStepDone('id-stale-step', 'cool', false) // Back on a stale photo screen
+    await startTimer('id-stale-step', 'preheat', 1)
+    expect(await getRun('id-stale-step')).toEqual(before)
+    // After a retake the guide is open again.
+    expect(await retakePhoto('id-stale-step', key)).toBe(true)
+    await setStepDone('id-stale-step', 'cool', false)
+    expect((await getRun('id-stale-step'))?.steps.cool?.done).toBe(false)
+  })
+
   it('fails a refused run and keeps its taps as notes that never count', async () => {
-    await readRun('failed', 7300, read(Array(8).fill('held'), 'failed'))
-    for (const i of [2, 3, 4, 5]) await setTap('id-failed', i, 'pos', 3)
+    const key = await readRun('failed', 7300, read(Array(8).fill('held'), 'failed'))
+    for (const i of [2, 3, 4, 5]) await setTap('id-failed', key, i, 'pos', 3)
     const r = await getRun('id-failed')
     expect(r).toMatchObject({ outcome: 'failed', rule: { treatAt: 3 } })
     expect(r?.taps.filter((t) => t === 'pos')).toHaveLength(4)

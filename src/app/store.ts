@@ -2,7 +2,9 @@
 // Photos get their own database: idb-keyval makes one object store per database.
 //
 // A run is written whole only when it is created. Every later change is a read-modify-write in one
-// transaction that touches only its own field, so a second, stale tab can't erase progress.
+// transaction that touches only its own field, so a second, stale tab can't erase progress. A change made on
+// a screen of one photo's read names that photo, and is refused once the run holds another, so a stale tab
+// can't change a newer photo's result.
 
 import { createStore, del, get, set, update, values, type UseStore } from 'idb-keyval'
 import type { Region } from '../lib/find'
@@ -59,11 +61,12 @@ function change(id: string, edit: (run: Run) => Run): Promise<void> {
   )
 }
 
-export const setStepDone = (id: string, step: string, done: boolean) => change(id, (run) => withStep(run, step, { done }))
+/** A read run's guide is over: a stale tab still on a step or on the photo can't reopen or restart one. */
+export const setStepDone = (id: string, step: string, done: boolean) => change(id, (run) => (run.read ? run : withStep(run, step, { done })))
 
 /** Starts the step's timer unless it is already running: the first start wins. */
 export const startTimer = (id: string, step: string, at: number) =>
-  change(id, (run) => (run.steps[step]?.timerStartedAt === undefined ? withStep(run, step, { timerStartedAt: at }) : run))
+  change(id, (run) => (run.read || run.steps[step]?.timerStartedAt !== undefined ? run : withStep(run, step, { timerStartedAt: at })))
 
 /**
  * Saves a photo under a new key and points the run at it, replacing (and deleting) the photo before. A run
@@ -121,13 +124,21 @@ export async function retakePhoto(id: string, photoKey: string): Promise<boolean
   return done
 }
 
-/** The grower's eye call on tube i, kept apart from the reader's. Recounts the outcome under the current rule. */
-export const setTap = (id: string, i: number, tap: Tap, treatAt: number) =>
-  change(id, (run) => {
-    if (!run.read || !run.roles) return run
+/**
+ * The grower's eye call on tube i of the read of the photo at `photoKey`, kept apart from the reader's.
+ * Recounts the outcome under the current rule. Refused (false) if the run holds another photo by now (a tap
+ * from a stale tab's result) or the reader didn't hold that tube.
+ */
+export async function setTap(id: string, photoKey: string, i: number, tap: Tap, treatAt: number): Promise<boolean> {
+  let saved = false
+  await change(id, (run) => {
+    if (!run.read || !run.roles || run.photoKey !== photoKey || run.read.tubes[i]?.call !== 'held') return run
+    saved = true
     const taps = run.taps.map((t, j) => (j === i ? tap : t))
     return { ...run, taps, ...tally(run.read, run.roles, taps, treatAt) }
   })
+  return saved
+}
 
 /** Ask the browser not to clear our data under storage pressure. Safe to call on every run. */
 export async function askPersist(): Promise<void> {

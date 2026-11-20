@@ -4,7 +4,7 @@ import { exportRun } from './csv'
 import { LABELS } from './reader'
 import { asksRetake, finalCalls, heldReason, tapsDecided, type Run, type Tap } from './run'
 import { Shot } from './Shot'
-import { getPhoto, retakePhoto, setTap } from './store'
+import { getPhoto, getRun, retakePhoto, setTap } from './store'
 import { Action, Bar } from './ui'
 
 const MARK = { pos: '+', neg: '−', held: '?' }
@@ -22,7 +22,13 @@ export function Result({ run, assay, act, error }: { run: Run; assay: Assay; act
   const failed = run.outcome === 'failed'
   const positives = (run.readerPositives ?? 0) + (run.tappedPositives ?? 0)
   const calls = finalCalls(run)
-  const tap = (i: number, t: Tap) => act(() => setTap(run.id, i, run.taps[i] === t ? null : t, assay.treatAt))
+  // Every write and the export name the photo on show. A stale tab's is refused; the refresh shows the run now.
+  const tap = (i: number, t: Tap) => act(async () => void (await setTap(run.id, run.photoKey!, i, run.taps[i] === t ? null : t, assay.treatAt)))
+  const exportNow = () =>
+    act(async () => {
+      const now = await getRun(run.id)
+      if (now?.read && now.photoKey === run.photoKey) await exportRun(now)
+    })
 
   return (
     <div className="screen">
@@ -92,7 +98,7 @@ export function Result({ run, assay, act, error }: { run: Run; assay: Assay; act
         {error}
       </main>
       <footer className="actions">
-        <Action ghost onClick={() => void exportRun(run)}>
+        <Action ghost onClick={() => void exportNow()}>
           Export
         </Action>
         <a className="btn" href="#/">
