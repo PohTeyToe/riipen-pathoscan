@@ -3,7 +3,7 @@ import type { RunRead, TubeRead } from '../lib/readers'
 import { sclerotinia } from './assays/sclerotinia'
 import { cell, csvName, runCsv } from './csv'
 import { ROLES } from './reader'
-import { newRun, tally, type Run, type Tap } from './run'
+import { newRun, READER_VERSION, tally, type Run, type Tap } from './run'
 
 const BOM = String.fromCharCode(0xfeff)
 const at = new Date(2026, 10, 19, 7, 5).getTime() // local time, so the expected date and time hold in any zone
@@ -106,12 +106,18 @@ describe('the run CSV', () => {
       Longitude: '-106.65432',
       'Accuracy (m)': '9',
       'App version': rows[0]['App version'],
-      'Reader version': '1',
+      'Reader version': READER_VERSION,
       'Run ID': 'run-1',
     })
     expect(rows[0]['App version']).toMatch(/^\d+\.\d+\.\d+$/)
     for (const name of ['Field', 'Date', 'Time', 'Result', 'Positives', 'Latitude', 'Run ID']) expect(new Set(column(rows, name)).size).toBe(1)
     expect(column(rows, 'Final call')).toEqual(['Positive', 'Negative', 'Positive', 'Positive', 'Negative', 'Negative', 'Positive', 'Negative', 'Negative', 'Negative'])
+  })
+
+  it('gives each run the reader version that read it, so a run read by an older reader says so', () => {
+    const run = readRun(['pos', 'neg', 'neg', 'neg', 'neg', 'neg', 'neg', 'neg'], {})
+    expect(new Set(column(table(run), 'Reader version'))).toEqual(new Set([READER_VERSION]))
+    expect(new Set(column(table({ ...run, readerVersion: '1' }), 'Reader version'))).toEqual(new Set(['1']))
   })
 
   it("shows the grower's call on a held tube, counts it, and leaves an uncalled one held", () => {

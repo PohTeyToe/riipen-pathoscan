@@ -5,7 +5,7 @@ import type { Role } from '../lib/synth'
 import type { Assay } from './assays/assay'
 
 /** Bump when the reader in src/lib or the MODEL and BAND in data/eval.json change. */
-export const READER_VERSION = '1'
+export const READER_VERSION = '2'
 
 export type Outcome = 'treat' | 'dont-treat' | 'failed'
 export type Tap = null | 'pos' | 'neg'

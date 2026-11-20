@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'
 import { createStore, get, keys, set } from 'idb-keyval'
 import { describe, expect, it, vi } from 'vitest'
 import { sclerotinia } from './assays/sclerotinia'
-import { currentStep, newRun, withStep } from './run'
+import { currentStep, newRun, READER_VERSION, withStep } from './run'
 import type { RunRead } from '../lib/readers'
 import { ROLES } from './reader'
 import { addRun, getPhoto, getRun, listRuns, NewerRun, saveRead, setStepDone, setTap, startTimer, takePhoto } from './store'
@@ -228,7 +228,7 @@ describe('the read and the taps', () => {
     const key = await readRun('read', 7100)
     expect(await saveRead('id-read', key, regions, roles, read(Array(8).fill('pos')), 3)).toBe(false)
     const r = await getRun('id-read')
-    expect(r).toMatchObject({ photoKey: key, read: twoHeld, roles, regions, readerPositives: 2, tappedPositives: 0, rule: { treatAt: 3 }, readerVersion: '1' })
+    expect(r).toMatchObject({ photoKey: key, read: twoHeld, roles, regions, readerPositives: 2, tappedPositives: 0, rule: { treatAt: 3 }, readerVersion: READER_VERSION })
     expect(r?.outcome).toBeUndefined()
   })
 
