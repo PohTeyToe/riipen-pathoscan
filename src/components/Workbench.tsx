@@ -455,8 +455,9 @@ export function Workbench() {
               Zenodo 4476336
             </a>
             ). These reactions are read with SYBR Green I added after the run, not phenol red, on plates rather than plant tubes on paper, so this is a check on real
-            photos, not a benchmark. Truth is the paper's RT-qPCR or sample-set result, never the colour; well labels are mine. Most held wells sit on plates whose
-            controls are under the 20° minimum I set on synthetic runs. One photo, taken before incubation, is shown but not scored.
+            photos, not a benchmark. Truth is the paper's RT-qPCR or sample-set result, never the colour; well labels are mine. On every scored photo the white
+            behind the plate is clipped, and most wells are read against it. A colour read against a clipped white has no bound, so the Tube Reader holds those
+            wells, and a clipped control holds its whole assay. One photo, taken before incubation, is shown but not scored.
           </p>
         </div>
       </div>
