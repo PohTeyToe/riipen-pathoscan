@@ -2,7 +2,7 @@
 // paper, drawn pixel by pixel from a small optical model. Everything here is made up on purpose and
 // labelled synthetic wherever it shows. The point is known ground truth under controlled lighting.
 
-import { lightCast, SRGB_LUT, type RGB } from './color'
+import { LIN8, lightCast, SRGB_LUT, toSrgb, type RGB } from './color'
 import { rng, type Rng } from './rng'
 
 export type Truth = 'pos' | 'neg'
@@ -334,4 +334,15 @@ export function photograph(spec: RunSpec, layout: Layout = 'row', lamp?: Lamp): 
     }
   const tubes = spec.tubes.map((_, i) => to([liquidCentre(spec, i).x * scale, liquidCentre(spec, i).y * scale]))
   return { img: { width: w, height: h, data: new Uint8ClampedArray(out.buffer) }, tubes }
+}
+
+/**
+ * The photo darkened by `stops` after the camera clipped it, as a phone's tone mapping or an edit does: each
+ * 8-bit value goes to linear light, down, and back. What clipped stays one value, below 255.
+ */
+export function darken(img: Img, stops: number): Img {
+  const map = Uint8Array.from({ length: 256 }, (_, v) => Math.round(toSrgb(LIN8[v] * 2 ** -stops) * 255))
+  const data = new Uint8ClampedArray(img.data.length)
+  for (let o = 0; o < data.length; o++) data[o] = (o & 3) === 3 ? img.data[o] : map[img.data[o]]
+  return { ...img, data }
 }

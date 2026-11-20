@@ -4,14 +4,18 @@
 // even light at its own exposure. Per change it counts wrong calls, the tubes the change turned wrong that
 // even light read right or held (the change's own harm: none is the bar), held tubes and failed runs.
 //   npx tsx scripts/lamp-sweep.ts [--seeds 0-199,732] [--lamps 3000,2400,10000,0] [--ev -1,0.5,1,1.5]
-//     [--casts 10000,2400] [--mixed 0.5,1] [--root <checkout>] [--workers 4] [--json <out.json>] [--vs <other.json>]
+//     [--casts 10000,2400] [--mixed 0.5,1] [--darken 0.1,0.3] [--darken-mixed 0.1] [--root <checkout>] [--workers 4]
+//     [--json <out.json>] [--vs <other.json>]
 // --lamps takes colour temperatures, or 0 for a plain shade (15% darker at one side, no colour), each from the
 // left, the right and the top. --ev takes exposure steps in stops. --casts takes colour temperatures that
 // light the whole scene, read at the run's own exposure and at each --mixed step. --mixed takes the steps at
-// which every lamp and cast is also read. An empty list reads none. Lamps and casts light the scene before the
-// camera clips, as real ones do (synth.ts photograph). --root reads with another checkout's reader (a
-// release, say); the photos always come from this checkout, so two roots read the same pixels. --vs counts
-// the tubes this read calls wrong that another sweep's JSON (same jobs) read right or held.
+// which every lamp and cast is also read. --darken takes stops by which the photo is darkened after the camera
+// clipped it (a phone's tone mapping), each read at the run's own exposure and at every brighter --ev step;
+// --darken-mixed, those read on every lamp and cast at every --mixed step. An empty list reads none. Lamps and
+// casts light the scene before the camera clips, as real ones do (synth.ts photograph). --root reads with
+// another checkout's reader (a release, say); the photos always come from this checkout, so two roots read
+// the same pixels. --vs counts the tubes this read calls wrong that another sweep's JSON (same jobs) read
+// right or held.
 import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { chromium } from '@playwright/test'
@@ -41,6 +45,8 @@ interface Job {
   cast: number | null
   /** Stops added to the run's own exposure. */
   ev: number
+  /** Stops the photo is darkened by after the camera clipped it. */
+  darken: number
 }
 interface Read {
   error?: string
@@ -62,26 +68,41 @@ const LAMPS = list(arg('lamps') ?? '3000,2400,10000,0').flatMap((kelvin) => (['l
 const EVS = list(arg('ev') ?? '-1,0.5,1,1.5')
 const CASTS = list(arg('casts') ?? '10000,2400')
 const MIXED = list(arg('mixed') ?? '0.5,1')
+const DARKEN = list(arg('darken') ?? '0.1,0.3')
+const DARKEN_MIXED = list(arg('darken-mixed') ?? '0.1')
 const jobs: Job[] = []
 for (const seed of seeds)
   for (const layout of LAYOUTS) {
-    const job = (lamp: Job['lamp'], cast: number | null, ev: number) => jobs.push({ seed, layout, lamp, cast, ev })
+    const job = (lamp: Job['lamp'], cast: number | null, ev: number, darken = 0) => jobs.push({ seed, layout, lamp, cast, ev, darken })
     job(null, null, 0)
     for (const ev of EVS) job(null, null, ev)
     for (const ev of [0, ...MIXED]) {
       for (const lamp of LAMPS) job(lamp, null, ev)
       for (const cast of CASTS) job(null, cast, ev)
     }
+    for (const d of DARKEN) for (const ev of [0, ...EVS.filter((e) => e > 0)]) job(null, null, ev, d)
+    for (const d of DARKEN_MIXED)
+      for (const ev of MIXED) {
+        for (const lamp of LAMPS) job(lamp, null, ev, d)
+        for (const cast of CASTS) job(null, cast, ev, d)
+      }
   }
 
 /** The change from even light at the run's own exposure. */
 const change = (j: Job) =>
-  [j.cast && `${j.cast} K cast`, j.lamp && (j.lamp.kelvin ? `${j.lamp.kelvin} K ${j.lamp.from}` : `shade ${j.lamp.from}`), j.ev && `${j.ev > 0 ? '+' : ''}${j.ev} EV`]
+  [
+    j.cast && `${j.cast} K cast`,
+    j.lamp && (j.lamp.kelvin ? `${j.lamp.kelvin} K ${j.lamp.from}` : `shade ${j.lamp.from}`),
+    j.ev && `${j.ev > 0 ? '+' : ''}${j.ev} EV`,
+    j.darken && `darkened ${j.darken}`,
+  ]
     .filter(Boolean)
     .join(', ') || 'even'
 const key = (j: Job) => `${j.seed} ${j.layout} ${change(j)}`
-/** A change's family, for the totals: lamp, shade, cast, exposure, or a lamp, shade or cast with a step. */
-const family = (j: Job) => (j.lamp ? (j.lamp.kelvin ? 'lamp' : 'shade') : j.cast ? 'cast' : '') + (j.ev ? (j.lamp || j.cast ? ' + EV' : 'EV') : '') || 'even'
+/** A change's family, for the totals: lamp, shade, cast, exposure, or a lamp, shade or cast with a step, each maybe darkened. */
+const family = (j: Job) =>
+  ((j.lamp ? (j.lamp.kelvin ? 'lamp' : 'shade') : j.cast ? 'cast' : '') + (j.ev ? (j.lamp || j.cast ? ' + EV' : 'EV') : '') || (j.darken ? 'own EV' : 'even')) +
+  (j.darken ? ', darkened' : '')
 
 // Plain transforms, no app config: only the reader's modules are loaded, from the root, and the photo's,
 // from this checkout.
@@ -101,18 +122,19 @@ async function worker(queue: Job[]) {
   await page.goto(new URL('/__sweep.html', base).href)
   for (let job = queue.shift(); job; job = queue.shift()) {
     const read: Read = await page.evaluate(
-      async ({ job: { seed, layout, lamp, cast, ev }, synthUrl }) => {
+      async ({ job: { seed, layout, lamp, cast, ev, darken }, synthUrl }) => {
         const load = (path: string) => import(/* @vite-ignore */ path)
         const reader: typeof import('../src/app/reader') = await load('/src/app/reader.ts')
         const { encodePhoto }: typeof import('../src/app/camera') = await load('/src/app/camera.ts')
         const { loadImage }: typeof import('../src/lib/photo') = await load('/src/lib/photo.ts')
-        const { makeRun, photograph }: typeof import('../src/lib/synth') = await load(synthUrl)
+        const synth: typeof import('../src/lib/synth') = await load(synthUrl)
 
-        const run = makeRun(seed)
+        const run = synth.makeRun(seed)
         const own = run.ev
         run.ev += ev
         if (cast) run.kelvin = cast
-        const { img: photo, tubes: pts } = photograph(run, layout, lamp ?? undefined)
+        const shot = synth.photograph(run, layout, lamp ?? undefined)
+        const [photo, pts] = [darken ? synth.darken(shot.img, darken) : shot.img, shot.tubes]
         const canvas = new OffscreenCanvas(photo.width, photo.height)
         canvas.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(photo.data), photo.width, photo.height), 0, 0)
         const img = await loadImage(await encodePhoto(await canvas.convertToBlob({ type: 'image/png' })))
@@ -175,7 +197,7 @@ const flips: Tube[] = []
 const newly: Tube[] = []
 for (const job of jobs) {
   const r = results.get(key(job))!
-  const even = results.get(key({ ...job, lamp: null, cast: null, ev: 0 }))!
+  const even = results.get(key({ ...job, lamp: null, cast: null, ev: 0, darken: 0 }))!
   const other = vs?.[key(job)]
   const tally = [(rows[`${job.layout} ${change(job)}`] ??= blank()), (families[family(job)] ??= blank())]
   if (r === even && !r.error) tally.push((evenBy[exposure(r.ev!)] ??= blank()))
