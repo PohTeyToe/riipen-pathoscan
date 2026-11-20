@@ -8,7 +8,7 @@ import { callLights, Rack, type Light } from './Rack'
  * the midpoint rule makes two wrong calls, the calibrated reader makes none, and the control reads weaker
  * than three samples: the pattern measured in PathoScan's case-study photo. Captions are computed from it.
  */
-export const STORY = { seed: 176, scenario: 'weak-pc' } as const
+export const STORY = { seed: 22, scenario: 'weak-pc' } as const
 const COND = { kelvin: 5500, ev: 0, drift: 0 }
 const BEAT_MS = 3600
 

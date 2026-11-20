@@ -22,20 +22,21 @@ export interface Features {
   /** Median 8-bit colour of the clear liquid pixels, as the camera saw it. */
   raw: RGB
   rawHue: number
-  /** The same pixels divided by the nearby paper, as sRGB 0..1. */
+  /** The same pixels divided by the paper's white, as sRGB 0..1. */
   corrected: RGB
   lab: { L: number; a: number; b: number }
   labHue: number
+  /**
+   * The lowest and highest Lab hue the tube could have under the whites the paper around it allows. Close
+   * to labHue in even light; wide where the light changes across the tube in a way the white can't follow.
+   */
+  hueRange: [number, number]
   clear: number
   glare: number
   /** A found region's box in pixels. Unset for a placed disc, whose size the reader chose. */
   area?: number
-  /**
-   * The white the colour was divided by: the paper beside the tube, or the whole photo's when the ring has no
-   * paper. 'none' when the ring's paper only reads as paper under a lamp's tint and then reads as liquid, so
-   * no white here matches the tube's light and the corrected colour can't be trusted.
-   */
-  paperFrom: 'local' | 'global' | 'none'
+  /** True when paper beside the tube set the white; false when only the white map did. */
+  paperBeside: boolean
 }
 
 const WORK = 480
@@ -61,30 +62,22 @@ const lumOf = (c: RGB) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
 /** Under a fifth of the paper's light a pixel is dark: the table, a vignette, a deep shadow. */
 const DARK = 0.2
 
-/**
- * Median linear colour of the brightest third of the pixels in a box, from about this many samples, leaving
- * out any inside `skip`. Null if `skip` covers over three quarters of the box: too little left to judge.
- */
-function whiteIn(img: Img, bx0: number, by0: number, bx1: number, by1: number, samples: number, skip?: Region): RGB | null {
+/** Median linear colour of the brightest third of the pixels in a box, from about this many samples. */
+function whiteIn(img: Img, bx0: number, by0: number, bx1: number, by1: number, samples: number): RGB {
   const { width: w, data } = img
   const x0 = Math.max(0, Math.floor(bx0))
   const y0 = Math.max(0, Math.floor(by0))
   const x1 = Math.min(w - 1, Math.ceil(bx1))
   const y1 = Math.min(img.height - 1, Math.ceil(by1))
   const stride = Math.max(1, Math.floor(Math.sqrt(((x1 - x0 + 1) * (y1 - y0 + 1)) / samples)))
-  const out = (x: number, y: number) => !!skip && x >= skip.x0 && x <= skip.x1 && y >= skip.y0 && y <= skip.y1
   const lum = new Uint32Array(766)
   let n = 0
-  let all = 0
   for (let y = y0; y <= y1; y += stride)
     for (let x = x0; x <= x1; x += stride) {
-      all++
-      if (out(x, y)) continue
       const o = (y * w + x) * 4
       lum[data[o] + data[o + 1] + data[o + 2]]++
       n++
     }
-  if (n === 0 || n * 4 < all) return null
   let cut = 765
   for (let acc = 0; cut > 0; cut--) if ((acc += lum[cut]) * 3 >= n) break
   const hist = new Uint32Array(768)
@@ -92,7 +85,7 @@ function whiteIn(img: Img, bx0: number, by0: number, bx1: number, by1: number, s
   for (let y = y0; y <= y1; y += stride)
     for (let x = x0; x <= x1; x += stride) {
       const o = (y * w + x) * 4
-      if (out(x, y) || data[o] + data[o + 1] + data[o + 2] < cut) continue
+      if (data[o] + data[o + 1] + data[o + 2] < cut) continue
       hist[data[o]]++
       hist[256 + data[o + 1]]++
       hist[512 + data[o + 2]]++
@@ -102,18 +95,17 @@ function whiteIn(img: Img, bx0: number, by0: number, bx1: number, by1: number, s
 }
 
 /** The whole photo's white: the paper, or whatever white the photo has. */
-export const globalPaper = (img: Img): RGB => whiteIn(img, 0, 0, img.width - 1, img.height - 1, 40000)!
+export const globalPaper = (img: Img): RGB => whiteIn(img, 0, 0, img.width - 1, img.height - 1, 40000)
 
 /**
  * The paper's white around a point: the white of a box a quarter of the photo's long side across. Light is
  * rarely even (a lamp on one side warms the paper there), so each tube is judged against the paper near it.
- * The tube itself (`skip`) is left out, so a big one in a close-up can't become its own white. A box with
- * too little left, or too dark to hold paper (all table or shadow), takes the whole photo's white.
+ * A box too dark to hold paper (all table or shadow) takes the whole photo's white.
  */
-function areaPaper(img: Img, x: number, y: number, paper: RGB, skip?: Region): RGB {
+function areaPaper(img: Img, x: number, y: number, paper: RGB): RGB {
   const r = Math.max(img.width, img.height) / 8
-  const c = whiteIn(img, x - r, y - r, x + r, y + r, 4000, skip)
-  return !c || lumOf(c) < DARK * lumOf(paper) ? paper : c
+  const c = whiteIn(img, x - r, y - r, x + r, y + r, 4000)
+  return lumOf(c) < DARK * lumOf(paper) ? paper : c
 }
 
 /** The white at a pixel, written into `out` (the finder asks for it at every work pixel). */
@@ -428,36 +420,32 @@ export const discRegion = (cx: number, cy: number, r: number, r0?: number): Regi
 })
 
 /**
- * Measure one region: its clear liquid colour, raw and paper-corrected by the paper right beside it. Liquid
- * is told from paper against a white that matches the light here, not the whole photo's `paper`, so paper
- * warmed by a lamp on one side isn't taken for liquid.
+ * Measure one region: its clear liquid colour, raw and corrected by the paper's white.
+ *
+ * One white: the white map (the finder's), set right by the paper around the tube. Each pixel is taken
+ * against the map's white where it sits, so liquid is told from paper as the finder tells it, and light that
+ * changes across the tube is divided out pixel by pixel. The map is smooth and can be off at a tube, so the
+ * paper in a ring around it says by how much: the median of the ring's paper against the map. Where that
+ * isn't enough, the hue is uncertain, and `hueRange` spans the hues the tube could have:
+ * - under each side's white (left, right, above, below), which disagree where the light changes in a way
+ *   the map doesn't follow;
+ * - under the ring's paper as it is, one white for the whole tube, which disagrees where a tube that fills
+ *   much of the photo has tinted the map;
+ * - with paper on fewer than two sides, under the whole photo's white, since one side can't show how the
+ *   light changes across the tube.
+ * With no paper in the ring, the map alone gives the white. In even light these all agree.
  */
 export function measure(img: Img, region: Region, paper: RGB): Features | null {
   const { width: w, height: h, data } = img
-  // The colour is corrected by the ring's paper: pale, neutral pixels taken against the photo's white.
-  // Where the white map at the tube is off the photo's white (a lamp at one end of the rack), the ring is
-  // also taken against the map's white where each pixel sits, so a ring the light changes across gives the
-  // white at the tube, not the white of whichever side looks most neutral. The way more ring pixels pass as
-  // paper wins: on a plate the map can lean towards the wells' colour, and the plastic then still reads
-  // neutral against the photo's white. A ring white that reads as liquid (a close-up) is no white. With no
-  // ring paper the photo's white stands in. Under the map's light with no white from the ring, the tube is
-  // held ('none'). Liquid is told from paper against the light the white came from: the map's white at each
-  // pixel when the map's ring white is used, as the finder does, else the white of the area around the tube.
   const field = fieldOf(img, paper)
-  const here: RGB = [0, 0, 0]
-  field(region.cx, region.cy, here)
-  const even = sameLight(here, paper)
-  const near = areaPaper(img, region.cx, region.cy, paper, region)
-  const byPhoto = localPaper(img, region, flat(paper), paper)
-  const byMap = even ? null : localPaper(img, region, field, paper)
-  const lamp = !!byMap && byMap.n > (byPhoto?.n ?? 0)
-  const ring = lamp ? byMap.white : (byPhoto?.white ?? null)
-  const local = ring && !isLiquid(ring[0], ring[1], ring[2], near) ? ring : null
-  const lost = lamp && !local
-  const mapped = lamp && !!local
-  const ref = local ?? (lost ? near : paper)
+  // Paper is told by being neutral against the white, so where the map is well off, paper doesn't pass as
+  // paper. A second look against the map set right by the first finds it.
+  const first = ringPaper(img, region, field, paper, [1, 1, 1])
+  const ring = first && (ringPaper(img, region, field, paper, first.all) ?? first)
+  const k = ring?.all ?? [1, 1, 1]
   const at: RGB = [0, 0, 0]
   const hist = new Uint32Array(768)
+  const shares = new Uint32Array(3 * SHARE_BINS)
   let n = 0
   let glare = 0
   const x0 = Math.max(0, region.x0)
@@ -473,8 +461,14 @@ export function measure(img: Img, region: Region, paper: RGB): Features | null {
         if (d2 > region.r ** 2 || (region.r0 && d2 < region.r0 ** 2)) continue
       }
       const o = (y * w + x) * 4
-      if (mapped) field(x, y, at)
-      if (!isLiquid(LIN8[data[o]], LIN8[data[o + 1]], LIN8[data[o + 2]], mapped ? at : near)) {
+      const r = LIN8[data[o]]
+      const g = LIN8[data[o + 1]]
+      const b = LIN8[data[o + 2]]
+      field(x, y, at)
+      at[0] *= k[0]
+      at[1] *= k[1]
+      at[2] *= k[2]
+      if (!isLiquid(r, g, b, at)) {
         // Inside a placed disc, a washed-out pixel is glare, a bubble or a reflection. In a found region
         // it is just the background around the liquid.
         if (region.r !== undefined) glare++
@@ -483,6 +477,9 @@ export function measure(img: Img, region: Region, paper: RGB): Features | null {
       hist[data[o]]++
       hist[256 + data[o + 1]]++
       hist[512 + data[o + 2]]++
+      shares[shareBin(r / at[0])]++
+      shares[SHARE_BINS + shareBin(g / at[1])]++
+      shares[2 * SHARE_BINS + shareBin(b / at[2])]++
       n++
     }
   if (n === 0) return null
@@ -490,74 +487,93 @@ export function measure(img: Img, region: Region, paper: RGB): Features | null {
   // monotonic, so one set of histograms serves both.
   const raw = histMedian(hist, n)
   const rawHsv = hsv(raw[0] / 255, raw[1] / 255, raw[2] / 255)
-  const cl = raw.map((v, i) => Math.min(1.2, LIN8[v] / ref[i])) as RGB
-  const lab = linToLab(cl[0], cl[1], cl[2])
+  const toLab = (cl: RGB) => {
+    const lab = linToLab(cl[0], cl[1], cl[2])
+    return { cl, lab, hue: labHue(lab.a, lab.b) }
+  }
+  const liquid = [0, 1, 2].map((c) => shareMedian(shares, c, n))
+  /** The liquid's colour under the white at the tube times c (1 for the white it was measured against). */
+  const under = (c: RGB) => toLab(liquid.map((v, i) => Math.min(1.2, v / c[i])) as RGB)
+  /** The liquid's colour under one white for the whole tube. */
+  const against = (white: RGB) => toLab(raw.map((v, i) => Math.min(1.2, LIN8[v] / white[i])) as RGB)
+  const best = under([1, 1, 1])
+  const hues = [best.hue]
+  if (ring) hues.push(...ring.sides.map((s) => under(s.map((v, i) => v / k[i]) as RGB).hue), against(ring.paper).hue)
+  if (!ring || ring.sides.length < 2) hues.push(against(paper).hue)
   return {
     raw,
     rawHue: rawHsv.h,
-    corrected: cl.map((c) => toSrgb(c)) as RGB,
-    lab,
-    labHue: labHue(lab.a, lab.b),
+    corrected: best.cl.map((c) => toSrgb(c)) as RGB,
+    lab: best.lab,
+    labHue: best.hue,
+    hueRange: [Math.min(...hues), Math.max(...hues)],
     clear: n * step * step,
     glare: glare * step * step,
     area: region.r === undefined ? area : undefined,
-    paperFrom: local ? 'local' : lost ? 'none' : 'global',
+    paperBeside: !!ring,
   }
 }
 
-/** The same white everywhere. */
-const flat = (white: RGB): Field => (_x, _y, out) => {
-  out[0] = white[0]
-  out[1] = white[1]
-  out[2] = white[2]
-}
-
-/** Two whites under the same light: their channel ratios differ by under a tenth (brightness alone doesn't count). */
-function sameLight(a: RGB, b: RGB): boolean {
-  const q = a.map((v, i) => v / b[i])
-  return Math.min(...q) >= LIGHT_MATCH * Math.max(...q)
-}
-const LIGHT_MATCH = 0.9
-
 /**
- * The paper's white at the region, from the pale, neutral paper in a ring around it, and how many ring
- * samples passed as paper. Each ring pixel is taken against `field`'s white where it sits (the photo's
- * white, or the white map), and the median of those shares, times that white at the region, is the white
- * there. Pale means pale against the whole photo's white too: grey plastic between a plate's wells is
- * neutral, but no white to correct by.
+ * The paper around a region: pale pixels in a ring around it that are neutral against the map's white
+ * where they sit (set right by k), or against the whole photo's white (a plate's grey plastic, where the map
+ * leans towards the wells' colour). Its median colour; its median share of the map, for the whole ring and
+ * for each side of it with enough paper to judge. Null with too little paper in the ring.
  */
-function localPaper(img: Img, region: Region, field: Field, paper: RGB): { white: RGB; n: number } | null {
+function ringPaper(img: Img, region: Region, field: Field, paper: RGB, k: RGB): { paper: RGB; all: RGB; sides: RGB[] } | null {
   const { width: w, height: h, data } = img
-  const half = Math.max(region.x1 - region.x0, region.y1 - region.y0) / 2 + 1
-  const rIn = half * 1.25
-  const rOut = half * 2.2
-  const step = Math.max(1, Math.floor(rOut / 40))
+  // A band around the region, from a quarter to 1.2 times half its short side out: around a disc, the ring
+  // from 1.25 to 2.2 radii; around a tall tube's liquid, the paper right beside it.
+  const half = Math.min(region.x1 - region.x0, region.y1 - region.y0) / 2 + 1
+  const dIn = 0.25 * half
+  const dOut = 1.2 * half
+  const step = Math.max(1, Math.floor((Math.max(region.x1 - region.x0, region.y1 - region.y0) + 2 * dOut) / 80))
   const paperL = paper[0] + paper[1] + paper[2]
   const f: RGB = [0, 0, 0]
-  const hist = new Uint32Array(3 * SHARE_BINS)
-  let n = 0
-  for (let y = Math.max(0, Math.floor(region.cy - rOut)); y < Math.min(h, region.cy + rOut); y += step)
-    for (let x = Math.max(0, Math.floor(region.cx - rOut)); x < Math.min(w, region.cx + rOut); x += step) {
-      const d2 = (x - region.cx) ** 2 + (y - region.cy) ** 2
-      if (d2 < rIn * rIn || d2 > rOut * rOut) continue
+  // Six sets of histograms: the whole ring's colour, then its share of the map for the whole ring, right,
+  // below, left and above.
+  const hist = new Uint32Array(6 * 3 * SHARE_BINS)
+  const count = [0, 0, 0, 0, 0, 0]
+  const add = (set: number, r: number, g: number, b: number) => {
+    const o = set * 3 * SHARE_BINS
+    hist[o + shareBin(r)]++
+    hist[o + SHARE_BINS + shareBin(g)]++
+    hist[o + 2 * SHARE_BINS + shareBin(b)]++
+    count[set]++
+  }
+  for (let y = Math.max(0, Math.floor(region.y0 - dOut)); y <= Math.min(h - 1, region.y1 + dOut); y += step)
+    for (let x = Math.max(0, Math.floor(region.x0 - dOut)); x <= Math.min(w - 1, region.x1 + dOut); x += step) {
+      // How far out of a found region's box, across and down, signed by the side; or past a disc's rim.
+      const dx = x < region.x0 ? x - region.x0 : x > region.x1 ? x - region.x1 : 0
+      const dy = y < region.y0 ? y - region.y0 : y > region.y1 ? y - region.y1 : 0
+      const d = region.r === undefined ? Math.hypot(dx, dy) : Math.hypot(x - region.cx, y - region.cy) - region.r
+      if (d < dIn || d > dOut) continue
       const o = (y * w + x) * 4
-      if (LIN8[data[o]] + LIN8[data[o + 1]] + LIN8[data[o + 2]] < 0.45 * paperL) continue
+      const R = LIN8[data[o]]
+      const G = LIN8[data[o + 1]]
+      const B = LIN8[data[o + 2]]
+      if (R + G + B < 0.45 * paperL) continue
       field(x, y, f)
-      const r = LIN8[data[o]] / f[0]
-      const g = LIN8[data[o + 1]] / f[1]
-      const b = LIN8[data[o + 2]] / f[2]
-      if (r + g + b < 0.45 * 3) continue
-      const R = fastSrgb(r)
-      const G = fastSrgb(g)
-      const B = fastSrgb(b)
-      const max = Math.max(R, G, B)
-      if (max - Math.min(R, G, B) >= 0.12 * max) continue
-      hist[shareBin(r)]++
-      hist[SHARE_BINS + shareBin(g)]++
-      hist[2 * SHARE_BINS + shareBin(b)]++
-      n++
+      const r = R / f[0]
+      const g = G / f[1]
+      const b = B / f[2]
+      if (r + g + b < 0.45 * 3 || !(neutral(r / k[0], g / k[1], b / k[2]) || neutral(R / paper[0], G / paper[1], B / paper[2]))) continue
+      add(0, R, G, B)
+      add(1, r, g, b)
+      const sx = dx || x - region.cx
+      const sy = dy || y - region.cy
+      add(Math.abs(sx) >= Math.abs(sy) ? (sx > 0 ? 2 : 4) : sy > 0 ? 3 : 5, r, g, b)
     }
-  if (n < 20) return null
-  field(region.cx, region.cy, f)
-  return { white: f.map((v, k) => Math.max(1e-3, v * shareMedian(hist, k, n))) as RGB, n }
+  if (count[0] < 20) return null
+  const median = (set: number) => [0, 1, 2].map((c) => Math.max(1e-3, shareMedian(hist.subarray(set * 3 * SHARE_BINS), c, count[set]))) as RGB
+  return { paper: median(0), all: median(1), sides: [2, 3, 4, 5].filter((s) => count[s] >= 8).map(median) }
+}
+
+/** A colour, as a share of a white, with under an eighth as much chroma as brightness. */
+function neutral(r: number, g: number, b: number): boolean {
+  const R = fastSrgb(r)
+  const G = fastSrgb(g)
+  const B = fastSrgb(b)
+  const max = Math.max(R, G, B)
+  return max - Math.min(R, G, B) < 0.12 * max
 }

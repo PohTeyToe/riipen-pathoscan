@@ -115,25 +115,13 @@ type Pt = [number, number]
  * A synthetic run from the demo's own renderer, as a camera file, laid out as a row, two rows of five, a row
  * tilted 12 degrees, or a small row on a big sheet (tubes 23 px apart, so a ring's button reaches over its
  * neighbours). Seed 4: two positives and one tube the reader holds. `tubes` are the liquid centres in the
- * photo, in label order: +, −, then 1 to 8. `lamp`: a lamp of that colour temperature at the left end of
- * the rack, fading to daylight at the right.
+ * photo, in label order: +, −, then 1 to 8. `lamp`: a lamp of that colour temperature at the left edge of
+ * the photo, fading to daylight at the right, as scripts/lamp-sweep.ts lights it.
  */
 function syntheticPhoto(layout: 'row' | '2x5' | 'tilted' | 'small' = 'row', { seed = 4, lamp }: { seed?: number; lamp?: number } = {}) {
   const run = makeRun(seed)
   const scale = layout === 'small' ? 0.24 : 1
   const img = render(run, scale)
-  if (lamp) {
-    const [lit, day] = [lightCast(lamp), lightCast(6500)]
-    const gain = lit.map((v, c) => v / day[c])
-    const top = Math.max(...gain)
-    for (let y = 0; y < img.height; y++)
-      for (let x = 0; x < img.width; x++)
-        for (let c = 0; c < 3; c++) {
-          const o = (y * img.width + x) * 4 + c
-          const g = gain[c] / top
-          img.data[o] = Math.round(toSrgb(LIN8[img.data[o]] * (g + ((1 - g) * x) / (img.width - 1))) * 255)
-        }
-  }
   const [W, H] = [img.width, img.height]
   const src = new Uint32Array(img.data.buffer)
   const tubes = run.tubes.map((_, i) => [liquidCentre(run, i).x * scale, liquidCentre(run, i).y * scale] as Pt)
@@ -165,6 +153,19 @@ function syntheticPhoto(layout: 'row' | '2x5' | 'tilted' | 'small' = 'row', { se
       const [sx, sy] = from([x, y]).map(Math.round)
       out[y * w + x] = sx >= 0 && sx < W && sy >= 0 && sy < H ? src[sy * W + sx] : src[0] // paper beyond the render
     }
+  if (lamp) {
+    const [lit, day] = [lightCast(lamp), lightCast(6500)]
+    const gain = lit.map((v, c) => v / day[c])
+    const top = Math.max(...gain)
+    const px = new Uint8Array(out.buffer)
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++)
+        for (let c = 0; c < 3; c++) {
+          const o = (y * w + x) * 4 + c
+          const g = gain[c] / top
+          px[o] = Math.round(toSrgb(LIN8[px[o]] * (g + ((1 - g) * x) / (w - 1))) * 255)
+        }
+  }
   const png = new PNG({ width: w, height: h })
   png.data = Buffer.from(out.buffer)
   return { file: { name: 'tubes.png', mimeType: 'image/png', buffer: PNG.sync.write(png) }, size: [w, h] as Pt, tubes: tubes.map(to), run }
@@ -520,6 +521,26 @@ test('under a warm lamp at one end of the rack, the reader holds the tubes it ca
   expect([calls[6], calls[9]]).not.toContain('Negative')
   expect(column('Reader version')).toEqual(Array(10).fill(READER_VERSION))
 })
+
+for (const [seed, acidic] of [
+  [130, 4],
+  [142, 5],
+] as const)
+  test(`two rows of five under a warm lamp at the left: seed ${seed}'s acidic negative is not called positive`, async ({ page }) => {
+    // In even light this negative reads 77 to 78% like the positive control and is held. The 3000 K lamp
+    // across the photo once pushed it past 80%, a positive call; the white's range under the lamp holds it.
+    await page.goto('/app.html')
+    await toPhoto(page, 'Lamp rows')
+    const photo = syntheticPhoto('2x5', { seed, lamp: 3000 })
+    await page.locator('input[type=file]').setInputFiles(photo.file)
+    await expect(page.getByRole('heading', { name: '10 tubes', exact: true })).toBeVisible()
+    await label(page, photo)
+    const column = await exportCsv(page)
+    const truth = photo.run.tubes.map((t) => (t.truth === 'pos' ? 'Positive' : 'Negative'))
+    const calls = column('Reader call')
+    expect(calls.filter((c, i) => c !== 'Held' && c !== truth[i])).toEqual([])
+    expect(calls[acidic]).toBe('Held')
+  })
 
 test("a finger on a tube whose ring was removed adds it back, though a neighbour's ring button covers it", async ({ page }) => {
   await page.goto('/app.html')

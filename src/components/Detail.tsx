@@ -116,7 +116,8 @@ export function Detail({ tube, naive, calibrated, midpoint, onClose, edit }: Pro
             <div>
               <dt>Pixels</dt>
               <dd>
-                {f.clear} clear{f.glare ? `, ${f.glare} washed out` : ''} · paper {f.paperFrom === 'local' ? 'beside the tube' : f.paperFrom === 'global' ? 'from the whole photo' : 'none under this light'}
+                {f.clear} clear{f.glare ? `, ${f.glare} washed out` : ''} · white from {f.paperBeside ? 'the paper beside the tube' : 'the paper further off'}
+                {f.hueRange[1] - f.hueRange[0] >= 1 && ` · hue could be ${f.hueRange[0].toFixed(0)}° to ${f.hueRange[1].toFixed(0)}°, as the light on it isn't clear`}
               </dd>
             </div>
           )}

@@ -32,10 +32,10 @@ describe('the story run in the hero', () => {
   const f = storyFacts(v)
 
   it('shows what the captions say', () => {
-    expect(names(v, f.brighter)).toEqual(['1', '3', '5'])
-    expect(names(v, f.midWrong)).toEqual(['4', '8'])
+    expect(names(v, f.brighter)).toEqual(['1', '4', '5'])
+    expect(names(v, f.midWrong)).toEqual(['3', '8'])
     expect(f.midWrong.every((i) => v.truth[i] === 'neg' && v.midpoint.tubes[i].call === 'pos')).toBe(true)
-    expect(names(v, f.calHeld)).toEqual(['4', '8'])
+    expect(names(v, f.calHeld)).toEqual(['3', '8'])
     expect(f.calWrong).toEqual([])
     expect(v.calibrated.flags).toEqual(['The positive control is weaker than 3 samples. Check it before trusting the run.'])
   })

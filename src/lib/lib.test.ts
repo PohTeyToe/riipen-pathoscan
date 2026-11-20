@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { LIN8, lightCast, toSrgb, type RGB } from './color'
+import { LIN8, labHue, lightCast, linToLab, toSrgb, type RGB } from './color'
 import { emptyConfusion, fitCut, fitLogistic, readSynthetic, score } from './evaluate'
 import { discRegion, findRegions, measure, readingOrder, type Features } from './find'
 import { readByGroup, readCalibrated, readMidpoint, readNaive, QC } from './readers'
@@ -8,11 +8,11 @@ import { makeRun, render, type Img, type Role } from './synth'
 const model = { w0: -3.7, w1: 7.8 }
 const band = { lo: 0.2, hi: 0.8 }
 
-/** A measured tube with a given Lab hue and enough colour and pixels to read. */
-const tube = (labHue: number, rawHue = labHue / 2, clear = 400): Features => {
+/** A measured tube with a given Lab hue, known to within `spread` degrees, and enough colour and pixels to read. */
+const tube = (labHue: number, rawHue = labHue / 2, clear = 400, spread = 0): Features => {
   const a = 40 * Math.cos((labHue * Math.PI) / 180)
   const b = 40 * Math.sin((labHue * Math.PI) / 180)
-  return { raw: [200, 150, 100], rawHue, corrected: [1, 0.7, 0.4], lab: { L: 70, a, b }, labHue, clear, glare: 0, paperFrom: 'local' }
+  return { raw: [200, 150, 100], rawHue, corrected: [1, 0.7, 0.4], lab: { L: 70, a, b }, labHue, hueRange: [labHue - spread, labHue + spread], clear, glare: 0, paperBeside: true }
 }
 const roles = (n: number): Role[] => ['pc', 'nc', ...Array<Role>(n).fill('sample')]
 const norm = (g: RGB): RGB => g.map((v) => v / Math.max(...g)) as RGB
@@ -72,6 +72,16 @@ describe('calibrated reader', () => {
   it('holds tubes with too few clear pixels and says why', () => {
     const r = readCalibrated([tube(90), tube(10), tube(95, 45, QC.minClear - 1)], roles(1), model, band)
     expect(r.tubes[2]).toMatchObject({ call: 'held', reason: expect.stringMatching(/clear pixels/) })
+  })
+  it('calls a tube only if every hue the white allows, its own and the controls, gives that call', () => {
+    const read = (sample: number, nc: number) => readCalibrated([tube(90), tube(10, 5, 400, nc), tube(70, 35, 400, sample)], roles(1), model, band)
+    expect(read(0, 0).tubes[2].call).toBe('pos')
+    expect(read(5, 0).tubes[2].call).toBe('pos') // p stays past 0.8 across its range
+    for (const r of [read(10, 0), read(0, 25)]) {
+      expect(r.tubes[2]).toMatchObject({ call: 'held', reason: expect.stringMatching(/doesn't pin down its light/) })
+      expect(r.tubes[2].pRange![0]).toBeLessThan(0.8)
+      expect(r.flags).toEqual(["1 tube was held only because the light on it isn't clear. Retake the photo in even light, with paper in view around each tube, to read it."])
+    }
   })
   it('needs both controls', () => {
     const r = readCalibrated([tube(90), tube(80)], ['sample', 'sample'], model, band)
@@ -208,12 +218,21 @@ describe('finding and measuring', () => {
     expect(findRegions(img).regions).toHaveLength(1)
   })
   it('measures a close-up tube that fills much of the photo', () => {
-    // Liquid covering most of a box a quarter of the photo across must not become its own white.
+    // Liquid covering most of a box a quarter of the photo across tints the white map there. It must not
+    // become its own white, and the hue the tube has on the white paper stays within the range it reads.
     const img = sheet(300, 150)
-    for (const [x, c] of [[4, [235, 180, 40]], [110, [225, 80, 120]], [216, [235, 180, 40]]] as const) paint(img, x, 35, x + 79, 114, c)
+    const colours = [[235, 180, 40], [225, 80, 120], [235, 180, 40]] as const
+    colours.forEach((c, k) => paint(img, [4, 110, 216][k], 35, [4, 110, 216][k] + 79, 114, c))
     const { regions, paper } = findRegions(img)
     expect(regions).toHaveLength(3)
-    for (const r of regions) expect(measure(img, r, paper)?.clear).toBeGreaterThan(5000)
+    regions.forEach((r, k) => {
+      const f = measure(img, r, paper)!
+      const lab = linToLab(...(colours[k].map((v) => LIN8[v]) as RGB))
+      const hue = labHue(lab.a, lab.b)
+      expect(f.clear).toBeGreaterThan(4000)
+      expect(f.hueRange[0]).toBeLessThanOrEqual(hue + 0.5)
+      expect(f.hueRange[1]).toBeGreaterThanOrEqual(hue - 0.5)
+    })
   })
   // A lamp of this colour at one end of the photo, fading to daylight at the other.
   const underLamp = (img: Img, kelvin: number, fromLeft: boolean): Img => {
@@ -269,12 +288,12 @@ describe('finding and measuring', () => {
     for (const seed of [1, 2, 3, 4, 5]) expect(readSynthetic(makeRun(seed, 'typical', { ev: 0 }), 0.5).missed).toBe(0)
   })
   it('skips washed-out pixels inside a disc and counts them as glare', () => {
+    // A yellow disc on white paper, with a white glint in the middle.
     const w = 40
     const data = new Uint8ClampedArray(w * w * 4)
     for (let i = 0; i < w * w; i++) {
-      const x = i % w
-      const inner = Math.hypot(x - 20, Math.floor(i / w) - 20) < 4
-      data.set(inner ? [255, 255, 255, 255] : [230, 200, 60, 255], i * 4)
+      const d = Math.hypot((i % w) - 20, Math.floor(i / w) - 20)
+      data.set(d < 4 || d > 10.5 ? [255, 255, 255, 255] : [230, 200, 60, 255], i * 4)
     }
     const img: Img = { width: w, height: w, data }
     const f = measure(img, discRegion(20, 20, 10), [0.9, 0.9, 0.9])!

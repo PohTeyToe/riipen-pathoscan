@@ -1,8 +1,8 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { readCalibrated } from '../lib/readers'
 import type { Features } from '../lib/find'
+import { readCalibrated } from '../lib/readers'
 import { sclerotinia } from './assays/sclerotinia'
 import { BAND, MODEL, ROLES } from './reader'
 import { Result, yourCalls } from './Result'
@@ -15,27 +15,30 @@ describe('the line on calls that decided a result', () => {
   })
 })
 
-/** A tube's measured colour at this Lab hue, read from the given white. */
-const tube = (labHue: number, paperFrom: Features['paperFrom'] = 'local'): Features => {
+/** A tube's measured colour at this Lab hue. */
+const tube = (labHue: number): Features => {
   const rad = (labHue * Math.PI) / 180
-  return { raw: [200, 150, 80], rawHue: labHue, corrected: [0.8, 0.6, 0.3], lab: { L: 70, a: 40 * Math.cos(rad), b: 40 * Math.sin(rad) }, labHue, clear: 500, glare: 0, paperFrom }
+  const lab = { L: 70, a: 40 * Math.cos(rad), b: 40 * Math.sin(rad) }
+  return { raw: [200, 150, 80], rawHue: labHue, corrected: [0.8, 0.6, 0.3], lab, labHue, hueRange: [labHue, labHue], clear: 500, glare: 0, paperBeside: true }
 }
 
 /** The result screen's text for a run read from these tubes. */
-function screen(feats: Features[]): string {
+function screen(feats: (Features | null)[]): string {
   const read = readCalibrated(feats, ROLES, MODEL, BAND)
   const taps = Array(10).fill(null)
-  const run: Run = { ...newRun(sclerotinia, { field: 'North 40', notes: '' }, 0, 'run-1'), read, roles: ROLES, regions: ROLES.map(() => ({ x0: 0, y0: 0, x1: 9, y1: 9, cx: 5, cy: 5 })), taps, ...tally(read, ROLES, taps, 3) }
+  const regions = ROLES.map(() => ({ x0: 0, y0: 0, x1: 9, y1: 9, cx: 5, cy: 5 }))
+  const run: Run = { ...newRun(sclerotinia, { field: 'North 40', notes: '' }, 0, 'run-1'), read, roles: ROLES, regions, taps, ...tally(read, ROLES, taps, 3) }
   const html = renderToStaticMarkup(createElement(Result, { run, assay: sclerotinia, act: async () => {}, error: null }))
   return html.replace(/<[^>]+>/g, ' ').replace(/&#x27;/g, "'").replace(/\s+/g, ' ')
 }
 
 describe('a failed run on the result screen', () => {
   const samples = Array.from({ length: 8 }, () => tube(40))
-  it('says a lamp spoiled the photo and asks for a retake in even light, not fresh reagents', () => {
-    const text = screen([tube(80), tube(20, 'none'), ...samples])
+  it('says which control it could not find and asks for a retake, not fresh reagents', () => {
+    const text = screen([tube(80), null, ...samples])
     expect(text).toContain('Run failed')
-    expect(text).toContain('retake it in even light')
+    expect(text).toContain("Can't find a negative control")
+    expect(text).toContain('Retake the photo')
     expect(text).not.toContain('reagents')
   })
   it('asks for fresh reagents when the controls are too close', () => {
