@@ -19,7 +19,7 @@ describe('the line on calls that decided a result', () => {
 const tube = (labHue: number): Features => {
   const rad = (labHue * Math.PI) / 180
   const lab = { L: 70, a: 40 * Math.cos(rad), b: 40 * Math.sin(rad) }
-  return { raw: [200, 150, 80], rawHue: labHue, corrected: [0.8, 0.6, 0.3], lab, labHue, hueRange: [labHue, labHue], clear: 500, glare: 0, paperBeside: true }
+  return { raw: [200, 150, 80], rawHue: labHue, corrected: [0.8, 0.6, 0.3], lab, labHue, hueRange: [labHue, labHue], overHue: labHue, clear: 500, glare: 0, paperBeside: true }
 }
 
 /** The result screen's text for a run read from these tubes. */

@@ -39,7 +39,7 @@ describe('the story run in the hero', () => {
     expect(f.calWrong).toEqual([])
     expect(v.calibrated.flags).toEqual([
       'The positive control is weaker than 3 samples. Check it before trusting the run.',
-      "1 tube was held only because the light on it isn't clear. Retake the photo in even light, with paper in view around each tube, to read it.",
+      "1 tube was held only because this photo can't pin down its colour. Retake it in even light, not too bright, with paper in view around each tube, to read it.",
     ])
   })
 

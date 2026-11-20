@@ -60,8 +60,8 @@
  "params": {
   "cut": 23.5,
   "model": {
-   "w0": -3.710363796290408,
-   "w1": 7.789705746701387
+   "w0": -3.6816667273405415,
+   "w1": 7.735054528667188
   },
   "band": {
    "lo": 0.2,
@@ -92,22 +92,22 @@
   "calibrated": {
    "confusion": {
     "pos": {
-     "pos": 5274,
-     "held": 760,
-     "neg": 394
+     "pos": 4728,
+     "held": 1332,
+     "neg": 368
     },
     "neg": {
-     "pos": 67,
-     "held": 1024,
-     "neg": 8481
+     "pos": 51,
+     "held": 1570,
+     "neg": 7951
     }
    },
    "samples": 16000,
-   "wrong": 461,
-   "held": 1784,
-   "sensitivity": 0.8204729309271935,
-   "specificity": 0.8860217300459674,
-   "accuracyCalled": 0.9675717501406865
+   "wrong": 419,
+   "held": 2902,
+   "sensitivity": 0.7355320472930927,
+   "specificity": 0.8306519013790221,
+   "accuracyCalled": 0.9680103832646205
   },
   "finderMissed": 0,
   "byScenario": {
@@ -135,22 +135,22 @@
     "calibrated": {
      "confusion": {
       "pos": {
-       "pos": 2614,
-       "held": 398,
-       "neg": 225
+       "pos": 2319,
+       "held": 706,
+       "neg": 212
       },
       "neg": {
-       "pos": 2,
-       "held": 340,
-       "neg": 4421
+       "pos": 0,
+       "held": 540,
+       "neg": 4223
       }
      },
      "samples": 8000,
-     "wrong": 227,
-     "held": 738,
-     "sensitivity": 0.807537843682422,
-     "specificity": 0.9281965148015956,
-     "accuracyCalled": 0.9687413935554944
+     "wrong": 212,
+     "held": 1246,
+     "sensitivity": 0.7164040778498609,
+     "specificity": 0.8866260760025194,
+     "accuracyCalled": 0.9686111933668937
     }
    },
    "weak-pc": {
@@ -177,22 +177,22 @@
     "calibrated": {
      "confusion": {
       "pos": {
-       "pos": 561,
-       "held": 21,
-       "neg": 17
+       "pos": 541,
+       "held": 49,
+       "neg": 9
       },
       "neg": {
-       "pos": 57,
-       "held": 52,
-       "neg": 892
+       "pos": 51,
+       "held": 280,
+       "neg": 670
       }
      },
      "samples": 1600,
-     "wrong": 74,
-     "held": 73,
-     "sensitivity": 0.9365609348914858,
-     "specificity": 0.8911088911088911,
-     "accuracyCalled": 0.9515389652914211
+     "wrong": 60,
+     "held": 329,
+     "sensitivity": 0.9031719532554258,
+     "specificity": 0.6693306693306693,
+     "accuracyCalled": 0.9527930763178599
     }
    },
    "acidic": {
@@ -219,22 +219,22 @@
     "calibrated": {
      "confusion": {
       "pos": {
-       "pos": 529,
-       "held": 81,
-       "neg": 36
+       "pos": 467,
+       "held": 144,
+       "neg": 35
       },
       "neg": {
-       "pos": 7,
-       "held": 429,
-       "neg": 518
+       "pos": 0,
+       "held": 459,
+       "neg": 495
       }
      },
      "samples": 1600,
-     "wrong": 43,
-     "held": 510,
-     "sensitivity": 0.8188854489164087,
-     "specificity": 0.5429769392033543,
-     "accuracyCalled": 0.9605504587155963
+     "wrong": 35,
+     "held": 603,
+     "sensitivity": 0.7229102167182663,
+     "specificity": 0.5188679245283019,
+     "accuracyCalled": 0.9648946840521565
     }
    },
    "glare": {
@@ -261,22 +261,22 @@
     "calibrated": {
      "confusion": {
       "pos": {
-       "pos": 542,
-       "held": 87,
-       "neg": 38
+       "pos": 475,
+       "held": 157,
+       "neg": 35
       },
       "neg": {
        "pos": 0,
-       "held": 71,
-       "neg": 862
+       "held": 116,
+       "neg": 817
       }
      },
      "samples": 1600,
-     "wrong": 38,
-     "held": 158,
-     "sensitivity": 0.8125937031484258,
-     "specificity": 0.9239013933547695,
-     "accuracyCalled": 0.9736477115117892
+     "wrong": 35,
+     "held": 273,
+     "sensitivity": 0.712143928035982,
+     "specificity": 0.8756698821007503,
+     "accuracyCalled": 0.9736247174076865
     }
    },
    "bubble": {
@@ -303,22 +303,22 @@
     "calibrated": {
      "confusion": {
       "pos": {
-       "pos": 520,
-       "held": 93,
-       "neg": 31
+       "pos": 473,
+       "held": 141,
+       "neg": 30
       },
       "neg": {
        "pos": 0,
-       "held": 67,
-       "neg": 889
+       "held": 95,
+       "neg": 861
       }
      },
      "samples": 1600,
-     "wrong": 31,
-     "held": 160,
-     "sensitivity": 0.8074534161490683,
-     "specificity": 0.9299163179916318,
-     "accuracyCalled": 0.9784722222222222
+     "wrong": 30,
+     "held": 236,
+     "sensitivity": 0.734472049689441,
+     "specificity": 0.9006276150627615,
+     "accuracyCalled": 0.9780058651026393
     }
    },
    "low-volume": {
@@ -345,22 +345,22 @@
     "calibrated": {
      "confusion": {
       "pos": {
-       "pos": 508,
-       "held": 80,
+       "pos": 453,
+       "held": 135,
        "neg": 47
       },
       "neg": {
-       "pos": 1,
-       "held": 65,
-       "neg": 899
+       "pos": 0,
+       "held": 80,
+       "neg": 885
       }
      },
      "samples": 1600,
-     "wrong": 48,
-     "held": 145,
-     "sensitivity": 0.8,
-     "specificity": 0.9316062176165804,
-     "accuracyCalled": 0.9670103092783505
+     "wrong": 47,
+     "held": 215,
+     "sensitivity": 0.7133858267716535,
+     "specificity": 0.917098445595855,
+     "accuracyCalled": 0.9660649819494584
     }
    }
   },
@@ -389,8 +389,8 @@
     "calibrated": {
      "confusion": {
       "pos": {
-       "pos": 5077,
-       "held": 22,
+       "pos": 4616,
+       "held": 483,
        "neg": 0
       },
       "neg": {
@@ -401,8 +401,8 @@
      },
      "samples": 5099,
      "wrong": 0,
-     "held": 22,
-     "sensitivity": 0.9956854285153952,
+     "held": 483,
+     "sensitivity": 0.9052755442243577,
      "specificity": null,
      "accuracyCalled": 1
     }
@@ -431,8 +431,8 @@
     "calibrated": {
      "confusion": {
       "pos": {
-       "pos": 197,
-       "held": 720,
+       "pos": 112,
+       "held": 805,
        "neg": 0
       },
       "neg": {
@@ -443,8 +443,8 @@
      },
      "samples": 917,
      "wrong": 0,
-     "held": 720,
-     "sensitivity": 0.2148309705561614,
+     "held": 805,
+     "sensitivity": 0.12213740458015267,
      "specificity": null,
      "accuracyCalled": 1
     }
@@ -474,8 +474,8 @@
      "confusion": {
       "pos": {
        "pos": 0,
-       "held": 18,
-       "neg": 394
+       "held": 44,
+       "neg": 368
       },
       "neg": {
        "pos": 0,
@@ -484,8 +484,8 @@
       }
      },
      "samples": 412,
-     "wrong": 394,
-     "held": 18,
+     "wrong": 368,
+     "held": 44,
      "sensitivity": 0,
      "specificity": null,
      "accuracyCalled": 0
@@ -521,15 +521,15 @@
       },
       "neg": {
        "pos": 0,
-       "held": 46,
-       "neg": 8397
+       "held": 526,
+       "neg": 7917
       }
      },
      "samples": 8443,
      "wrong": 0,
-     "held": 46,
+     "held": 526,
      "sensitivity": null,
-     "specificity": 0.994551699632832,
+     "specificity": 0.9376998697145564,
      "accuracyCalled": 1
     }
    },
@@ -562,17 +562,17 @@
        "neg": 0
       },
       "neg": {
-       "pos": 67,
-       "held": 978,
-       "neg": 84
+       "pos": 51,
+       "held": 1044,
+       "neg": 34
       }
      },
      "samples": 1129,
-     "wrong": 67,
-     "held": 978,
+     "wrong": 51,
+     "held": 1044,
      "sensitivity": null,
-     "specificity": 0.07440212577502214,
-     "accuracyCalled": 0.5562913907284768
+     "specificity": 0.030115146147032774,
+     "accuracyCalled": 0.4
     }
    }
   }
@@ -587,8 +587,8 @@
      "samples": 320
     },
     "calibrated": {
-     "wrong": 8,
-     "held": 36,
+     "wrong": 7,
+     "held": 40,
      "samples": 320
     },
     "missed": 0
@@ -601,8 +601,8 @@
      "samples": 320
     },
     "calibrated": {
-     "wrong": 8,
-     "held": 35,
+     "wrong": 7,
+     "held": 40,
      "samples": 320
     },
     "missed": 0
@@ -616,7 +616,7 @@
     },
     "calibrated": {
      "wrong": 7,
-     "held": 36,
+     "held": 40,
      "samples": 320
     },
     "missed": 0
@@ -629,8 +629,8 @@
      "samples": 320
     },
     "calibrated": {
-     "wrong": 8,
-     "held": 35,
+     "wrong": 7,
+     "held": 40,
      "samples": 320
     },
     "missed": 0
@@ -644,7 +644,7 @@
     },
     "calibrated": {
      "wrong": 7,
-     "held": 36,
+     "held": 40,
      "samples": 320
     },
     "missed": 0
@@ -657,8 +657,8 @@
      "samples": 320
     },
     "calibrated": {
-     "wrong": 8,
-     "held": 35,
+     "wrong": 7,
+     "held": 41,
      "samples": 320
     },
     "missed": 0
@@ -672,7 +672,7 @@
     },
     "calibrated": {
      "wrong": 7,
-     "held": 37,
+     "held": 40,
      "samples": 320
     },
     "missed": 0
@@ -685,8 +685,8 @@
      "samples": 320
     },
     "calibrated": {
-     "wrong": 8,
-     "held": 35,
+     "wrong": 7,
+     "held": 40,
      "samples": 320
     },
     "missed": 0
@@ -699,8 +699,8 @@
      "samples": 320
     },
     "calibrated": {
-     "wrong": 8,
-     "held": 36,
+     "wrong": 7,
+     "held": 39,
      "samples": 320
     },
     "missed": 0
@@ -713,8 +713,8 @@
      "samples": 320
     },
     "calibrated": {
-     "wrong": 8,
-     "held": 36,
+     "wrong": 7,
+     "held": 39,
      "samples": 320
     },
     "missed": 0
@@ -727,8 +727,8 @@
      "samples": 320
     },
     "calibrated": {
-     "wrong": 8,
-     "held": 36,
+     "wrong": 7,
+     "held": 39,
      "samples": 320
     },
     "missed": 0
@@ -741,8 +741,8 @@
      "samples": 320
     },
     "calibrated": {
-     "wrong": 8,
-     "held": 36,
+     "wrong": 7,
+     "held": 40,
      "samples": 320
     },
     "missed": 0
@@ -757,8 +757,8 @@
      "samples": 320
     },
     "calibrated": {
-     "wrong": 8,
-     "held": 36,
+     "wrong": 7,
+     "held": 41,
      "samples": 320
     },
     "missed": 0
@@ -771,8 +771,8 @@
      "samples": 320
     },
     "calibrated": {
-     "wrong": 8,
-     "held": 35,
+     "wrong": 7,
+     "held": 40,
      "samples": 320
     },
     "missed": 0
@@ -786,7 +786,7 @@
     },
     "calibrated": {
      "wrong": 7,
-     "held": 36,
+     "held": 41,
      "samples": 320
     },
     "missed": 0
@@ -799,8 +799,8 @@
      "samples": 320
     },
     "calibrated": {
-     "wrong": 8,
-     "held": 36,
+     "wrong": 7,
+     "held": 40,
      "samples": 320
     },
     "missed": 0
@@ -814,7 +814,7 @@
     },
     "calibrated": {
      "wrong": 7,
-     "held": 37,
+     "held": 40,
      "samples": 320
     },
     "missed": 0
@@ -827,8 +827,8 @@
      "samples": 320
     },
     "calibrated": {
-     "wrong": 8,
-     "held": 34,
+     "wrong": 7,
+     "held": 76,
      "samples": 320
     },
     "missed": 0
@@ -841,8 +841,8 @@
      "samples": 320
     },
     "calibrated": {
-     "wrong": 10,
-     "held": 30,
+     "wrong": 0,
+     "held": 253,
      "samples": 320
     },
     "missed": 0
@@ -855,8 +855,8 @@
      "samples": 320
     },
     "calibrated": {
-     "wrong": 19,
-     "held": 18,
+     "wrong": 0,
+     "held": 303,
      "samples": 320
     },
     "missed": 11
@@ -869,8 +869,8 @@
      "samples": 320
     },
     "calibrated": {
-     "wrong": 4,
-     "held": 170,
+     "wrong": 0,
+     "held": 320,
      "samples": 320
     },
     "missed": 93
@@ -886,7 +886,7 @@
     },
     "calibrated": {
      "wrong": 7,
-     "held": 51,
+     "held": 70,
      "samples": 320
     },
     "missed": 0
@@ -900,7 +900,7 @@
     },
     "calibrated": {
      "wrong": 7,
-     "held": 41,
+     "held": 51,
      "samples": 320
     },
     "missed": 0
@@ -914,7 +914,7 @@
     },
     "calibrated": {
      "wrong": 7,
-     "held": 40,
+     "held": 50,
      "samples": 320
     },
     "missed": 0
@@ -928,7 +928,7 @@
     },
     "calibrated": {
      "wrong": 7,
-     "held": 39,
+     "held": 46,
      "samples": 320
     },
     "missed": 0
@@ -942,7 +942,7 @@
     },
     "calibrated": {
      "wrong": 7,
-     "held": 36,
+     "held": 43,
      "samples": 320
     },
     "missed": 0
@@ -956,7 +956,7 @@
     },
     "calibrated": {
      "wrong": 7,
-     "held": 37,
+     "held": 41,
      "samples": 320
     },
     "missed": 0
@@ -970,7 +970,7 @@
     },
     "calibrated": {
      "wrong": 7,
-     "held": 37,
+     "held": 40,
      "samples": 320
     },
     "missed": 0
@@ -983,8 +983,8 @@
      "samples": 320
     },
     "calibrated": {
-     "wrong": 8,
-     "held": 36,
+     "wrong": 7,
+     "held": 40,
      "samples": 320
     },
     "missed": 0
@@ -998,7 +998,7 @@
     },
     "calibrated": {
      "wrong": 8,
-     "held": 36,
+     "held": 39,
      "samples": 320
     },
     "missed": 0
@@ -1012,7 +1012,7 @@
     },
     "calibrated": {
      "wrong": 8,
-     "held": 36,
+     "held": 38,
      "samples": 320
     },
     "missed": 0
@@ -1026,7 +1026,7 @@
     },
     "calibrated": {
      "wrong": 8,
-     "held": 36,
+     "held": 38,
      "samples": 320
     },
     "missed": 0
@@ -1040,7 +1040,7 @@
     },
     "calibrated": {
      "wrong": 8,
-     "held": 36,
+     "held": 38,
      "samples": 320
     },
     "missed": 0
@@ -1054,12 +1054,12 @@
     },
     "calibrated": {
      "wrong": 8,
-     "held": 36,
+     "held": 39,
      "samples": 320
     },
     "missed": 0
    }
   ]
  },
- "seconds": 133
+ "seconds": 151
 }

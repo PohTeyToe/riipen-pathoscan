@@ -12,7 +12,7 @@ const band = { lo: 0.2, hi: 0.8 }
 const tube = (labHue: number, rawHue = labHue / 2, clear = 400, spread = 0): Features => {
   const a = 40 * Math.cos((labHue * Math.PI) / 180)
   const b = 40 * Math.sin((labHue * Math.PI) / 180)
-  return { raw: [200, 150, 100], rawHue, corrected: [1, 0.7, 0.4], lab: { L: 70, a, b }, labHue, hueRange: [labHue - spread, labHue + spread], clear, glare: 0, paperBeside: true }
+  return { raw: [200, 150, 100], rawHue, corrected: [1, 0.7, 0.4], lab: { L: 70, a, b }, labHue, hueRange: [labHue - spread, labHue + spread], overHue: labHue, clear, glare: 0, paperBeside: true }
 }
 const roles = (n: number): Role[] => ['pc', 'nc', ...Array<Role>(n).fill('sample')]
 const norm = (g: RGB): RGB => g.map((v) => v / Math.max(...g)) as RGB
@@ -78,10 +78,27 @@ describe('calibrated reader', () => {
     expect(read(0, 0).tubes[2].call).toBe('pos')
     expect(read(5, 0).tubes[2].call).toBe('pos') // p stays past 0.8 across its range
     for (const r of [read(10, 0), read(0, 25)]) {
-      expect(r.tubes[2]).toMatchObject({ call: 'held', reason: expect.stringMatching(/doesn't pin down its light/) })
+      expect(r.tubes[2]).toMatchObject({ call: 'held', reason: expect.stringMatching(/can't pin its colour down closer than/) })
       expect(r.tubes[2].pRange![0]).toBeLessThan(0.8)
-      expect(r.flags).toEqual(["1 tube was held only because the light on it isn't clear. Retake the photo in even light, with paper in view around each tube, to read it."])
+      expect(r.flags).toEqual(["1 tube was held only because this photo can't pin down its colour. Retake it in even light, not too bright, with paper in view around each tube, to read it."])
     }
+  })
+  it('reads a clipped channel both as seen and with twice the light, moving every tube and control together', () => {
+    // An overexposed photo: the sample's red is clipped, and with more red it would sit nearer the negative control.
+    const over = (f: Features, overHue: number): Features => ({ ...f, raw: [255, 200, 120], overHue })
+    const read = (pc: number, nc: number) => readCalibrated([over(tube(90), pc), over(tube(10), nc), over(tube(70), 55)], roles(1), model, band).tubes[2]
+    expect(read(90, 10).call).toBe('held') // only the sample's red was clipped: with more, it sits between the controls
+    expect(read(75, -5).call).toBe('pos') // the controls' red too, by as much: the run moved as one
+    expect(readCalibrated([tube(90), tube(10), tube(70)], roles(1), model, band).tubes[2].call).toBe('pos')
+  })
+  it('holds a tube, or fails the run for a control, with two channels clipped: a hue needs two', () => {
+    const blown = (f: Features): Features => ({ ...f, raw: [255, 254, 120] })
+    const r = readCalibrated([tube(90), tube(10), blown(tube(70)), tube(70)], roles(2), model, band)
+    expect(r.tubes[2]).toMatchObject({ call: 'held', reason: expect.stringMatching(/Too bright for the camera/) })
+    expect(r.tubes[3].call).toBe('pos')
+    const failed = readCalibrated([blown(tube(90)), tube(10), tube(70)], roles(1), model, band)
+    expect(failed.status).toBe('failed')
+    expect(failed.flags[0]).toMatch(/positive control is too bright/)
   })
   it('needs both controls', () => {
     const r = readCalibrated([tube(90), tube(80)], ['sample', 'sample'], model, band)

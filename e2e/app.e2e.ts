@@ -115,11 +115,16 @@ type Pt = [number, number]
  * A synthetic run from the demo's own renderer, as a camera file, laid out as a row, two rows of five, a row
  * tilted 12 degrees, or a small row on a big sheet (tubes 23 px apart, so a ring's button reaches over its
  * neighbours). Seed 4: two positives and one tube the reader holds. `tubes` are the liquid centres in the
- * photo, in label order: +, −, then 1 to 8. `lamp`: a lamp of that colour temperature at the left edge of
- * the photo, fading to daylight at the right, as scripts/lamp-sweep.ts lights it.
+ * photo, in label order: +, −, then 1 to 8. `lamp`: a lamp of that colour temperature at one edge of the
+ * photo (`from`, the left by default), fading to daylight at the far edge, or with 0 a plain shade, 15% darker
+ * there; `ev`: stops added to the run's exposure. Both as scripts/lamp-sweep.ts makes them.
  */
-function syntheticPhoto(layout: 'row' | '2x5' | 'tilted' | 'small' = 'row', { seed = 4, lamp }: { seed?: number; lamp?: number } = {}) {
+function syntheticPhoto(
+  layout: 'row' | '2x5' | 'tilted' | 'small' = 'row',
+  { seed = 4, lamp, from: side = 'left', ev = 0 }: { seed?: number; lamp?: number; from?: 'left' | 'right' | 'top'; ev?: number } = {},
+) {
   const run = makeRun(seed)
+  run.ev += ev
   const scale = layout === 'small' ? 0.24 : 1
   const img = render(run, scale)
   const [W, H] = [img.width, img.height]
@@ -153,18 +158,20 @@ function syntheticPhoto(layout: 'row' | '2x5' | 'tilted' | 'small' = 'row', { se
       const [sx, sy] = from([x, y]).map(Math.round)
       out[y * w + x] = sx >= 0 && sx < W && sy >= 0 && sy < H ? src[sy * W + sx] : src[0] // paper beyond the render
     }
-  if (lamp) {
+  if (lamp !== undefined) {
     const [lit, day] = [lightCast(lamp), lightCast(6500)]
-    const gain = lit.map((v, c) => v / day[c])
-    const top = Math.max(...gain)
+    const gain = lamp ? lit.map((v, c) => v / day[c]) : [0.85, 0.85, 0.85]
+    const top = lamp ? Math.max(...gain) : 1
     const px = new Uint8Array(out.buffer)
     for (let y = 0; y < h; y++)
-      for (let x = 0; x < w; x++)
+      for (let x = 0; x < w; x++) {
+        const t = side === 'left' ? x / (w - 1) : side === 'right' ? 1 - x / (w - 1) : y / (h - 1)
         for (let c = 0; c < 3; c++) {
           const o = (y * w + x) * 4 + c
           const g = gain[c] / top
-          px[o] = Math.round(toSrgb(LIN8[px[o]] * (g + ((1 - g) * x) / (w - 1))) * 255)
+          px[o] = Math.round(toSrgb(LIN8[px[o]] * (g + (1 - g) * t)) * 255)
         }
+      }
   }
   const png = new PNG({ width: w, height: h })
   png.data = Buffer.from(out.buffer)
@@ -541,6 +548,45 @@ for (const [seed, acidic] of [
     expect(calls.filter((c, i) => c !== 'Held' && c !== truth[i])).toEqual([])
     expect(calls[acidic]).toBe('Held')
   })
+
+for (const [light, lamp, from] of [
+  ['a plain shade at the right', 0, 'right'],
+  ['a warm lamp at the right', 3000, 'right'],
+] as const)
+  test(`two rows of five under ${light}: seed 732's weak positive is not called negative`, async ({ page }) => {
+    // In even light this positive reads 17% like the positive control and is held, its range just reaching
+    // the band. The light moves it a few points lower, and with a margin of only 1° the range stopped short of
+    // the band: a negative call.
+    await page.goto('/app.html')
+    await toPhoto(page, 'Shade rows')
+    const photo = syntheticPhoto('2x5', { seed: 732, lamp, from })
+    await page.locator('input[type=file]').setInputFiles(photo.file)
+    await expect(page.getByRole('heading', { name: '10 tubes', exact: true })).toBeVisible()
+    await label(page, photo)
+    const column = await exportCsv(page)
+    const truth = photo.run.tubes.map((t) => (t.truth === 'pos' ? 'Positive' : 'Negative'))
+    const calls = column('Reader call')
+    // The only wrong calls are on a positive whose colour never changed, which no colour reader gets right.
+    const wrong = calls.flatMap((c, i) => (c !== 'Held' && c !== truth[i] ? [photo.run.tubes[i].kind] : []))
+    expect(wrong.filter((kind) => kind !== 'unchanged')).toEqual([])
+    expect(calls[3]).not.toBe('Negative')
+  })
+
+test("half a stop brighter, a clipped red does not make seed 3's acidic negative positive", async ({ page }) => {
+  // The camera clips the red of the paper and of the orange tubes. Brighter, the green and blue still rise and
+  // the red can't, so this acidic negative looked yellower than the controls did and was called positive.
+  await page.goto('/app.html')
+  await toPhoto(page, 'Bright')
+  const photo = syntheticPhoto('row', { seed: 3, ev: 0.5 })
+  await page.locator('input[type=file]').setInputFiles(photo.file)
+  await expect(page.getByRole('heading', { name: '10 tubes', exact: true })).toBeVisible()
+  await label(page, photo)
+  const column = await exportCsv(page)
+  const truth = photo.run.tubes.map((t) => (t.truth === 'pos' ? 'Positive' : 'Negative'))
+  const calls = column('Reader call')
+  expect(calls.filter((c, i) => c !== 'Held' && c !== truth[i])).toEqual([])
+  expect(calls[2]).not.toBe('Positive')
+})
 
 test("a finger on a tube whose ring was removed adds it back, though a neighbour's ring button covers it", async ({ page }) => {
   await page.goto('/app.html')

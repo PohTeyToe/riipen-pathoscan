@@ -31,6 +31,12 @@ export interface Features {
    * to labHue in even light; wide where the light changes across the tube in a way the white can't follow.
    */
   hueRange: [number, number]
+  /**
+   * The Lab hue if every channel the camera clipped (raw at CLIPPED or more) held twice the light it shows.
+   * labHue when none is clipped. An overexposed photo clips channels in many tubes at once, so the reader
+   * moves every tube and control here together.
+   */
+  overHue: number
   clear: number
   glare: number
   /** A found region's box in pixels. Unset for a placed disc, whose size the reader chose. */
@@ -40,6 +46,11 @@ export interface Features {
 }
 
 const WORK = 480
+/**
+ * An 8-bit value at or above which the camera may have cut a channel off: it held at least this much light.
+ * Below 255, since a JPEG scatters a clipped patch's pixels over the last few values.
+ */
+export const CLIPPED = 250
 
 /** Per-channel median of 8-bit values, from 256-bin histograms (one per channel, laid end to end). */
 function histMedian(hist: Uint32Array, n: number): RGB {
@@ -496,6 +507,10 @@ export function measure(img: Img, region: Region, paper: RGB): Features | null {
   /** The liquid's colour under one white for the whole tube. */
   const against = (white: RGB) => toLab(raw.map((v, i) => Math.min(1.2, LIN8[v] / white[i])) as RGB)
   const best = under(k)
+  // Twice the light in the clipped channels, written as half in the others: the hue doesn't change with the
+  // overall light, and a clipped channel's share may already sit at under()'s 1.2 cap.
+  const clipped = raw.map((v) => v >= CLIPPED)
+  const over = clipped.includes(true) ? under(k.map((v, i) => (clipped[i] ? v : 2 * v)) as RGB).hue : best.hue
   const hues = [best.hue]
   if (ring) hues.push(...ring.sides.map((s) => under(s).hue), against(ring.paper).hue)
   if (!ring || ring.sides.length < 2) hues.push(against(paper).hue)
@@ -506,6 +521,7 @@ export function measure(img: Img, region: Region, paper: RGB): Features | null {
     lab: best.lab,
     labHue: best.hue,
     hueRange: [Math.min(...hues), Math.max(...hues)],
+    overHue: over,
     clear: n * step * step,
     glare: glare * step * step,
     area: region.r === undefined ? area : undefined,

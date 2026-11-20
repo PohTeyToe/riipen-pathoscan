@@ -32,22 +32,22 @@
   "calibrated": {
    "confusion": {
     "pos": {
-     "pos": 7,
-     "held": 15,
+     "pos": 5,
+     "held": 17,
      "neg": 4
     },
     "neg": {
-     "pos": 13,
-     "held": 251,
-     "neg": 374
+     "pos": 12,
+     "held": 282,
+     "neg": 344
     }
    },
    "samples": 664,
-   "wrong": 17,
-   "held": 266,
-   "sensitivity": 0.2692307692307692,
-   "specificity": 0.5862068965517241,
-   "accuracyCalled": 0.957286432160804
+   "wrong": 16,
+   "held": 299,
+   "sensitivity": 0.19230769230769232,
+   "specificity": 0.5391849529780565,
+   "accuracyCalled": 0.9561643835616438
   },
   "paper": {
    "confusion": {
@@ -95,22 +95,22 @@
   "calibrated": {
    "confusion": {
     "pos": {
-     "pos": 7,
-     "held": 188,
+     "pos": 5,
+     "held": 190,
      "neg": 4
     },
     "neg": {
-     "pos": 13,
-     "held": 286,
-     "neg": 374
+     "pos": 12,
+     "held": 317,
+     "neg": 344
     }
    },
    "samples": 872,
-   "wrong": 17,
-   "held": 474,
-   "sensitivity": 0.035175879396984924,
-   "specificity": 0.5557206537890045,
-   "accuracyCalled": 0.957286432160804
+   "wrong": 16,
+   "held": 507,
+   "sensitivity": 0.02512562814070352,
+   "specificity": 0.5111441307578009,
+   "accuracyCalled": 0.9561643835616438
   }
  },
  "noControls": 208,
@@ -118,22 +118,22 @@
   "calibrated": {
    "confusion": {
     "pos": {
-     "pos": 7,
-     "held": 15,
+     "pos": 5,
+     "held": 17,
      "neg": 4
     },
     "neg": {
      "pos": 3,
-     "held": 150,
-     "neg": 259
+     "held": 159,
+     "neg": 250
     }
    },
    "samples": 438,
    "wrong": 7,
-   "held": 165,
-   "sensitivity": 0.2692307692307692,
-   "specificity": 0.6286407766990292,
-   "accuracyCalled": 0.9743589743589743
+   "held": 176,
+   "sensitivity": 0.19230769230769232,
+   "specificity": 0.6067961165048543,
+   "accuracyCalled": 0.9732824427480916
   },
   "paper": {
    "confusion": {
@@ -182,22 +182,22 @@
   "calibrated": {
    "confusion": {
     "pos": {
-     "pos": 8,
-     "held": 14,
+     "pos": 6,
+     "held": 16,
      "neg": 4
     },
     "neg": {
-     "pos": 13,
-     "held": 108,
-     "neg": 517
+     "pos": 12,
+     "held": 139,
+     "neg": 487
     }
    },
    "samples": 664,
-   "wrong": 17,
-   "held": 122,
-   "sensitivity": 0.3076923076923077,
-   "specificity": 0.8103448275862069,
-   "accuracyCalled": 0.9686346863468634
+   "wrong": 16,
+   "held": 155,
+   "sensitivity": 0.23076923076923078,
+   "specificity": 0.7633228840125392,
+   "accuracyCalled": 0.9685658153241651
   }
  },
  "misses": [
@@ -274,18 +274,7 @@
    "truth": "neg",
    "naive": "positive",
    "calibrated": "positive",
-   "reason": "95% like the positive control.",
-   "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
-   "paper": "not reported"
-  },
-  {
-   "file": "LAMP13_SuppFig5_c_cv15-20.jpg",
-   "figure": "Supp. Fig. 5a (Zenodo label SuppFig5_c)",
-   "well": "E4 (CV15-20)",
-   "truth": "neg",
-   "naive": "positive",
-   "calibrated": "positive",
-   "reason": "100% like the positive control.",
+   "reason": "94% like the positive control.",
    "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
    "paper": "not reported"
   },
@@ -395,5 +384,5 @@
   "onOtherWells": 21,
   "offWells": 8
  },
- "seconds": 7
+ "seconds": 9
 }

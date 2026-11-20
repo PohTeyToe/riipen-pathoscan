@@ -1,12 +1,12 @@
-// Synthetic runs under a lamp at one side of the photo, read through the field app's own photo path in
-// Chromium: the camera PNG, the saved JPEG, the rings, the grower's taps (a missed tube tapped back, a stray
-// ring removed), then the read. Each run is also read in even light. Per light it counts wrong calls, the
-// tubes the lamp turned wrong that even light read right or held (the lamp's own harm: none is the bar),
-// held tubes and failed runs.
-//   npx tsx scripts/lamp-sweep.ts [--seeds 0-199] [--lamps 3000,2400,10000] [--root <checkout>] [--json <out.json>]
-// --lamps takes colour temperatures, or 0 for a plain shade (15% darker at one side, no colour): what any
-// small change to a photo does to tubes on the edge of a call, to weigh the lamps against. --root reads with
-// another checkout's src and data (a release, say); the default is this one.
+// Synthetic runs under a lamp at one side of the photo, or exposed brighter or darker, read through the field
+// app's own photo path in Chromium: the camera PNG, the saved JPEG, the rings, the grower's taps (a missed tube
+// tapped back, a stray ring removed), then the read. Each run is also read in even light at its own exposure.
+// Per change it counts wrong calls, the tubes the change turned wrong that even light read right or held (the
+// change's own harm: none is the bar), held tubes and failed runs.
+//   npx tsx scripts/lamp-sweep.ts [--seeds 0-199] [--lamps 3000,2400,10000,0] [--ev -1,0.5,1,1.5] [--root <checkout>] [--json <out.json>]
+// --lamps takes colour temperatures, or 0 for a plain shade (15% darker at one side, no colour). --ev takes
+// exposure steps in stops, each read in even light; an empty list reads none. --root reads with another
+// checkout's src and data (a release, say); the default is this one.
 import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { chromium } from '@playwright/test'
@@ -26,6 +26,8 @@ interface Job {
   seed: number
   layout: Layout
   lamp: { kelvin: number; from: From } | null
+  /** Stops added to the run's own exposure. */
+  ev: number
 }
 interface Read {
   error?: string
@@ -40,10 +42,15 @@ interface Read {
 }
 
 const LAYOUTS: Layout[] = ['row', '2x5']
-const LAMPS = (arg('lamps') ?? '3000,2400,10000').split(',').map(Number).flatMap((kelvin) => (['left', 'right', 'top'] as From[]).map((from) => ({ kelvin, from })))
+const list = (s: string) => s.split(',').filter(Boolean).map(Number)
+const LAMPS = list(arg('lamps') ?? '3000,2400,10000,0').flatMap((kelvin) => (['left', 'right', 'top'] as From[]).map((from) => ({ kelvin, from })))
+const EVS = list(arg('ev') ?? '-1,0.5,1,1.5')
 const jobs: Job[] = []
 for (let seed = first; seed <= (last ?? first); seed++)
-  for (const layout of LAYOUTS) for (const lamp of [null, ...LAMPS]) jobs.push({ seed, layout, lamp })
+  for (const layout of LAYOUTS) {
+    for (const lamp of [null, ...LAMPS]) jobs.push({ seed, layout, lamp, ev: 0 })
+    for (const ev of EVS) jobs.push({ seed, layout, lamp: null, ev })
+  }
 
 // Plain transforms, no app config: only the reader's modules are loaded.
 const server = await createServer({ root, configFile: false, logLevel: 'error', server: { port: 5133, strictPort: false } })
@@ -51,7 +58,9 @@ await server.listen()
 const base = server.resolvedUrls!.local[0]
 const browser = await chromium.launch()
 const results = new Map<string, Read>()
-const key = (j: Job) => `${j.seed} ${j.layout} ${j.lamp ? `${j.lamp.kelvin} ${j.lamp.from}` : 'even'}`
+/** The change from even light at the run's own exposure. */
+const change = (j: Job) => (j.lamp ? (j.lamp.kelvin ? `${j.lamp.kelvin} K ${j.lamp.from}` : `shade ${j.lamp.from}`) : j.ev ? `${j.ev > 0 ? '+' : ''}${j.ev} EV` : 'even')
+const key = (j: Job) => `${j.seed} ${j.layout} ${change(j)}`
 const t0 = Date.now()
 
 /** One page: builds the photo, runs the app's photo path, taps like a grower, reads. */
@@ -61,7 +70,7 @@ async function worker(queue: Job[]) {
   await page.route('**/__sweep.html', (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>sweep</title>' }))
   await page.goto(new URL('/__sweep.html', base).href)
   for (let job = queue.shift(); job; job = queue.shift()) {
-    const read: Read = await page.evaluate(async ({ seed, layout, lamp }) => {
+    const read: Read = await page.evaluate(async ({ seed, layout, lamp, ev }) => {
       const load = (path: string) => import(/* @vite-ignore */ path)
       const reader: typeof import('../src/app/reader') = await load('/src/app/reader.ts')
       const { encodePhoto }: typeof import('../src/app/camera') = await load('/src/app/camera.ts')
@@ -71,6 +80,7 @@ async function worker(queue: Job[]) {
 
       // The run as e2e/app.e2e.ts draws it: a row, or the left five tubes above the right five.
       const run = makeRun(seed)
+      run.ev += ev
       const src = render(run, 1)
       const [W, H] = [src.width, src.height]
       const [w, h] = layout === 'row' ? [W, H] : [W / 2, 2 * H]
@@ -146,16 +156,15 @@ try {
 // Per light: wrong calls, flips against even light, held samples, failed runs, unread runs.
 const wrongAt = (r: Read, i: number) => r.roles![i] === 'sample' && r.calls![i] !== 'held' && r.calls![i] !== r.truth![i]
 const rows: Record<string, { samples: number; wrong: number; flips: number; held: number; failed: number; errors: number }> = {}
-const flips: { run: string; tube: number; kind: string; even: string; lamp: string; p?: number }[] = []
+const flips: { run: string; tube: number; kind: string; even: string; evenP?: number; changed: string; p?: number; pRange?: [number, number] }[] = []
 for (const job of jobs) {
-  const light = job.lamp ? `${job.lamp.kelvin} K ${job.lamp.from}` : 'even'
-  const row = (rows[`${job.layout} ${light}`] ??= { samples: 0, wrong: 0, flips: 0, held: 0, failed: 0, errors: 0 })
+  const row = (rows[`${job.layout} ${change(job)}`] ??= { samples: 0, wrong: 0, flips: 0, held: 0, failed: 0, errors: 0 })
   const r = results.get(key(job))!
   if (r.error) {
     row.errors++
     continue
   }
-  const even = results.get(key({ ...job, lamp: null }))!
+  const even = results.get(key({ ...job, lamp: null, ev: 0 }))!
   if (r.status === 'failed') row.failed++
   r.roles!.forEach((role, i) => {
     if (role !== 'sample') return
@@ -163,9 +172,9 @@ for (const job of jobs) {
     if (r.calls![i] === 'held') row.held++
     if (!wrongAt(r, i)) return
     row.wrong++
-    if (job.lamp && !even.error && !wrongAt(even, i)) {
+    if (r !== even && !even.error && !wrongAt(even, i)) {
       row.flips++
-      flips.push({ run: key(job), tube: i - 1, kind: r.kinds![i], even: even.calls![i], lamp: r.calls![i], p: r.p![i] })
+      flips.push({ run: key(job), tube: i - 1, kind: r.kinds![i], even: even.calls![i], evenP: even.p![i], changed: r.calls![i], p: r.p![i], pRange: r.pRange![i] })
     }
   })
 }
@@ -174,11 +183,11 @@ const total = (pick: (k: string) => boolean) =>
     .filter(([k]) => pick(k))
     .reduce((a, [, r]) => ({ samples: a.samples + r.samples, wrong: a.wrong + r.wrong, flips: a.flips + r.flips, held: a.held + r.held }), { samples: 0, wrong: 0, flips: 0, held: 0 })
 console.error(`root ${root}, seeds ${first}-${last ?? first}, ${Math.round((Date.now() - t0) / 1000)} s`)
-console.error('light                  samples  wrong  flips  held%  failed  unread')
+console.error('change                 samples  wrong  flips  held%  failed  unread')
 for (const [k, r] of Object.entries(rows))
   console.error(`${k.padEnd(22)} ${String(r.samples).padStart(7)} ${String(r.wrong).padStart(6)} ${String(r.flips).padStart(6)} ${((100 * r.held) / Math.max(1, r.samples)).toFixed(1).padStart(6)} ${String(r.failed).padStart(7)} ${String(r.errors).padStart(7)}`)
 const lit = total((k) => !k.endsWith('even'))
 const even = total((k) => k.endsWith('even'))
-console.error(`even light: ${even.wrong} wrong, ${((100 * even.held) / even.samples).toFixed(1)}% held; under lamps: ${lit.wrong} wrong, ${lit.flips} flips (${flips.filter((f) => f.even !== 'held').length} read right in even light, the rest held), ${((100 * lit.held) / lit.samples).toFixed(1)}% held`)
+console.error(`even light: ${even.wrong} wrong, ${((100 * even.held) / even.samples).toFixed(1)}% held; changed: ${lit.wrong} wrong, ${lit.flips} flips (${flips.filter((f) => f.even !== 'held').length} read right in even light, the rest held), ${((100 * lit.held) / lit.samples).toFixed(1)}% held`)
 for (const f of flips) console.error(JSON.stringify(f))
 if (jsonOut) writeFileSync(jsonOut, JSON.stringify({ root, seeds: [first, last], rows, flips, reads: Object.fromEntries(results) }) + '\n')
