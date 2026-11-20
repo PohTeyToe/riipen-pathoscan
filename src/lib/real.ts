@@ -1,7 +1,7 @@
 // The real photos: 27 CC0 colorimetric LAMP panels from Zenodo 4476336, with per-well roles and truth
 // written by hand from the paper (data/real/labels.json; how in the README).
 
-import { discRegion, globalPaper, measure } from './find'
+import { discRegion, measure } from './find'
 import { readByGroup, readCalibrated, readMidpoint, readNaive, type Band, type Model } from './readers'
 import type { Img, Role, Truth } from './synth'
 
@@ -61,9 +61,8 @@ export const realSrc = (file: string) => `/real/${file}`
  */
 export function readRealImage(img: Img, image: RealImage, p: { cut: number; model: Model; band: Band }) {
   const wells = readable(image)
-  const paper = globalPaper(img)
   const regions = wells.map((w) => discRegion(w.x * img.width, w.y * img.height, w.r * img.width, w.hole_r ? w.hole_r * img.width : undefined))
-  const feats = regions.map((r) => measure(img, r, paper))
+  const feats = regions.map((r) => measure(img, r))
   const roles = wells.map(wellRole)
   const groups = wells.map(assayName)
   const pick = <T,>(xs: T[], idx: number[]) => idx.map((i) => xs[i])

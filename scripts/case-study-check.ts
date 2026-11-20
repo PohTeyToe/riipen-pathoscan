@@ -8,7 +8,7 @@
 //   npx tsx scripts/case-study-check.ts <photo.png>
 import { writeFileSync } from 'node:fs'
 import evalData from '../data/eval.json'
-import { discRegion, findRegions, globalPaper, measure } from '../src/lib/find'
+import { discRegion, findRegions, measure } from '../src/lib/find'
 import { readCalibrated, readMidpoint, readNaive, type Call } from '../src/lib/readers'
 import type { Role } from '../src/lib/synth'
 import { readImage } from './io'
@@ -22,7 +22,6 @@ const roles: Role[] = NAMES.map((_, i) => (i === 0 ? 'pc' : i === 1 ? 'nc' : 'sa
 const MARKED_POS = [2, 5, 6, 7]
 
 const img = readImage(process.argv[2])
-const paper = globalPaper(img)
 const { cut, model, band } = evalData.params
 // What the automatic finder makes of the photo: which tips its regions' centres land within 8 px of.
 const found = findRegions(img).regions
@@ -35,7 +34,7 @@ const res = { notMeasured: [] as string[], midpointFlips: [] as string[], pcBelo
 for (const r of [3, 4, 5])
   for (const dx of [-2, 0, 2])
     for (const dy of [-2, 0, 2]) {
-      const feats = TIPS.map(([x, y]) => measure(img, discRegion(x + dx, y + dy, r), paper))
+      const feats = TIPS.map(([x, y]) => measure(img, discRegion(x + dx, y + dy, r)))
       const mid = readMidpoint(feats, roles)
       const nai = readNaive(feats, cut)
       const cal = readCalibrated(feats, roles, model, band)

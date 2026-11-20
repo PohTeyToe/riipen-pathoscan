@@ -10,16 +10,14 @@ import { readImage } from './io'
 
 const [path, names, discs] = process.argv.slice(2)
 const img = readImage(path)
-const { regions, paper } = discs
-  ? {
-      regions: discs.split(';').map((d) => {
-        const [x, y, r] = d.split(':').map(Number)
-        return discRegion(x, y, r)
-      }),
-      paper: globalPaper(img),
-    }
-  : findRegions(img)
-const feats = regions.map((r) => measure(img, r, paper))
+const paper = globalPaper(img)
+const regions = discs
+  ? discs.split(';').map((d) => {
+      const [x, y, r] = d.split(':').map(Number)
+      return discRegion(x, y, r)
+    })
+  : findRegions(img).regions
+const feats = regions.map((r) => measure(img, r))
 const roles: Role[] = regions.map((_, i) => (i === 0 ? 'pc' : i === 1 ? 'nc' : 'sample'))
 const label = names ? names.split(',') : regions.map((_, i) => (i === 0 ? 'PC' : i === 1 ? 'NC' : `S${i - 1}`))
 const { cut, model, band } = evalData.params

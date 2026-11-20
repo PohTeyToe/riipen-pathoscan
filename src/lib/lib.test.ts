@@ -3,7 +3,7 @@ import { LIN8, labHue, lightCast, linToLab, toSrgb, type RGB } from './color'
 import { emptyConfusion, fitCut, fitLogistic, readSynthetic, score } from './evaluate'
 import { discRegion, findRegions, measure, readingOrder, type Features } from './find'
 import { readByGroup, readCalibrated, readMidpoint, readNaive, QC } from './readers'
-import { makeRun, render, type Img, type Role } from './synth'
+import { darken, makeRun, render, type Img, type Role } from './synth'
 
 const model = { w0: -3.7, w1: 7.8 }
 const band = { lo: 0.2, hi: 0.8 }
@@ -237,10 +237,10 @@ describe('finding and measuring', () => {
     const img = sheet(300, 150)
     const colours = [[235, 180, 40], [225, 80, 120], [235, 180, 40]] as const
     colours.forEach((c, k) => paint(img, [4, 110, 216][k], 35, [4, 110, 216][k] + 79, 114, c))
-    const { regions, paper } = findRegions(img)
+    const { regions } = findRegions(img)
     expect(regions).toHaveLength(3)
     regions.forEach((r, k) => {
-      const f = measure(img, r, paper)!
+      const f = measure(img, r)!
       const lab = linToLab(...(colours[k].map((v) => LIN8[v]) as RGB))
       const hue = labHue(lab.a, lab.b)
       expect(f.clear).toBeGreaterThan(4000)
@@ -248,20 +248,59 @@ describe('finding and measuring', () => {
       expect(f.hueRange[1]).toBeGreaterThanOrEqual(hue - 0.5)
     })
   })
-  it('marks a tube clipped when a channel of its liquid or of the paper it is read against is clipped', () => {
-    // Seed 732 at 10000 K and +0.5 EV: the paper clipped in green and blue, the pale tube not at all.
-    const clipped = (paper: number[], liquid: number[]) => {
+  describe('clipping', () => {
+    // Paper and liquid as a camera records them: each value spread over seven steps, as noise and a JPEG do,
+    // except at 255, where the light is taken to be well past the top and stays there.
+    const grain = (img: Img): Img => {
+      for (let o = 0; o < img.data.length; o++)
+        if ((o & 3) !== 3 && img.data[o] < 255) img.data[o] += ((Math.imul(o, 2654435761) >>> 16) % 7) - 3
+      return img
+    }
+    const photo = (paper: number[], liquid: number[]) => {
       const img = sheet(300, 150)
       paint(img, 0, 0, 299, 149, paper)
       paint(img, 140, 40, 159, 109, liquid)
-      const found = findRegions(img)
-      expect(found.regions).toHaveLength(1)
-      return measure(img, found.regions[0], found.paper)!.clipped
+      return grain(img)
     }
-    expect(clipped([236, 240, 238], [215, 139, 151])).toBe(false)
-    expect(clipped([236, 254, 255], [215, 139, 151])).toBe(true)
-    expect(clipped([249, 249, 249], [215, 139, 151])).toBe(false)
-    expect(clipped([236, 240, 238], [252, 180, 60])).toBe(true)
+    const clipped = (img: Img) => {
+      const { regions } = findRegions(img)
+      expect(regions).toHaveLength(1)
+      return measure(img, regions[0])!.clipped
+    }
+    it('marks a tube clipped when the paper it is read against is clipped', () => {
+      // Seed 732 at 10000 K and +0.5 EV: the paper clipped in green and blue, the pale tube not at all.
+      expect(clipped(photo([236, 254, 255], [215, 139, 151]))).toBe(true)
+      expect(clipped(photo([236, 240, 238], [215, 139, 151]))).toBe(false)
+    })
+    it('marks a tube clipped when its liquid is clipped', () => {
+      expect(clipped(photo([236, 240, 238], [255, 180, 60]))).toBe(true)
+    })
+    it('reads bright paper that only reaches the top in its spread', () => {
+      // A median at 251: over the 250 a fixed cut-off used, but under a seventh of the paper at the top value.
+      expect(clipped(photo([251, 251, 251], [215, 139, 151]))).toBe(false)
+    })
+    it('still finds clipped paper after the photo is darkened, as a phone tone-maps after the camera clips', () => {
+      for (const stops of [0.1, 0.3]) {
+        const img = darken(photo([236, 254, 255], [215, 139, 151]), stops)
+        expect(Math.max(...img.data.filter((_, o) => o % 4 === 2))).toBeLessThan(250)
+        expect(clipped(img)).toBe(true)
+      }
+    })
+    it('fails the run for a control whose paper is clipped on one side only, since that side sets its range', () => {
+      // Paper at 230 around the controls, blown out over the upper side of the positive control's ring: the
+      // paper above it and beside its upper half, which give the range its white from above.
+      const img = sheet(400, 150)
+      paint(img, 0, 0, 399, 149, [230, 230, 230])
+      paint(img, 46, 36, 93, 84, [255, 255, 255])
+      const colours = [[235, 180, 40], [225, 80, 120], [235, 175, 45]]
+      colours.forEach((c, k) => paint(img, 60 + k * 120, 50, 79 + k * 120, 119, c))
+      grain(img)
+      const { regions } = findRegions(img)
+      expect(regions).toHaveLength(3)
+      const feats = regions.map((r) => measure(img, r))
+      expect(feats.map((f) => f!.clipped)).toEqual([true, false, false])
+      expect(readCalibrated(feats, roles(1), model, band).flags).toEqual(['Too bright at the positive control. Retake with less light.'])
+    })
   })
   // A lamp of this colour at one end of the photo, fading to daylight at the other.
   const underLamp = (img: Img, kelvin: number, fromLeft: boolean): Img => {
@@ -280,8 +319,8 @@ describe('finding and measuring', () => {
   // Every tube is still found, and none gets a call it didn't get in even light. A tube may be held.
   const sameUnderLamp = (img: Img, roles: Role[], kelvin: number, fromLeft: boolean) => {
     const read = (im: Img) => {
-      const { regions, paper } = findRegions(im)
-      return { n: regions.length, calls: readCalibrated(regions.map((r) => measure(im, r, paper)), roles, model, band).tubes.map((t) => t.call) }
+      const { regions } = findRegions(im)
+      return { n: regions.length, calls: readCalibrated(regions.map((r) => measure(im, r)), roles, model, band).tubes.map((t) => t.call) }
     }
     const clean = read(img)
     const lamp = read(underLamp(img, kelvin, fromLeft))
@@ -325,10 +364,10 @@ describe('finding and measuring', () => {
       data.set(d < 4 || d > 10.5 ? [255, 255, 255, 255] : [230, 200, 60, 255], i * 4)
     }
     const img: Img = { width: w, height: w, data }
-    const f = measure(img, discRegion(20, 20, 10), [0.9, 0.9, 0.9])!
+    const f = measure(img, discRegion(20, 20, 10))!
     expect(f.glare).toBeGreaterThan(0)
     expect(f.raw).toEqual([230, 200, 60])
-    expect(measure(img, discRegion(20, 20, 10, 5), [0.9, 0.9, 0.9])!.glare).toBe(0)
+    expect(measure(img, discRegion(20, 20, 10, 5))!.glare).toBe(0)
   })
   it('finds a pale tube tip whose own glow tints the paper around it', () => {
     // PathoScan's case-study photo: the negative control's tip is pale pink, and the tube wall around it
@@ -341,7 +380,7 @@ describe('finding and measuring', () => {
         const d = Math.hypot(x - 100, y - 100)
         if (d < 14) img.data.set(d < 5 ? [205, 150, 158] : [228, 206, 212], (y * 200 + x) * 4)
       }
-    const f = measure(img, discRegion(100, 100, 5), [LIN8[230], LIN8[230], LIN8[230]])
+    const f = measure(img, discRegion(100, 100, 5))
     expect(f?.raw).toEqual([205, 150, 158])
     expect(f!.clear).toBeGreaterThan(50)
   })

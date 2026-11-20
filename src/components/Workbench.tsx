@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import realEval from '../../data/real-eval.json'
 import { css, type RGB } from '../lib/color'
 import { emptyConfusion, score } from '../lib/evaluate'
-import { discRegion, findRegions, globalPaper, measure, type Features, type Region } from '../lib/find'
+import { discRegion, findRegions, measure, type Features, type Region } from '../lib/find'
 import { loadImage } from '../lib/photo'
 import { assayName, EXCLUDED, readable, readRealImage, realSrc, type Labels, type RealImage } from '../lib/real'
 import { loadLabels } from '../lib/realData'
@@ -121,7 +121,6 @@ export function Workbench() {
       }
     }
     if (!upload) return null
-    const paper = globalPaper(upload.img)
     let n = 0
     return {
       img: upload.img,
@@ -131,7 +130,7 @@ export function Workbench() {
         label: t.role === 'pc' ? 'PC' : t.role === 'nc' ? 'NC' : String(++n),
         role: t.role,
         region: t.region,
-        feats: measure(upload.img, t.region, paper),
+        feats: measure(upload.img, t.region),
         truth: t.truth,
         truthNote: t.truth ? 'You marked this.' : 'Not marked. Pick Really positive or Really negative below to score it.',
       })),

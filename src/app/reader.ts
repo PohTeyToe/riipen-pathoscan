@@ -3,7 +3,7 @@
 
 import { params } from '../../data/eval.json'
 import { median } from '../lib/color'
-import { discRegion, findRegions, globalPaper, measure, type Region } from '../lib/find'
+import { discRegion, findRegions, measure, type Region } from '../lib/find'
 import { readCalibrated, type Band, type Model, type RunRead } from '../lib/readers'
 import type { Img, Role } from '../lib/synth'
 
@@ -62,9 +62,8 @@ export const tapInOrder = (order: number[], i: number) =>
   order.includes(i) ? order.slice(0, order.indexOf(i)) : order.length < LABELS.length ? [...order, i] : order
 
 export function readTubes(img: Img, rings: Region[], roles: Role[]): RunRead {
-  const paper = globalPaper(img)
   return readCalibrated(
-    rings.map((r) => measure(img, r, paper)),
+    rings.map((r) => measure(img, r)),
     roles,
     MODEL,
     BAND,

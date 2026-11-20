@@ -12,7 +12,7 @@
 import { readFileSync } from 'node:fs'
 import evalData from '../data/eval.json'
 import { median } from '../src/lib/color'
-import { discRegion, findRegions, measure } from '../src/lib/find'
+import { discRegion, findRegions, globalPaper, measure } from '../src/lib/find'
 import { readNaive } from '../src/lib/readers'
 import { matchPoints, readGroups, type Group } from './batch'
 import { readImage } from './io'
@@ -32,7 +32,7 @@ const { cut, model, band } = evalData.params
 
 const photos = entries.map((e) => {
   const img = readImage(e.photo)
-  const { regions, paper } = findRegions(img)
+  const { regions } = findRegions(img)
   const half = median(regions.map((r) => Math.max(r.x1 - r.x0, r.y1 - r.y0) / 2)) || 12
   const names = Object.keys(e.tubes)
   const match = matchPoints(names.map((n) => e.tubes[n]), regions, half)
@@ -41,14 +41,14 @@ const photos = entries.map((e) => {
     const [x, y] = e.tubes[n]
     return { name: n, region: j === null ? discRegion(x, y, half) : regions[j], from: j === null ? 'placed' : 'found' }
   })
-  const feats = placed.map((p) => measure(img, p.region, paper))
+  const feats = placed.map((p) => measure(img, p.region))
   const naive = readNaive(feats, cut)
   const cal = readGroups(names, feats, e.groups, model, band, e.id)
   return {
     id: e.id,
     photo: e.photo,
     size: [img.width, img.height],
-    paper,
+    paper: globalPaper(img),
     flags: cal.flags,
     tubes: placed.map((p, i) => ({
       name: p.name,

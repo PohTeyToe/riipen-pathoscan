@@ -32,9 +32,10 @@ export interface Features {
    */
   hueRange: [number, number]
   /**
-   * True when the camera clipped a channel of the liquid or of the white it is read against: a median at
-   * CLIPPED or more, in the liquid, the paper around it, or the white map at it. A clipped channel held at
-   * least the light it shows and maybe far more, so the colour has no bound.
+   * True when the camera clipped a channel of the liquid or of a white its colour or its range is read
+   * against: the liquid, the ring's paper, a side of the ring the range uses, the white map at the tube, or
+   * the whole photo's white where the range uses it (see isClipped). A clipped channel held at least the
+   * light it shows and maybe far more, so the colour has no bound.
    */
   clipped: boolean
   clear: number
@@ -46,11 +47,6 @@ export interface Features {
 }
 
 const WORK = 480
-/**
- * An 8-bit value at or above which the camera may have cut a channel off. Below 255, since a JPEG scatters a
- * clipped patch's pixels over the last few values and its median can land a step or two short.
- */
-export const CLIPPED = 250
 
 /** Per-channel median of 8-bit values, from 256-bin histograms (one per channel, laid end to end). */
 function histMedian(hist: Uint32Array, n: number): RGB {
@@ -73,8 +69,101 @@ const lumOf = (c: RGB) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
 /** Under a fifth of the paper's light a pixel is dark: the table, a vignette, a deep shadow. */
 const DARK = 0.2
 
+/*
+ * Clipping. A camera that runs out of range in a channel records all the light past it as one top value, and
+ * a phone's tone curve, applied after, may move that value below 255 but keeps those pixels together. So
+ * clipped light piles up on one 8-bit value per channel, the photo's brightest, with next to nothing above
+ * it. A colour or a white taken as a median of a set of pixels is wrong once about half of them sit in that
+ * pile. A heuristic, checked on synthetic photos and the public real ones, not a measured phone-JPEG boundary.
+ */
+
+/**
+ * Below this no pile is taken for clipped light. A tone curve or edit that takes 0.4 of a stop off the
+ * highlights moves 255 to 226, and a JPEG spreads that by SPREAD. One that takes more is out of this check's
+ * reach. Bright paper above it is told from a pile by RISE and by what lies above it.
+ */
+const PILE_FLOOR = 224
+
+/**
+ * How much taller a pile is than the values just below its spread. Where the light runs past the top over a
+ * large area, the pile is tens of times taller; where a lamp's gradient runs into it, about six times. The
+ * narrow hump of evenly lit paper with nothing above it is about three times taller.
+ */
+const RISE = 4
+
+/**
+ * How far a JPEG spreads a pile, in 8-bit values either way. Where one or two channels clip and the others
+ * don't, the JPEG's coarser colour detail smears the clipped channel over about two values either side.
+ */
+const SPREAD = 2
+
+/**
+ * The 8-bit value the photo's clipped light piles up on, per channel: of the values at PILE_FLOOR or more that
+ * are a pile, the one with the most pixels within SPREAD of it; 255 if none is. A pile
+ * - is the highest count within SPREAD, and RISE times each of the two counts just below that;
+ * - has under a twentieth as many pixels above it, past SPREAD, as within SPREAD of it, as light piled at the
+ *   top can't have much above it, only the little a JPEG rings past;
+ * - holds at least 1 pixel in 10,000 within SPREAD of it.
+ * The most pixels, since a JPEG's ringing past a lowered pile, clamped at 255, can make a small pile there.
+ */
+function clipLevel(img: Img): RGB {
+  const { data } = img
+  const n = img.width * img.height
+  const hist = new Uint32Array(768)
+  for (let o = 0; o < data.length; o += 4) {
+    hist[data[o]]++
+    hist[256 + data[o + 1]]++
+    hist[512 + data[o + 2]]++
+  }
+  return [0, 1, 2].map((c) => {
+    const h = hist.subarray(c * 256, c * 256 + 256)
+    const at = (v: number) => (v < 256 ? h[v] : 0)
+    let level = 255
+    let most = 0
+    let above = 0
+    for (let v = 255; v >= PILE_FLOOR; v--) {
+      above += at(v + SPREAD + 1)
+      let near = 0
+      let peak = true
+      for (let u = v - SPREAD; u <= v + SPREAD; u++) {
+        near += at(u)
+        peak &&= at(u) <= h[v]
+      }
+      peak &&= h[v] >= RISE * Math.max(h[v - SPREAD - 1], h[v - SPREAD - 2])
+      if (peak && above * 20 < near && near * 10000 >= n && near > most) [level, most] = [v, near]
+    }
+    return level
+  }) as RGB
+}
+
+/**
+ * The share of a set of pixels on the photo's clip level, or one above it (a JPEG's ringing past a lowered
+ * pile), at which the set counts as clipped. A median moves once half the set clips. Noise or a JPEG moves
+ * part of a clipped patch below the level, where bright paper that didn't clip sits too, so those aren't
+ * counted: synthetic noise leaves half of a clipped patch on the level, a JPEG of a flat patch nearly all of
+ * it. A quarter on the level flags a set about half clipped in the noisiest photos, and sooner in clean ones.
+ */
+const CLIP_SHARE = 0.25
+
+/** Per channel, the share of a set of pixels (8-bit histograms laid end to end) on the clip level or one above. */
+function onLevel(hist: Uint32Array, n: number, level: RGB): RGB {
+  return level.map((v, c) => (n > 0 ? (hist[c * 256 + v] + (v < 255 ? hist[c * 256 + v + 1] : 0)) / n : 0)) as RGB
+}
+
+/**
+ * The one clip test: a set of pixels is clipped if CLIP_SHARE of it is on the clip level in any channel
+ * (onLevel). Every set a colour or a white is taken from goes through it.
+ */
+const isClipped = (share: RGB) => share.some((s) => s >= CLIP_SHARE)
+
+/** A white, and its pixels' share on the clip level (onLevel). */
+interface White {
+  white: RGB
+  onLevel: RGB
+}
+
 /** Median linear colour of the brightest third of the pixels in a box, from about this many samples. */
-function whiteIn(img: Img, bx0: number, by0: number, bx1: number, by1: number, samples: number): RGB {
+function whiteIn(img: Img, bx0: number, by0: number, bx1: number, by1: number, samples: number, level: RGB): White {
   const { width: w, data } = img
   const x0 = Math.max(0, Math.floor(bx0))
   const y0 = Math.max(0, Math.floor(by0))
@@ -102,55 +191,80 @@ function whiteIn(img: Img, bx0: number, by0: number, bx1: number, by1: number, s
       hist[512 + data[o + 2]]++
       m++
     }
-  return histMedian(hist, m).map((v) => Math.max(1e-3, LIN8[v])) as RGB
+  return { white: histMedian(hist, m).map((v) => Math.max(1e-3, LIN8[v])) as RGB, onLevel: onLevel(hist, m, level) }
 }
-
-/** The whole photo's white: the paper, or whatever white the photo has. */
-export const globalPaper = (img: Img): RGB => whiteIn(img, 0, 0, img.width - 1, img.height - 1, 40000)
 
 /**
  * The paper's white around a point: the white of a box a quarter of the photo's long side across. Light is
  * rarely even (a lamp on one side warms the paper there), so each tube is judged against the paper near it.
  * A box too dark to hold paper (all table or shadow) takes the whole photo's white.
  */
-function areaPaper(img: Img, x: number, y: number, paper: RGB): RGB {
+function areaPaper(img: Img, x: number, y: number, paper: White, level: RGB): White {
   const r = Math.max(img.width, img.height) / 8
-  const c = whiteIn(img, x - r, y - r, x + r, y + r, 4000)
-  return lumOf(c) < DARK * lumOf(paper) ? paper : c
+  const c = whiteIn(img, x - r, y - r, x + r, y + r, 4000, level)
+  return lumOf(c.white) < DARK * lumOf(paper.white) ? paper : c
 }
 
 /** The white at a pixel, written into `out` (the finder asks for it at every work pixel). */
 type Field = (x: number, y: number, out: RGB) => void
-const fields = new WeakMap<Img, { paper: RGB; field: Field }>()
 
-/** paperField, built once per photo and white. */
-function fieldOf(img: Img, paper: RGB): Field {
-  const hit = fields.get(img)
-  if (hit && hit.paper.every((v, i) => v === paper[i])) return hit.field
-  const field = paperField(img, paper)
-  fields.set(img, { paper, field })
-  return field
+/** A photo's light, worked out once per photo. */
+interface Light {
+  /** clipLevel. */
+  level: RGB
+  /** The whole photo's white: the paper, or whatever white the photo has. */
+  paper: White
+  /** The white map (paperField). */
+  field: Field
+  /**
+   * The share on the clip level of the pixels the map's white at a pixel comes from: the cells' shares,
+   * blended as their whites are.
+   */
+  onLevelAt: Field
+}
+const lights = new WeakMap<Img, Light>()
+
+/** The whole photo's white: the paper, or whatever white the photo has. */
+export const globalPaper = (img: Img): RGB => lightOf(img).paper.white
+
+function lightOf(img: Img): Light {
+  let light = lights.get(img)
+  if (!light) {
+    const level = clipLevel(img)
+    const paper = whiteIn(img, 0, 0, img.width - 1, img.height - 1, 40000, level)
+    light = { level, paper, ...paperField(img, paper, level) }
+    lights.set(img, light)
+  }
+  return light
 }
 
 /** areaPaper on a grid of points an eighth of the long side apart, blended between the four nearest. */
-function paperField(img: Img, paper: RGB): Field {
+function paperField(img: Img, paper: White, level: RGB): Pick<Light, 'field' | 'onLevelAt'> {
   const step = Math.max(img.width, img.height) / 8
   const cols = Math.max(1, Math.round(img.width / step))
   const rows = Math.max(1, Math.round(img.height / step))
   const cw = img.width / cols
   const ch = img.height / rows
   const centre = (k: number) => [((k % cols) + 0.5) * cw, (Math.floor(k / cols) + 0.5) * ch]
-  const rough = Array.from({ length: rows * cols }, (_, k) => areaPaper(img, ...(centre(k) as [number, number]), paper))
-  const blend = blendOf(rough, cols, rows, cw, ch)
+  const rough = Array.from({ length: rows * cols }, (_, k) => areaPaper(img, ...(centre(k) as [number, number]), paper, level))
+  const blend = blendOf(
+    rough.map((c) => c.white),
+    cols,
+    rows,
+    cw,
+    ch,
+  )
   // A box's brightest third sits on its less-lit side when the light changes across it, so the first cells
   // run cool beside a warm lamp. Second pass: each cell's box taken against that first field, pixel by pixel,
   // which flattens the change, and the white at the centre from the brightest third of those shares.
   const r = step
   const f: RGB = [0, 0, 0]
   const shares = new Float32Array(3 * 4 * 1000)
+  const offsets = new Uint32Array(4 * 1000)
   const lumHist = new Uint32Array(SHARE_BINS)
   const hist = new Uint32Array(3 * SHARE_BINS)
-  const cells = rough.map((c, k) => {
+  const hist8 = new Uint32Array(768)
+  const cells = rough.map((c, k): White => {
     if (c === paper) return c // too dark to hold paper: the whole photo's white
     const [cx, cy] = centre(k)
     const x0 = Math.max(0, Math.floor(cx - r))
@@ -160,11 +274,13 @@ function paperField(img: Img, paper: RGB): Field {
     const stride = Math.max(1, Math.floor(Math.sqrt(((x1 - x0 + 1) * (y1 - y0 + 1)) / 1000)))
     lumHist.fill(0)
     hist.fill(0)
+    hist8.fill(0)
     let n = 0
     for (let y = y0; y <= y1; y += stride)
       for (let x = x0; x <= x1 && n < shares.length / 3; x += stride) {
         const o = (y * img.width + x) * 4
         blend(x, y, f)
+        offsets[n] = o
         const s = 3 * n++
         shares[s] = LIN8[img.data[o]] / f[0]
         shares[s + 1] = LIN8[img.data[o + 1]] / f[1]
@@ -176,13 +292,31 @@ function paperField(img: Img, paper: RGB): Field {
     let m = 0
     for (let s = 0; s < 3 * n; s += 3) {
       if (shareBin(0.2126 * shares[s] + 0.7152 * shares[s + 1] + 0.0722 * shares[s + 2]) < cut) continue
-      for (let ch = 0; ch < 3; ch++) hist[ch * SHARE_BINS + shareBin(shares[s + ch])]++
+      for (let ch = 0; ch < 3; ch++) {
+        hist[ch * SHARE_BINS + shareBin(shares[s + ch])]++
+        hist8[ch * 256 + img.data[offsets[s / 3] + ch]]++
+      }
       m++
     }
     blend(cx, cy, f)
-    return f.map((v, ch) => Math.max(1e-3, v * shareMedian(hist, ch, m))) as RGB
+    return { white: f.map((v, ch) => Math.max(1e-3, v * shareMedian(hist, ch, m))) as RGB, onLevel: onLevel(hist8, m, level) }
   })
-  return blendOf(cells, cols, rows, cw, ch)
+  return {
+    field: blendOf(
+      cells.map((c) => c.white),
+      cols,
+      rows,
+      cw,
+      ch,
+    ),
+    onLevelAt: blendOf(
+      cells.map((c) => c.onLevel),
+      cols,
+      rows,
+      cw,
+      ch,
+    ),
+  }
 }
 
 /** Shares of a white (near 1) binned in steps of 1/512 from 0 to 2, so their medians need no sort. */
@@ -232,9 +366,8 @@ export function isLiquid(r: number, g: number, b: number, paper: RGB): boolean {
   return false
 }
 
-export function findRegions(img: Img): { regions: Region[]; paper: RGB } {
-  const paper = globalPaper(img)
-  const white = fieldOf(img, paper)
+export function findRegions(img: Img): { regions: Region[] } {
+  const white = lightOf(img).field
   const p: RGB = [0, 0, 0]
   const f = Math.max(1, Math.max(img.width, img.height) / WORK)
   const w = Math.max(1, Math.floor(img.width / f))
@@ -380,7 +513,7 @@ export function findRegions(img: Img): { regions: Region[]; paper: RGB } {
     cx: (b.sx / b.n + 0.5) * f,
     cy: (b.sy / b.n + 0.5) * f,
   }))
-  return { regions: readingOrder(regions), paper }
+  return { regions: readingOrder(regions) }
 }
 
 /**
@@ -446,19 +579,23 @@ export const discRegion = (cx: number, cy: number, r: number, r0?: number): Regi
  *   much of the photo has tinted the map;
  * - with paper on fewer than two sides, under the whole photo's white, since one side can't show how the
  *   light changes across the tube.
- * With no paper in the ring, the map alone gives the white. In even light these all agree.
+ * With no paper in the ring, the map alone gives the white. In even light these all agree. If the liquid or
+ * any of these whites comes from clipped pixels, the tube is marked clipped.
  */
-export function measure(img: Img, region: Region, paper: RGB): Features | null {
+export function measure(img: Img, region: Region): Features | null {
   const { width: w, height: h, data } = img
-  const field = fieldOf(img, paper)
+  const light = lightOf(img)
+  const { field, level } = light
+  const paper = light.paper.white
   // Paper is told by being neutral against the white, so where the map is well off, paper doesn't pass as
   // paper. A second look against the map set right by the first finds it.
-  const first = ringPaper(img, region, field, paper, [1, 1, 1])
-  const ring = first && (ringPaper(img, region, field, paper, first.all) ?? first)
+  const first = ringPaper(img, region, field, paper, [1, 1, 1], level)
+  const ring = first && (ringPaper(img, region, field, paper, first.all, level) ?? first)
   const k = ring?.all ?? [1, 1, 1]
   const at: RGB = [0, 0, 0]
-  /** The map's brightest white at any liquid pixel, per channel. */
-  const top: RGB = [0, 0, 0]
+  /** The most of the map's white at any liquid pixel that comes from the clip level, per channel. */
+  const mapOn: RGB = [0, 0, 0]
+  const on: RGB = [0, 0, 0]
   const hist = new Uint32Array(768)
   const shares = new Uint32Array(3 * SHARE_BINS)
   let n = 0
@@ -492,7 +629,8 @@ export function measure(img: Img, region: Region, paper: RGB): Features | null {
       shares[shareBin(r / at[0])]++
       shares[SHARE_BINS + shareBin(g / at[1])]++
       shares[2 * SHARE_BINS + shareBin(b / at[2])]++
-      for (let c = 0; c < 3; c++) if (at[c] > top[c]) top[c] = at[c]
+      light.onLevelAt(x, y, on)
+      for (let c = 0; c < 3; c++) if (on[c] > mapOn[c]) mapOn[c] = on[c]
       n++
     }
   if (n === 0) return null
@@ -510,13 +648,13 @@ export function measure(img: Img, region: Region, paper: RGB): Features | null {
   /** The liquid's colour under one white for the whole tube. */
   const against = (white: RGB) => toLab(raw.map((v, i) => Math.min(1.2, LIN8[v] / white[i])) as RGB)
   const best = under(k)
-  // The whites the colour is set by: the map at the liquid, as the paper around it sets it right, and that
-  // paper as it is.
-  const whites = [top, top.map((v, i) => v * k[i]), ...(ring ? [ring.paper] : [])]
-  const clipped = raw.some((v) => v >= CLIPPED) || whites.some((white) => white.some((v) => v >= LIN8[CLIPPED]))
   const hues = [best.hue]
   if (ring) hues.push(...ring.sides.map((s) => under(s).hue), against(ring.paper).hue)
-  if (!ring || ring.sides.length < 2) hues.push(against(paper).hue)
+  const wholePhoto = !ring || ring.sides.length < 2
+  if (wholePhoto) hues.push(against(paper).hue)
+  // Every set of pixels the colour and its range come from: the liquid, the map at it, the ring's paper and
+  // each side of it the range uses, and the whole photo's white where the range uses it.
+  const clipped = isClipped(onLevel(hist, n, level)) || isClipped(mapOn) || !!ring?.clipped || (wholePhoto && isClipped(light.paper.onLevel))
   return {
     raw,
     rawHue: rawHsv.h,
@@ -536,9 +674,10 @@ export function measure(img: Img, region: Region, paper: RGB): Features | null {
  * The paper around a region: pale pixels in a ring around it that are neutral against the map's white
  * where they sit (set right by k), or against the whole photo's white (a plate's grey plastic, where the map
  * leans towards the wells' colour). Its median colour; its median share of the map, for the whole ring and
- * for each side of it with enough paper to judge. Null with too little paper in the ring.
+ * for each side of it with enough paper to judge; and whether the ring or one of those sides is clipped.
+ * Null with too little paper in the ring.
  */
-function ringPaper(img: Img, region: Region, field: Field, paper: RGB, k: RGB): { paper: RGB; all: RGB; sides: RGB[] } | null {
+function ringPaper(img: Img, region: Region, field: Field, paper: RGB, k: RGB, level: RGB): { paper: RGB; all: RGB; sides: RGB[]; clipped: boolean } | null {
   const { width: w, height: h, data } = img
   // A band around the region, from a quarter to 1.2 times half its short side out: around a disc, the ring
   // from 1.25 to 2.2 radii; around a tall tube's liquid, the paper right beside it.
@@ -551,12 +690,17 @@ function ringPaper(img: Img, region: Region, field: Field, paper: RGB, k: RGB): 
   // Six sets of histograms: the whole ring's colour, then its share of the map for the whole ring, right,
   // below, left and above.
   const hist = new Uint32Array(6 * 3 * SHARE_BINS)
+  // Each set's 8-bit pixels, for onLevel. Set 1 holds set 0's pixels.
+  const hist8 = new Uint32Array(6 * 768)
   const count = [0, 0, 0, 0, 0, 0]
-  const add = (set: number, r: number, g: number, b: number) => {
+  const add = (set: number, r: number, g: number, b: number, px: number) => {
     const o = set * 3 * SHARE_BINS
     hist[o + shareBin(r)]++
     hist[o + SHARE_BINS + shareBin(g)]++
     hist[o + 2 * SHARE_BINS + shareBin(b)]++
+    hist8[set * 768 + data[px]]++
+    hist8[set * 768 + 256 + data[px + 1]]++
+    hist8[set * 768 + 512 + data[px + 2]]++
     count[set]++
   }
   for (let y = Math.max(0, Math.floor(region.y0 - dOut)); y <= Math.min(h - 1, region.y1 + dOut); y += step)
@@ -576,15 +720,17 @@ function ringPaper(img: Img, region: Region, field: Field, paper: RGB, k: RGB): 
       const g = G / f[1]
       const b = B / f[2]
       if (r + g + b < 0.45 * 3 || !(neutral(r / k[0], g / k[1], b / k[2]) || neutral(R / paper[0], G / paper[1], B / paper[2]))) continue
-      add(0, R, G, B)
-      add(1, r, g, b)
+      add(0, R, G, B, o)
+      add(1, r, g, b, o)
       const sx = dx || x - region.cx
       const sy = dy || y - region.cy
-      add(Math.abs(sx) >= Math.abs(sy) ? (sx > 0 ? 2 : 4) : sy > 0 ? 3 : 5, r, g, b)
+      add(Math.abs(sx) >= Math.abs(sy) ? (sx > 0 ? 2 : 4) : sy > 0 ? 3 : 5, r, g, b, o)
     }
   if (count[0] < 20) return null
   const median = (set: number) => [0, 1, 2].map((c) => Math.max(1e-3, shareMedian(hist.subarray(set * 3 * SHARE_BINS), c, count[set]))) as RGB
-  return { paper: median(0), all: median(1), sides: [2, 3, 4, 5].filter((s) => count[s] >= 8).map(median) }
+  const sides = [2, 3, 4, 5].filter((s) => count[s] >= 8)
+  const clipped = [0, ...sides].some((s) => isClipped(onLevel(hist8.subarray(s * 768, (s + 1) * 768), count[s], level)))
+  return { paper: median(0), all: median(1), sides: sides.map(median), clipped }
 }
 
 /** A colour, as a share of a white, with under an eighth as much chroma as brightness. */

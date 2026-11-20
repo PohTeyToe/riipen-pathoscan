@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import evalData from '../data/eval.json'
-import { discRegion, findRegions, measure } from '../src/lib/find'
+import { discRegion, measure } from '../src/lib/find'
 import type { Band, Model } from '../src/lib/readers'
 import { matchPoints, readGroups } from './batch'
 
@@ -28,9 +28,10 @@ describe('readGroups', () => {
   colours.forEach((c, k) => {
     for (let y = 10; y < 30; y++) for (let x = 20 + k * 45; x < 40 + k * 45; x++) data.set([...c, 255], (y * w + x) * 4)
   })
+  // Spread over seven steps, as noise and a JPEG do: flat, the paper would look like a clipped pile.
+  for (let o = 0; o < data.length; o++) if ((o & 3) !== 3) data[o] += ((Math.imul(o, 2654435761) >>> 16) % 7) - 3
   const img = { width: w, height: h, data }
-  const { paper } = findRegions(img)
-  const feats = [0, 1, 2, 3].map((k) => measure(img, discRegion(30 + k * 45, 20, 8), paper))
+  const feats = [0, 1, 2, 3].map((k) => measure(img, discRegion(30 + k * 45, 20, 8)))
   const names = ['pc', 'nc', 's1', 's2']
 
   it('lets two groups share their controls', () => {

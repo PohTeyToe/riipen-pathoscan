@@ -16,12 +16,12 @@ export interface ReadRun {
 /** Render a run, find its liquid, and match each found region to the tube it belongs to. */
 export function readSyntheticFull(spec: RunSpec, scale: number) {
   const img = render(spec, scale)
-  const { regions, paper } = findRegions(img)
+  const { regions } = findRegions(img)
   const matched = spec.tubes.map((_, i) => {
     const x = liquidCentre(spec, i).x * scale
     return regions.find((r) => x >= r.x0 - 2 && x <= r.x1 + 2) ?? null
   })
-  const feats = matched.map((r) => (r ? measure(img, r, paper) : null))
+  const feats = matched.map((r) => (r ? measure(img, r) : null))
   return { img, regions: matched, feats }
 }
 
