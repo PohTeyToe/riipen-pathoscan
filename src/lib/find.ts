@@ -425,8 +425,10 @@ export const discRegion = (cx: number, cy: number, r: number, r0?: number): Regi
  * One white: the white map (the finder's), set right by the paper around the tube. Each pixel is taken
  * against the map's white where it sits, so liquid is told from paper as the finder tells it, and light that
  * changes across the tube is divided out pixel by pixel. The map is smooth and can be off at a tube, so the
- * paper in a ring around it says by how much: the median of the ring's paper against the map. Where that
- * isn't enough, the hue is uncertain, and `hueRange` spans the hues the tube could have:
+ * paper in a ring around it says by how much: the median of the ring's paper against the map. That sets the
+ * colour, not which pixels are liquid: a tube can tint the paper or plastic around it with its own colour,
+ * and a pale tube judged against that tint shows no colour at all. Where the ring isn't enough, the hue is
+ * uncertain, and `hueRange` spans the hues the tube could have:
  * - under each side's white (left, right, above, below), which disagree where the light changes in a way
  *   the map doesn't follow;
  * - under the ring's paper as it is, one white for the whole tube, which disagrees where a tube that fills
@@ -465,9 +467,6 @@ export function measure(img: Img, region: Region, paper: RGB): Features | null {
       const g = LIN8[data[o + 1]]
       const b = LIN8[data[o + 2]]
       field(x, y, at)
-      at[0] *= k[0]
-      at[1] *= k[1]
-      at[2] *= k[2]
       if (!isLiquid(r, g, b, at)) {
         // Inside a placed disc, a washed-out pixel is glare, a bubble or a reflection. In a found region
         // it is just the background around the liquid.
@@ -492,13 +491,13 @@ export function measure(img: Img, region: Region, paper: RGB): Features | null {
     return { cl, lab, hue: labHue(lab.a, lab.b) }
   }
   const liquid = [0, 1, 2].map((c) => shareMedian(shares, c, n))
-  /** The liquid's colour under the white at the tube times c (1 for the white it was measured against). */
+  /** The liquid's colour under the map's white at the tube times c. */
   const under = (c: RGB) => toLab(liquid.map((v, i) => Math.min(1.2, v / c[i])) as RGB)
   /** The liquid's colour under one white for the whole tube. */
   const against = (white: RGB) => toLab(raw.map((v, i) => Math.min(1.2, LIN8[v] / white[i])) as RGB)
-  const best = under([1, 1, 1])
+  const best = under(k)
   const hues = [best.hue]
-  if (ring) hues.push(...ring.sides.map((s) => under(s.map((v, i) => v / k[i]) as RGB).hue), against(ring.paper).hue)
+  if (ring) hues.push(...ring.sides.map((s) => under(s).hue), against(ring.paper).hue)
   if (!ring || ring.sides.length < 2) hues.push(against(paper).hue)
   return {
     raw,

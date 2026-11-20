@@ -43,6 +43,19 @@
    234
   ]
  ],
+ "finder": {
+  "regions": 8,
+  "onTips": [
+   "PC",
+   "NC",
+   "PS163",
+   "PS164",
+   "PS165",
+   "PS166",
+   "PS167",
+   "PS168"
+  ]
+ },
  "centrePlacementRadius4": [
   {
    "tube": "PC",
@@ -64,8 +77,8 @@
   },
   {
    "tube": "PS162",
-   "rawHue": 31.2,
-   "clearPixels": 12,
+   "rawHue": 31.8,
+   "clearPixels": 6,
    "hand": "pos",
    "naive": "pos",
    "midpoint": "pos",
@@ -118,8 +131,8 @@
   },
   {
    "tube": "PS168",
-   "rawHue": 20,
-   "clearPixels": 13,
+   "rawHue": 22.9,
+   "clearPixels": 22,
    "hand": "neg",
    "naive": "neg",
    "midpoint": "pos",
@@ -127,8 +140,8 @@
   },
   {
    "tube": "PS169",
-   "rawHue": 21.3,
-   "clearPixels": 12,
+   "rawHue": 19.4,
+   "clearPixels": 8,
    "hand": "neg",
    "naive": "neg",
    "midpoint": "pos",
@@ -143,16 +156,19 @@
   }
  ],
  "over27Placements": {
+  "notMeasured": {
+   "none": 27
+  },
   "positivesMoreYellowThanPC": {
    "4": 27
   },
   "midpointDisagreesWithHand": {
-   "PS168+PS169": 19,
-   "PS163+PS168+PS169": 8
+   "PS168+PS169": 18,
+   "PS163+PS168+PS169": 9
   },
   "naiveAgreesWithHandOf8": {
-   "7": 1,
-   "8": 26
+   "7": 3,
+   "8": 24
   },
   "calibrated": {
    "162:held 163:held 164:held 165:held 166:held 167:held 168:held 169:held": 1,

@@ -301,6 +301,21 @@ describe('finding and measuring', () => {
     expect(f.raw).toEqual([230, 200, 60])
     expect(measure(img, discRegion(20, 20, 10, 5), [0.9, 0.9, 0.9])!.glare).toBe(0)
   })
+  it('finds a pale tube tip whose own glow tints the paper around it', () => {
+    // PathoScan's case-study photo: the negative control's tip is pale pink, and the tube wall around it
+    // glows faintly pink, pale enough to pass as paper. Judged against that glow as its white, the tip
+    // isn't coloured at all. Liquid is told from paper against the map's white, as the finder does.
+    const img = sheet(200, 200)
+    paint(img, 0, 0, 199, 199, [230, 230, 230])
+    for (let y = 80; y < 120; y++)
+      for (let x = 80; x < 120; x++) {
+        const d = Math.hypot(x - 100, y - 100)
+        if (d < 14) img.data.set(d < 5 ? [205, 150, 158] : [228, 206, 212], (y * 200 + x) * 4)
+      }
+    const f = measure(img, discRegion(100, 100, 5), [LIN8[230], LIN8[230], LIN8[230]])
+    expect(f?.raw).toEqual([205, 150, 158])
+    expect(f!.clear).toBeGreaterThan(50)
+  })
 })
 
 describe('scoring and fitting', () => {

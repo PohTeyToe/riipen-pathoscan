@@ -37,7 +37,10 @@ describe('the story run in the hero', () => {
     expect(f.midWrong.every((i) => v.truth[i] === 'neg' && v.midpoint.tubes[i].call === 'pos')).toBe(true)
     expect(names(v, f.calHeld)).toEqual(['3', '8'])
     expect(f.calWrong).toEqual([])
-    expect(v.calibrated.flags).toEqual(['The positive control is weaker than 3 samples. Check it before trusting the run.'])
+    expect(v.calibrated.flags).toEqual([
+      'The positive control is weaker than 3 samples. Check it before trusting the run.',
+      "1 tube was held only because the light on it isn't clear. Retake the photo in even light, with paper in view around each tube, to read it.",
+    ])
   })
 
   it('has a fixed cut that gets every sample right, as on the case-study photo', () => {
@@ -62,10 +65,10 @@ describe('the case-study numbers', () => {
     expect(PLACEMENTS).toBe(27)
     expect(MID).toBeCloseTo(10.55, 2)
     expect(always).toEqual(['168', '169'])
-    expect(flips('PS163')).toBe(8)
+    expect(flips('PS163')).toBe(9)
     expect(flips('PS164')).toBe(0)
     expect(allPosPastPc).toBe(27)
-    expect(naiveAllEight).toBe(26)
+    expect(naiveAllEight).toBe(24)
   })
 })
 
