@@ -32,22 +32,22 @@
   "calibrated": {
    "confusion": {
     "pos": {
-     "pos": 5,
-     "held": 17,
-     "neg": 4
+     "pos": 1,
+     "held": 25,
+     "neg": 0
     },
     "neg": {
-     "pos": 12,
-     "held": 282,
-     "neg": 344
+     "pos": 9,
+     "held": 516,
+     "neg": 113
     }
    },
    "samples": 664,
-   "wrong": 16,
-   "held": 299,
-   "sensitivity": 0.19230769230769232,
-   "specificity": 0.5391849529780565,
-   "accuracyCalled": 0.9561643835616438
+   "wrong": 9,
+   "held": 541,
+   "sensitivity": 0.038461538461538464,
+   "specificity": 0.17711598746081506,
+   "accuracyCalled": 0.926829268292683
   },
   "paper": {
    "confusion": {
@@ -95,22 +95,22 @@
   "calibrated": {
    "confusion": {
     "pos": {
-     "pos": 5,
-     "held": 190,
-     "neg": 4
+     "pos": 1,
+     "held": 198,
+     "neg": 0
     },
     "neg": {
-     "pos": 12,
-     "held": 317,
-     "neg": 344
+     "pos": 9,
+     "held": 551,
+     "neg": 113
     }
    },
    "samples": 872,
-   "wrong": 16,
-   "held": 507,
-   "sensitivity": 0.02512562814070352,
-   "specificity": 0.5111441307578009,
-   "accuracyCalled": 0.9561643835616438
+   "wrong": 9,
+   "held": 749,
+   "sensitivity": 0.005025125628140704,
+   "specificity": 0.16790490341753342,
+   "accuracyCalled": 0.926829268292683
   }
  },
  "noControls": 208,
@@ -118,22 +118,22 @@
   "calibrated": {
    "confusion": {
     "pos": {
-     "pos": 5,
-     "held": 17,
-     "neg": 4
+     "pos": 1,
+     "held": 25,
+     "neg": 0
     },
     "neg": {
-     "pos": 3,
-     "held": 159,
-     "neg": 250
+     "pos": 0,
+     "held": 355,
+     "neg": 57
     }
    },
    "samples": 438,
-   "wrong": 7,
-   "held": 176,
-   "sensitivity": 0.19230769230769232,
-   "specificity": 0.6067961165048543,
-   "accuracyCalled": 0.9732824427480916
+   "wrong": 0,
+   "held": 380,
+   "sensitivity": 0.038461538461538464,
+   "specificity": 0.1383495145631068,
+   "accuracyCalled": 1
   },
   "paper": {
    "confusion": {
@@ -182,36 +182,25 @@
   "calibrated": {
    "confusion": {
     "pos": {
-     "pos": 6,
-     "held": 16,
-     "neg": 4
+     "pos": 2,
+     "held": 24,
+     "neg": 0
     },
     "neg": {
-     "pos": 12,
-     "held": 139,
-     "neg": 487
+     "pos": 9,
+     "held": 429,
+     "neg": 200
     }
    },
    "samples": 664,
-   "wrong": 16,
-   "held": 155,
-   "sensitivity": 0.23076923076923078,
-   "specificity": 0.7633228840125392,
-   "accuracyCalled": 0.9685658153241651
+   "wrong": 9,
+   "held": 453,
+   "sensitivity": 0.07692307692307693,
+   "specificity": 0.31347962382445144,
+   "accuracyCalled": 0.957345971563981
   }
  },
  "misses": [
-  {
-   "file": "LAMP4_Fig2_c_cv15-20.jpg",
-   "figure": "Fig. 2b (Zenodo label Fig2_c)",
-   "well": "H1 (CV15-20)",
-   "truth": "neg",
-   "naive": "positive",
-   "calibrated": "positive",
-   "reason": "95% like the positive control.",
-   "basis": "Fig. 2b/text: individual samples 'previously found to be negative with RT-qPCR'; N8 by column order (confirmed by hue, N8 = H1)",
-   "paper": "pos"
-  },
   {
    "file": "LAMP11_SuppFig5_a_cv15-20.jpg",
    "figure": "Supp. Fig. 5a (Zenodo label SuppFig5_a)",
@@ -230,7 +219,7 @@
    "truth": "neg",
    "naive": "positive",
    "calibrated": "positive",
-   "reason": "95% like the positive control.",
+   "reason": "96% like the positive control.",
    "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
    "paper": "not reported"
   },
@@ -274,7 +263,7 @@
    "truth": "neg",
    "naive": "positive",
    "calibrated": "positive",
-   "reason": "94% like the positive control.",
+   "reason": "95% like the positive control.",
    "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
    "paper": "not reported"
   },
@@ -310,72 +299,6 @@
    "reason": "100% like the positive control.",
    "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
    "paper": "not reported"
-  },
-  {
-   "file": "LAMP19_SuppFig7_a.jpg",
-   "figure": "Supp. Fig. 7a",
-   "well": "D3 (CV1-6)",
-   "truth": "pos",
-   "naive": "negative",
-   "calibrated": "negative",
-   "reason": "100% like the negative control.",
-   "basis": "Supp Fig 7b Source Data: P-C Ct 25.36",
-   "paper": "neg"
-  },
-  {
-   "file": "LAMP19_SuppFig7_a.jpg",
-   "figure": "Supp. Fig. 7a",
-   "well": "E3 (CV1-6)",
-   "truth": "pos",
-   "naive": "negative",
-   "calibrated": "negative",
-   "reason": "100% like the negative control.",
-   "basis": "Supp Fig 7b Source Data: P-B Ct 24.56",
-   "paper": "neg"
-  },
-  {
-   "file": "LAMP19_SuppFig7_a.jpg",
-   "figure": "Supp. Fig. 7a",
-   "well": "D7 (CV15-20)",
-   "truth": "pos",
-   "naive": "negative",
-   "calibrated": "negative",
-   "reason": "100% like the negative control.",
-   "basis": "Supp Fig 7b Source Data: P-C Ct 25.36",
-   "paper": "neg"
-  },
-  {
-   "file": "LAMP19_SuppFig7_a.jpg",
-   "figure": "Supp. Fig. 7a",
-   "well": "E7 (CV15-20)",
-   "truth": "pos",
-   "naive": "negative",
-   "calibrated": "negative",
-   "reason": "100% like the negative control.",
-   "basis": "Supp Fig 7b Source Data: P-B Ct 24.56",
-   "paper": "neg"
-  },
-  {
-   "file": "LAMP23_SuppFig8_c_cv1-6.jpg",
-   "figure": "Supp. Fig. 8 (Zenodo label SuppFig8_c_cv1-6)",
-   "well": "A5 (CV1-6)",
-   "truth": "neg",
-   "naive": "positive",
-   "calibrated": "positive",
-   "reason": "94% like the positive control.",
-   "basis": "N476 (RT-qPCR negative; Supp Fig 8 legend: false positive next to P31, negative on repeat); matched by its Orf1a hue 37.5",
-   "paper": "pos"
-  },
-  {
-   "file": "LAMP26_SuppFig8_d_cv15-20.jpg",
-   "figure": "Supp. Fig. 8 (Zenodo label SuppFig8_d_cv15-20)",
-   "well": "A6 (CV15-20)",
-   "truth": "neg",
-   "naive": "positive",
-   "calibrated": "positive",
-   "reason": "95% like the positive control.",
-   "basis": "N475 (RT-qPCR negative; Supp Fig 8 legend: false positive next to P31, negative on repeat); matched by its N hue 46.5",
-   "paper": "pos"
   }
  ],
  "finder": {
@@ -384,5 +307,5 @@
   "onOtherWells": 21,
   "offWells": 8
  },
- "seconds": 9
+ "seconds": 8
 }

@@ -20,10 +20,10 @@ describe('matchPoints', () => {
 })
 
 describe('readGroups', () => {
-  // Three tubes on white: yellow (positive), pink (negative), and two samples of each.
+  // Tubes on white paper, exposed short of clipping: yellow (positive), pink (negative), and a sample of each.
   const w = 200
   const h = 40
-  const data = new Uint8ClampedArray(w * h * 4).fill(255)
+  const data = new Uint8ClampedArray(w * h * 4).fill(235)
   const colours = [[235, 180, 40], [225, 80, 120], [235, 175, 45], [225, 85, 120]]
   colours.forEach((c, k) => {
     for (let y = 10; y < 30; y++) for (let x = 20 + k * 45; x < 40 + k * 45; x++) data.set([...c, 255], (y * w + x) * 4)

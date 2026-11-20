@@ -1,13 +1,18 @@
-// Synthetic runs under a lamp at one side of the photo, or exposed brighter or darker, read through the field
-// app's own photo path in Chromium: the camera PNG, the saved JPEG, the rings, the grower's taps (a missed tube
-// tapped back, a stray ring removed), then the read. Each run is also read in even light at its own exposure.
-// Per change it counts wrong calls, the tubes the change turned wrong that even light read right or held (the
-// change's own harm: none is the bar), held tubes and failed runs.
-//   npx tsx scripts/lamp-sweep.ts [--seeds 0-199] [--lamps 3000,2400,10000,0] [--ev -1,0.5,1,1.5] [--root <checkout>] [--json <out.json>]
-// --lamps takes colour temperatures, or 0 for a plain shade (15% darker at one side, no colour). --ev takes
-// exposure steps in stops, each read in even light; an empty list reads none. --root reads with another
-// checkout's src and data (a release, say); the default is this one.
-import { writeFileSync } from 'node:fs'
+// Synthetic runs under a lamp at one side of the photo, a cast over the whole of it, or exposed brighter or
+// darker, read through the field app's own photo path in Chromium: the camera PNG, the saved JPEG, the rings,
+// the grower's taps (a missed tube tapped back, a stray ring removed), then the read. Each run is also read in
+// even light at its own exposure. Per change it counts wrong calls, the tubes the change turned wrong that
+// even light read right or held (the change's own harm: none is the bar), held tubes and failed runs.
+//   npx tsx scripts/lamp-sweep.ts [--seeds 0-199,732] [--lamps 3000,2400,10000,0] [--ev -1,0.5,1,1.5]
+//     [--casts 10000,2400] [--mixed 0.5,1] [--root <checkout>] [--workers 4] [--json <out.json>] [--vs <other.json>]
+// --lamps takes colour temperatures, or 0 for a plain shade (15% darker at one side, no colour), each from the
+// left, the right and the top. --ev takes exposure steps in stops. --casts takes colour temperatures that
+// light the whole scene, read at the run's own exposure and at each --mixed step. --mixed takes the steps at
+// which every lamp and cast is also read. An empty list reads none. Lamps and casts light the scene before the
+// camera clips, as real ones do (synth.ts photograph). --root reads with another checkout's reader (a
+// release, say); the photos always come from this checkout, so two roots read the same pixels. --vs counts
+// the tubes this read calls wrong that another sweep's JSON (same jobs) read right or held.
+import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { chromium } from '@playwright/test'
 import { createServer } from 'vite'
@@ -16,9 +21,15 @@ const arg = (name: string) => {
   const i = process.argv.indexOf(`--${name}`)
   return i > 0 ? process.argv[i + 1] : undefined
 }
-const [first, last] = (arg('seeds') ?? '0-199').split('-').map(Number)
-const root = resolve(arg('root') ?? resolve(import.meta.dirname, '..'))
+const list = (s: string) => s.split(',').filter(Boolean).map(Number)
+const seeds = (arg('seeds') ?? '0-199').split(',').flatMap((part) => {
+  const [a, b] = part.split('-').map(Number)
+  return Array.from({ length: (b ?? a) - a + 1 }, (_, i) => a + i)
+})
+const here = resolve(import.meta.dirname, '..')
+const root = resolve(arg('root') ?? here)
 const jsonOut = arg('json')
+const vsPath = arg('vs')
 
 type Layout = 'row' | '2x5'
 type From = 'left' | 'right' | 'top'
@@ -26,6 +37,8 @@ interface Job {
   seed: number
   layout: Layout
   lamp: { kelvin: number; from: From } | null
+  /** A colour temperature for the light over the whole scene, in place of the run's own. */
+  cast: number | null
   /** Stops added to the run's own exposure. */
   ev: number
 }
@@ -34,33 +47,50 @@ interface Read {
   status?: string
   flags?: string[]
   calls?: string[]
+  reasons?: string[]
   p?: (number | undefined)[]
   pRange?: ([number, number] | undefined)[]
   truth?: string[]
   roles?: string[]
   kinds?: string[]
+  /** The run's own exposure, before the job's step. */
+  ev?: number
 }
 
 const LAYOUTS: Layout[] = ['row', '2x5']
-const list = (s: string) => s.split(',').filter(Boolean).map(Number)
 const LAMPS = list(arg('lamps') ?? '3000,2400,10000,0').flatMap((kelvin) => (['left', 'right', 'top'] as From[]).map((from) => ({ kelvin, from })))
 const EVS = list(arg('ev') ?? '-1,0.5,1,1.5')
+const CASTS = list(arg('casts') ?? '10000,2400')
+const MIXED = list(arg('mixed') ?? '0.5,1')
 const jobs: Job[] = []
-for (let seed = first; seed <= (last ?? first); seed++)
+for (const seed of seeds)
   for (const layout of LAYOUTS) {
-    for (const lamp of [null, ...LAMPS]) jobs.push({ seed, layout, lamp, ev: 0 })
-    for (const ev of EVS) jobs.push({ seed, layout, lamp: null, ev })
+    const job = (lamp: Job['lamp'], cast: number | null, ev: number) => jobs.push({ seed, layout, lamp, cast, ev })
+    job(null, null, 0)
+    for (const ev of EVS) job(null, null, ev)
+    for (const ev of [0, ...MIXED]) {
+      for (const lamp of LAMPS) job(lamp, null, ev)
+      for (const cast of CASTS) job(null, cast, ev)
+    }
   }
 
-// Plain transforms, no app config: only the reader's modules are loaded.
-const server = await createServer({ root, configFile: false, logLevel: 'error', server: { port: 5133, strictPort: false } })
+/** The change from even light at the run's own exposure. */
+const change = (j: Job) =>
+  [j.cast && `${j.cast} K cast`, j.lamp && (j.lamp.kelvin ? `${j.lamp.kelvin} K ${j.lamp.from}` : `shade ${j.lamp.from}`), j.ev && `${j.ev > 0 ? '+' : ''}${j.ev} EV`]
+    .filter(Boolean)
+    .join(', ') || 'even'
+const key = (j: Job) => `${j.seed} ${j.layout} ${change(j)}`
+/** A change's family, for the totals: lamp, shade, cast, exposure, or a lamp, shade or cast with a step. */
+const family = (j: Job) => (j.lamp ? (j.lamp.kelvin ? 'lamp' : 'shade') : j.cast ? 'cast' : '') + (j.ev ? (j.lamp || j.cast ? ' + EV' : 'EV') : '') || 'even'
+
+// Plain transforms, no app config: only the reader's modules are loaded, from the root, and the photo's,
+// from this checkout.
+const server = await createServer({ root, configFile: false, logLevel: 'error', server: { port: 5133, strictPort: false, fs: { strict: false } } })
 await server.listen()
 const base = server.resolvedUrls!.local[0]
+const synthUrl = `/@fs/${resolve(here, 'src/lib/synth.ts').replaceAll('\\', '/')}`
 const browser = await chromium.launch()
 const results = new Map<string, Read>()
-/** The change from even light at the run's own exposure. */
-const change = (j: Job) => (j.lamp ? (j.lamp.kelvin ? `${j.lamp.kelvin} K ${j.lamp.from}` : `shade ${j.lamp.from}`) : j.ev ? `${j.ev > 0 ? '+' : ''}${j.ev} EV` : 'even')
-const key = (j: Job) => `${j.seed} ${j.layout} ${change(j)}`
 const t0 = Date.now()
 
 /** One page: builds the photo, runs the app's photo path, taps like a grower, reads. */
@@ -70,124 +100,121 @@ async function worker(queue: Job[]) {
   await page.route('**/__sweep.html', (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>sweep</title>' }))
   await page.goto(new URL('/__sweep.html', base).href)
   for (let job = queue.shift(); job; job = queue.shift()) {
-    const read: Read = await page.evaluate(async ({ seed, layout, lamp, ev }) => {
-      const load = (path: string) => import(/* @vite-ignore */ path)
-      const reader: typeof import('../src/app/reader') = await load('/src/app/reader.ts')
-      const { encodePhoto }: typeof import('../src/app/camera') = await load('/src/app/camera.ts')
-      const { loadImage }: typeof import('../src/lib/photo') = await load('/src/lib/photo.ts')
-      const { liquidCentre, makeRun, render }: typeof import('../src/lib/synth') = await load('/src/lib/synth.ts')
-      const { LIN8, lightCast, toSrgb }: typeof import('../src/lib/color') = await load('/src/lib/color.ts')
+    const read: Read = await page.evaluate(
+      async ({ job: { seed, layout, lamp, cast, ev }, synthUrl }) => {
+        const load = (path: string) => import(/* @vite-ignore */ path)
+        const reader: typeof import('../src/app/reader') = await load('/src/app/reader.ts')
+        const { encodePhoto }: typeof import('../src/app/camera') = await load('/src/app/camera.ts')
+        const { loadImage }: typeof import('../src/lib/photo') = await load('/src/lib/photo.ts')
+        const { makeRun, photograph }: typeof import('../src/lib/synth') = await load(synthUrl)
 
-      // The run as e2e/app.e2e.ts draws it: a row, or the left five tubes above the right five.
-      const run = makeRun(seed)
-      run.ev += ev
-      const src = render(run, 1)
-      const [W, H] = [src.width, src.height]
-      const [w, h] = layout === 'row' ? [W, H] : [W / 2, 2 * H]
-      const from = (x: number, y: number) => (layout === 'row' || y < H ? [x, y] : [x + W / 2, y - H])
-      const to = ([x, y]: [number, number]): [number, number] => (layout === 'row' || x < W / 2 ? [x, y] : [x - W / 2, y + H])
-      const data = new Uint8ClampedArray(w * h * 4)
-      for (let y = 0; y < h; y++)
-        for (let x = 0; x < w; x++) {
-          const [sx, sy] = from(x, y)
-          data.set(src.data.subarray((sy * W + sx) * 4, (sy * W + sx) * 4 + 4), (y * w + x) * 4)
+        const run = makeRun(seed)
+        const own = run.ev
+        run.ev += ev
+        if (cast) run.kelvin = cast
+        const { img: photo, tubes: pts } = photograph(run, layout, lamp ?? undefined)
+        const canvas = new OffscreenCanvas(photo.width, photo.height)
+        canvas.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(photo.data), photo.width, photo.height), 0, 0)
+        const img = await loadImage(await encodePhoto(await canvas.convertToBlob({ type: 'image/png' })))
+
+        // The grower's taps, as scripts/check-app-path.ts makes them.
+        const reach = (reader.REACH_PX * img.width) / 390
+        let rings = reader.findRings(img)
+        const hits = () => pts.map((p) => reader.ringAt(rings, ...p, reach))
+        for (;;) {
+          const hit = hits()
+          const bad = rings.findIndex((_, i) => hit.filter((x) => x === i).length !== 1)
+          if (bad < 0) break
+          const before = rings.length
+          rings = reader.tapRings(rings, rings[bad].cx, rings[bad].cy, reach)
+          if (rings.length !== before - 1) return { error: 'a tap did not remove a ring' }
         }
-      // The lamp's colour at its side of the photo, fading to daylight at the far side.
-      if (lamp) {
-        const [lit, day] = [lightCast(lamp.kelvin), lightCast(6500)]
-        const gain = lamp.kelvin ? lit.map((v, c) => v / day[c]) : [0.85, 0.85, 0.85]
-        const top = lamp.kelvin ? Math.max(...gain) : 1
-        for (let y = 0; y < h; y++)
-          for (let x = 0; x < w; x++) {
-            const t = lamp.from === 'left' ? x / (w - 1) : lamp.from === 'right' ? 1 - x / (w - 1) : y / (h - 1)
-            for (let c = 0; c < 3; c++) {
-              const o = (y * w + x) * 4 + c
-              const g = gain[c] / top
-              data[o] = Math.round(toSrgb(LIN8[data[o]] * (g + (1 - g) * t)) * 255)
-            }
-          }
-      }
-      const canvas = new OffscreenCanvas(w, h)
-      canvas.getContext('2d')!.putImageData(new ImageData(data, w, h), 0, 0)
-      const camera = await canvas.convertToBlob({ type: 'image/png' })
-      const img = await loadImage(await encodePhoto(camera))
-      const pts = run.tubes.map((_, i) => to([liquidCentre(run, i).x, liquidCentre(run, i).y]))
-
-      // The grower's taps, as scripts/check-app-path.ts makes them.
-      const reach = (reader.REACH_PX * img.width) / 390
-      let rings = reader.findRings(img)
-      const hits = () => pts.map((p) => reader.ringAt(rings, ...p, reach))
-      for (;;) {
-        const hit = hits()
-        const bad = rings.findIndex((_, i) => hit.filter((x) => x === i).length !== 1)
-        if (bad < 0) break
-        const before = rings.length
-        rings = reader.tapRings(rings, rings[bad].cx, rings[bad].cy, reach)
-        if (rings.length !== before - 1) return { error: 'a tap did not remove a ring' }
-      }
-      for (const p of pts) if (reader.ringAt(rings, ...p, reach) < 0) rings = reader.tapRings(rings, ...p, reach)
-      const order = pts.reduce<number[]>((o, p) => reader.tapInOrder(o, reader.ringAt(rings, ...p, reach)), [])
-      if (rings.length !== pts.length || order.includes(-1)) return { error: 'taps did not give one ring per tube' }
-      const r = reader.readTubes(img, order.map((i) => rings[i]), reader.ROLES)
-      return {
-        status: r.status,
-        flags: r.flags,
-        calls: r.tubes.map((t) => t.call),
-        p: r.tubes.map((t) => t.p),
-        pRange: r.tubes.map((t) => (t as { pRange?: [number, number] }).pRange), // unset on a reader without ranges
-        truth: run.tubes.map((t) => t.truth),
-        roles: run.tubes.map((t) => t.role),
-        kinds: run.tubes.map((t) => t.kind),
-      }
-    }, job)
+        for (const p of pts) if (reader.ringAt(rings, ...p, reach) < 0) rings = reader.tapRings(rings, ...p, reach)
+        const order = pts.reduce<number[]>((o, p) => reader.tapInOrder(o, reader.ringAt(rings, ...p, reach)), [])
+        if (rings.length !== pts.length || order.includes(-1)) return { error: 'taps did not give one ring per tube' }
+        const r = reader.readTubes(img, order.map((i) => rings[i]), reader.ROLES)
+        return {
+          status: r.status,
+          flags: r.flags,
+          calls: r.tubes.map((t) => t.call),
+          reasons: r.tubes.map((t) => t.reason),
+          p: r.tubes.map((t) => t.p),
+          pRange: r.tubes.map((t) => (t as { pRange?: [number, number] }).pRange), // unset on a reader without ranges
+          truth: run.tubes.map((t) => t.truth),
+          roles: run.tubes.map((t) => t.role),
+          kinds: run.tubes.map((t) => t.kind),
+          ev: own,
+        }
+      },
+      { job, synthUrl },
+    )
     results.set(key(job), read)
-    if (results.size % 100 === 0 || results.size === 8) console.error(`${results.size} of ${jobs.length} read, ${Math.round((Date.now() - t0) / 1000)} s`)
+    if (results.size % 500 === 0 || results.size === 8) console.error(`${results.size} of ${jobs.length} read, ${Math.round((Date.now() - t0) / 1000)} s`)
   }
 }
 
 try {
   const queue = [...jobs]
-  await Promise.all(Array.from({ length: 8 }, () => worker(queue)))
+  await Promise.all(Array.from({ length: Number(arg('workers') ?? 4) }, () => worker(queue)))
 } finally {
   await browser.close()
   await server.close()
 }
 
-// Per light: wrong calls, flips against even light, held samples, failed runs, unread runs.
 const wrongAt = (r: Read, i: number) => r.roles![i] === 'sample' && r.calls![i] !== 'held' && r.calls![i] !== r.truth![i]
-const rows: Record<string, { samples: number; wrong: number; flips: number; held: number; failed: number; errors: number }> = {}
-const flips: { run: string; tube: number; kind: string; even: string; evenP?: number; changed: string; p?: number; pRange?: [number, number] }[] = []
+const vs: Record<string, Read> | undefined = vsPath && JSON.parse(readFileSync(vsPath, 'utf8')).reads
+type Row = { samples: number; wrong: number; flips: number; newly: number; held: number; failed: number; errors: number }
+const blank = (): Row => ({ samples: 0, wrong: 0, flips: 0, newly: 0, held: 0, failed: 0, errors: 0 })
+const rows: Record<string, Row> = {}
+const families: Record<string, Row> = {}
+/** Even light by the run's own exposure: the share held, before any change. */
+const evenBy: Record<string, Row> = {}
+const exposure = (ev: number) => (ev <= 0 ? 'at or under 0 EV' : ev <= 0.5 ? '0 to +0.5 EV' : 'over +0.5 EV')
+type Tube = { run: string; tube: number; kind: string; even?: string; evenP?: number; other?: string; changed: string; p?: number; pRange?: [number, number]; reason?: string }
+const flips: Tube[] = []
+const newly: Tube[] = []
 for (const job of jobs) {
-  const row = (rows[`${job.layout} ${change(job)}`] ??= { samples: 0, wrong: 0, flips: 0, held: 0, failed: 0, errors: 0 })
   const r = results.get(key(job))!
+  const even = results.get(key({ ...job, lamp: null, cast: null, ev: 0 }))!
+  const other = vs?.[key(job)]
+  const tally = [(rows[`${job.layout} ${change(job)}`] ??= blank()), (families[family(job)] ??= blank())]
+  if (r === even && !r.error) tally.push((evenBy[exposure(r.ev!)] ??= blank()))
+  const add = (k: keyof Row) => tally.forEach((t) => t[k]++)
   if (r.error) {
-    row.errors++
+    add('errors')
     continue
   }
-  const even = results.get(key({ ...job, lamp: null, ev: 0 }))!
-  if (r.status === 'failed') row.failed++
+  if (r.status === 'failed') add('failed')
   r.roles!.forEach((role, i) => {
     if (role !== 'sample') return
-    row.samples++
-    if (r.calls![i] === 'held') row.held++
+    add('samples')
+    if (r.calls![i] === 'held') add('held')
     if (!wrongAt(r, i)) return
-    row.wrong++
+    add('wrong')
+    const tube = { run: key(job), tube: i - 1, kind: r.kinds![i], changed: r.calls![i], p: r.p![i], pRange: r.pRange![i], reason: r.reasons![i] }
     if (r !== even && !even.error && !wrongAt(even, i)) {
-      row.flips++
-      flips.push({ run: key(job), tube: i - 1, kind: r.kinds![i], even: even.calls![i], evenP: even.p![i], changed: r.calls![i], p: r.p![i], pRange: r.pRange![i] })
+      add('flips')
+      flips.push({ ...tube, even: even.calls![i], evenP: even.p![i] })
+    }
+    if (other && !other.error && !wrongAt(other, i)) {
+      add('newly')
+      newly.push({ ...tube, other: other.calls![i] })
     }
   })
 }
-const total = (pick: (k: string) => boolean) =>
-  Object.entries(rows)
-    .filter(([k]) => pick(k))
-    .reduce((a, [, r]) => ({ samples: a.samples + r.samples, wrong: a.wrong + r.wrong, flips: a.flips + r.flips, held: a.held + r.held }), { samples: 0, wrong: 0, flips: 0, held: 0 })
-console.error(`root ${root}, seeds ${first}-${last ?? first}, ${Math.round((Date.now() - t0) / 1000)} s`)
-console.error('change                 samples  wrong  flips  held%  failed  unread')
-for (const [k, r] of Object.entries(rows))
-  console.error(`${k.padEnd(22)} ${String(r.samples).padStart(7)} ${String(r.wrong).padStart(6)} ${String(r.flips).padStart(6)} ${((100 * r.held) / Math.max(1, r.samples)).toFixed(1).padStart(6)} ${String(r.failed).padStart(7)} ${String(r.errors).padStart(7)}`)
-const lit = total((k) => !k.endsWith('even'))
-const even = total((k) => k.endsWith('even'))
-console.error(`even light: ${even.wrong} wrong, ${((100 * even.held) / even.samples).toFixed(1)}% held; changed: ${lit.wrong} wrong, ${lit.flips} flips (${flips.filter((f) => f.even !== 'held').length} read right in even light, the rest held), ${((100 * lit.held) / lit.samples).toFixed(1)}% held`)
-for (const f of flips) console.error(JSON.stringify(f))
-if (jsonOut) writeFileSync(jsonOut, JSON.stringify({ root, seeds: [first, last], rows, flips, reads: Object.fromEntries(results) }) + '\n')
+const pct = (r: Row) => ((100 * r.held) / Math.max(1, r.samples)).toFixed(1)
+const table = (title: string, t: Record<string, Row>) => {
+  console.error(`${title.padEnd(30)} samples  wrong  flips  ${vs ? 'newly  ' : ''}held%  failed  unread`)
+  for (const [k, r] of Object.entries(t))
+    console.error(
+      `${k.padEnd(30)} ${String(r.samples).padStart(7)} ${String(r.wrong).padStart(6)} ${String(r.flips).padStart(6)} ${vs ? String(r.newly).padStart(6) + ' ' : ''}${pct(r).padStart(6)} ${String(r.failed).padStart(7)} ${String(r.errors).padStart(7)}`,
+    )
+}
+console.error(`root ${root}, ${seeds.length} seeds, ${jobs.length} photos, ${Math.round((Date.now() - t0) / 1000)} s`)
+if (process.argv.includes('--rows')) table('change', rows)
+table('family', families)
+table('even light, by own exposure', evenBy)
+console.error(`flips: ${flips.length} (${flips.filter((f) => f.even !== 'held').length} read right in even light, the rest held)${vs ? `; newly wrong against ${vsPath}: ${newly.length}` : ''}`)
+for (const f of flips) console.error('flip', JSON.stringify(f))
+for (const f of newly) console.error('newly', JSON.stringify(f))
+if (jsonOut) writeFileSync(jsonOut, JSON.stringify({ root, seeds, rows, families, evenBy, flips, newly, reads: Object.fromEntries(results) }) + '\n')

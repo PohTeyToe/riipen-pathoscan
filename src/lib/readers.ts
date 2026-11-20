@@ -5,7 +5,7 @@
 // CIELAB, mapped to a probability by a one-feature logistic model, with a band where it holds the call.
 
 import { median } from './color'
-import { CLIPPED, type Features } from './find'
+import type { Features } from './find'
 import type { Role } from './synth'
 
 export type Call = 'pos' | 'neg' | 'held'
@@ -17,7 +17,7 @@ export interface TubeRead {
   s?: number
   /** Calibrated only: the model's probability that the tube changed colour like the positive control. */
   p?: number
-  /** Calibrated only: the lowest and highest p the photo allows (see Features.hueRange and overHue, QC.hueFloor). */
+  /** Calibrated only: the lowest and highest p the photo allows (see Features.hueRange and QC.hueFloor). */
   pRange?: [number, number]
 }
 
@@ -103,8 +103,8 @@ export function readMidpoint(feats: (Features | null)[], roles: Role[]): RunRead
 
 const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : NaN)
 const chroma = (f: Features) => Math.hypot(f.lab.a, f.lab.b)
-/** Two channels clipped leave one to read a colour from, and a hue needs two. */
-const blown = (f: Features) => f.raw.filter((v) => v >= CLIPPED).length >= 2
+/** The reason for a tube the camera clipped (Features.clipped): no colour can be read there, so retake. */
+export const TOO_BRIGHT = 'Too bright here. Retake with less light.'
 
 export function readCalibrated(feats: (Features | null)[], roles: Role[], model: Model, band: Band): RunRead {
   const pcs = feats.filter((f, i) => f && roles[i] === 'pc') as Features[]
@@ -131,9 +131,9 @@ export function readCalibrated(feats: (Features | null)[], roles: Role[], model:
     flags.push(flag)
     return { status: 'failed', flags, scale, tubes: feats.map((_, i) => (roles[i] === 'sample' ? held(flag) : controlRead(roles[i]))) }
   }
-  const tooBright = [...pcs, ...ncs].find(blown)
-  if (tooBright)
-    return notRead(`The ${pcs.includes(tooBright) ? 'positive' : 'negative'} control is too bright for the camera to see its colour. Run not read; retake the photo with less light on the tubes.`)
+  // Every check below compares the controls' hues, and a clipped control's hue has no bound.
+  const tooBright = [...pcs, ...ncs].find((f) => f.clipped)
+  if (tooBright) return notRead(`Too bright at the ${pcs.includes(tooBright) ? 'positive' : 'negative'} control. Retake with less light.`)
   const ncSpread = Math.max(...ncHues) - Math.min(...ncHues)
   if (ncs.length > 1 && ncSpread >= (hPc - Math.min(...ncHues)) / 2)
     return notRead(`The negative controls disagree (${ncSpread.toFixed(0)}° apart); one may be contaminated. Run not read; check them.`)
@@ -149,19 +149,12 @@ export function readCalibrated(feats: (Features | null)[], roles: Role[], model:
     flags.push('One positive control barely changed colour. Read against the one that did; check the other before trusting the run.')
 
   // Each hue is known only to within its range (uneven light) and never closer than QC.hueFloor, the
-  // controls' too. Clipped channels may have held more light than they show, and on an overexposed photo they
-  // did in every tube at once, so the ranges are also taken with each tube and control at its overHue. A tube
-  // is called only if every end of its own range and the controls', both ways, gives that call.
-  const range = (f: Features, over: boolean) => {
-    const d = over ? f.overHue - f.labHue : 0
-    return [Math.min(f.hueRange[0], f.labHue - QC.hueFloor) + d, Math.max(f.hueRange[1], f.labHue + QC.hueFloor) + d]
-  }
+  // controls' too. A tube is called only if every end of its own range and the controls' gives that call.
+  const range = (f: Features) => [Math.min(f.hueRange[0], f.labHue - QC.hueFloor), Math.max(f.hueRange[1], f.labHue + QC.hueFloor)]
+  const pcRange = [0, 1].map((k) => Math.max(...pcs.map((f) => range(f)[k])))
+  const ncRange = [0, 1].map((k) => mean(ncs.map((f) => range(f)[k])))
   const sRange = (f: Features): [number, number] => {
-    const ss = [false, true].flatMap((over) => {
-      const pcRange = [0, 1].map((k) => Math.max(...pcs.map((g) => range(g, over)[k])))
-      const ncRange = [0, 1].map((k) => mean(ncs.map((g) => range(g, over)[k])))
-      return range(f, over).flatMap((h) => ncRange.flatMap((n) => pcRange.map((pc) => (pc > n ? (h - n) / (pc - n) : NaN))))
-    })
+    const ss = range(f).flatMap((h) => ncRange.flatMap((n) => pcRange.map((pc) => (pc > n ? (h - n) / (pc - n) : NaN))))
     return ss.some(Number.isNaN) ? [-Infinity, Infinity] : [Math.min(...ss), Math.max(...ss)]
   }
 
@@ -171,9 +164,9 @@ export function readCalibrated(feats: (Features | null)[], roles: Role[], model:
   const tubes = feats.map((f, i): TubeRead => {
     if (roles[i] !== 'sample') return controlRead(roles[i])
     if (!f) return held('No liquid colour found.')
+    if (f.clipped) return held(TOO_BRIGHT)
     if (f.clear < QC.minClear) return held('Too few clear pixels (glare, a bubble or low volume).')
     if (f.glare > f.clear * 1.5) return held('Mostly glare or reflection.')
-    if (blown(f)) return held('Too bright for the camera to see its colour. Retake the photo with less light on the tubes.')
     if ((f.area ?? 0) > maxArea) return held('Much bigger than the other tubes, so it may take in paper or table. Read by eye.')
     const s = (f.labHue - hNc) / (hPc - hNc)
     if (chroma(f) < QC.minChromaShare * cRef) return { ...held('Too pale to read against the controls.'), s }

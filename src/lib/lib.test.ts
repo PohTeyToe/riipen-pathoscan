@@ -12,7 +12,7 @@ const band = { lo: 0.2, hi: 0.8 }
 const tube = (labHue: number, rawHue = labHue / 2, clear = 400, spread = 0): Features => {
   const a = 40 * Math.cos((labHue * Math.PI) / 180)
   const b = 40 * Math.sin((labHue * Math.PI) / 180)
-  return { raw: [200, 150, 100], rawHue, corrected: [1, 0.7, 0.4], lab: { L: 70, a, b }, labHue, hueRange: [labHue - spread, labHue + spread], overHue: labHue, clear, glare: 0, paperBeside: true }
+  return { raw: [200, 150, 100], rawHue, corrected: [1, 0.7, 0.4], lab: { L: 70, a, b }, labHue, hueRange: [labHue - spread, labHue + spread], clipped: false, clear, glare: 0, paperBeside: true }
 }
 const roles = (n: number): Role[] => ['pc', 'nc', ...Array<Role>(n).fill('sample')]
 const norm = (g: RGB): RGB => g.map((v) => v / Math.max(...g)) as RGB
@@ -83,22 +83,19 @@ describe('calibrated reader', () => {
       expect(r.flags).toEqual(["1 tube was held only because this photo can't pin down its colour. Retake it in even light, not too bright, with paper in view around each tube, to read it."])
     }
   })
-  it('reads a clipped channel both as seen and with twice the light, moving every tube and control together', () => {
-    // An overexposed photo: the sample's red is clipped, and with more red it would sit nearer the negative control.
-    const over = (f: Features, overHue: number): Features => ({ ...f, raw: [255, 200, 120], overHue })
-    const read = (pc: number, nc: number) => readCalibrated([over(tube(90), pc), over(tube(10), nc), over(tube(70), 55)], roles(1), model, band).tubes[2]
-    expect(read(90, 10).call).toBe('held') // only the sample's red was clipped: with more, it sits between the controls
-    expect(read(75, -5).call).toBe('pos') // the controls' red too, by as much: the run moved as one
-    expect(readCalibrated([tube(90), tube(10), tube(70)], roles(1), model, band).tubes[2].call).toBe('pos')
-  })
-  it('holds a tube, or fails the run for a control, with two channels clipped: a hue needs two', () => {
-    const blown = (f: Features): Features => ({ ...f, raw: [255, 254, 120] })
-    const r = readCalibrated([tube(90), tube(10), blown(tube(70)), tube(70)], roles(2), model, band)
-    expect(r.tubes[2]).toMatchObject({ call: 'held', reason: expect.stringMatching(/Too bright for the camera/) })
+  it('holds a tube the camera clipped, and fails the run for a clipped control, asking for a retake', () => {
+    const clipped = (f: Features): Features => ({ ...f, clipped: true })
+    const r = readCalibrated([tube(90), tube(10), clipped(tube(70)), tube(70)], roles(2), model, band)
+    expect(r.tubes[2]).toEqual({ call: 'held', reason: 'Too bright here. Retake with less light.' })
     expect(r.tubes[3].call).toBe('pos')
-    const failed = readCalibrated([blown(tube(90)), tube(10), tube(70)], roles(1), model, band)
-    expect(failed.status).toBe('failed')
-    expect(failed.flags[0]).toMatch(/positive control is too bright/)
+    for (const [k, which] of [[0, 'positive'], [1, 'negative']] as const) {
+      const feats = [tube(90), tube(10), tube(70)]
+      feats[k] = clipped(feats[k])
+      const failed = readCalibrated(feats, roles(1), model, band)
+      expect(failed.status).toBe('failed')
+      expect(failed.flags).toEqual([`Too bright at the ${which} control. Retake with less light.`])
+      expect(failed.tubes[2]).toMatchObject({ call: 'held', reason: failed.flags[0] })
+    }
   })
   it('needs both controls', () => {
     const r = readCalibrated([tube(90), tube(80)], ['sample', 'sample'], model, band)
@@ -250,6 +247,21 @@ describe('finding and measuring', () => {
       expect(f.hueRange[0]).toBeLessThanOrEqual(hue + 0.5)
       expect(f.hueRange[1]).toBeGreaterThanOrEqual(hue - 0.5)
     })
+  })
+  it('marks a tube clipped when a channel of its liquid or of the paper it is read against is clipped', () => {
+    // Seed 732 at 10000 K and +0.5 EV: the paper clipped in green and blue, the pale tube not at all.
+    const clipped = (paper: number[], liquid: number[]) => {
+      const img = sheet(300, 150)
+      paint(img, 0, 0, 299, 149, paper)
+      paint(img, 140, 40, 159, 109, liquid)
+      const found = findRegions(img)
+      expect(found.regions).toHaveLength(1)
+      return measure(img, found.regions[0], found.paper)!.clipped
+    }
+    expect(clipped([236, 240, 238], [215, 139, 151])).toBe(false)
+    expect(clipped([236, 254, 255], [215, 139, 151])).toBe(true)
+    expect(clipped([249, 249, 249], [215, 139, 151])).toBe(false)
+    expect(clipped([236, 240, 238], [252, 180, 60])).toBe(true)
   })
   // A lamp of this colour at one end of the photo, fading to daylight at the other.
   const underLamp = (img: Img, kelvin: number, fromLeft: boolean): Img => {

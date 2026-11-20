@@ -15,11 +15,11 @@ describe('the line on calls that decided a result', () => {
   })
 })
 
-/** A tube's measured colour at this Lab hue. */
-const tube = (labHue: number): Features => {
+/** A tube's measured colour at this Lab hue; `clipped` when the camera clipped it or the paper around it. */
+const tube = (labHue: number, clipped = false): Features => {
   const rad = (labHue * Math.PI) / 180
   const lab = { L: 70, a: 40 * Math.cos(rad), b: 40 * Math.sin(rad) }
-  return { raw: [200, 150, 80], rawHue: labHue, corrected: [0.8, 0.6, 0.3], lab, labHue, hueRange: [labHue, labHue], overHue: labHue, clear: 500, glare: 0, paperBeside: true }
+  return { raw: [200, 150, 80], rawHue: labHue, corrected: [0.8, 0.6, 0.3], lab, labHue, hueRange: [labHue, labHue], clipped, clear: 500, glare: 0, paperBeside: true }
 }
 
 /** The result screen's text for a run read from these tubes. */
@@ -45,5 +45,26 @@ describe('a failed run on the result screen', () => {
     const text = screen([tube(30), tube(20), ...samples])
     expect(text).toContain('too close to read against')
     expect(text).toContain('rerun with fresh reagents')
+  })
+})
+
+describe('held tubes on the result screen', () => {
+  it("shows each held tube's reason by it, and offers a retake when a reason asks for one", () => {
+    const text = screen([tube(90), tube(10), tube(95), tube(50), tube(70, true), ...Array.from({ length: 5 }, () => tube(12))])
+    expect(text).toContain('1 Positive')
+    expect(text).toContain('2 Between the controls (')
+    expect(text).toContain('3 Too bright here. Retake with less light. Look again: yellow or pink?')
+    expect(text).toContain('Retake photo')
+  })
+  it('offers no retake when no reason asks for one', () => {
+    const text = screen([tube(90), tube(10), tube(95), tube(50), ...Array.from({ length: 6 }, () => tube(12))])
+    expect(text).toContain('Between the controls (')
+    expect(text).not.toContain('Retake')
+  })
+  it('fails a run whose control is too bright, says so once, and offers a retake', () => {
+    const text = screen([tube(90, true), tube(10), ...Array.from({ length: 8 }, () => tube(40))])
+    expect(text).toContain('Run failed')
+    expect(text.split('Too bright at the positive control. Retake with less light.')).toHaveLength(2)
+    expect(text).toContain('Retake photo')
   })
 })

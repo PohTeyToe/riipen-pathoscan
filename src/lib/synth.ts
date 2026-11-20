@@ -180,8 +180,12 @@ const NOISE = (() => {
   return Float32Array.from({ length: NOISE_N }, () => (r() + r() - 1) * 1.7)
 })()
 
-/** Draw one run. Scale 1 gives 1000x420 pixels; the live batch uses smaller scales. */
-export function render(spec: RunSpec, scale = 1): Img {
+/**
+ * Draw one run. Scale 1 gives 1000x420 pixels; the live batch uses smaller scales. `light`, if given, writes
+ * the share of the run's light that reaches pixel (x, y), per channel: a lamp or a shade over part of the
+ * scene. It lights the scene before the camera clips, as a real lamp does.
+ */
+export function render(spec: RunSpec, scale = 1, light?: (x: number, y: number, out: RGB) => void): Img {
   const w = Math.round(W * scale)
   const h = Math.round(H * scale)
   const data = new Uint8ClampedArray(w * h * 4)
@@ -199,6 +203,7 @@ export function render(spec: RunSpec, scale = 1): Img {
     return [0, 1, 2].map((c) => t * A_ACID[c] + (1 - t) * A_BASE[c]) as RGB
   })
   const px: RGB = [0, 0, 0]
+  const here: RGB = [1, 1, 1]
 
   for (let py = 0; py < h; py++) {
     const y = (py + 0.5) / scale
@@ -258,8 +263,9 @@ export function render(spec: RunSpec, scale = 1): Img {
       const proj = ((x / W - 0.5) * sdx + (y / H - 0.5) * sdy) * 1.2 + 0.5
       const shade = 1 - spec.shadow * Math.min(1, Math.max(0, proj))
       const o = (py * w + qx) * 4
+      if (light) light(qx, py, here)
       for (let c = 0; c < 3; c++) {
-        const lin = (px[c] * shade + spec_) * lit[c]
+        const lin = (px[c] * shade + spec_) * lit[c] * here[c]
         const v = SRGB_LUT[lin >= 1 ? 4095 : (lin * 4095) | 0] + NOISE[(nIdx = (nIdx + nStep) & (NOISE_N - 1))] * spec.noise
         data[o + c] = v * 255 + 0.5
       }
@@ -267,4 +273,65 @@ export function render(spec: RunSpec, scale = 1): Img {
     }
   }
   return { width: w, height: h, data }
+}
+
+export type Layout = 'row' | '2x5' | 'tilted' | 'small'
+
+/** A lamp of `kelvin` at one edge of the photo, fading to daylight at the far edge; with kelvin 0, a plain shade, 15% darker there. */
+export interface Lamp {
+  kelvin: number
+  from: 'left' | 'right' | 'top'
+}
+
+type Pt = [number, number]
+
+/**
+ * A run as a phone photographs it, and each tube's liquid centre in the photo, in label order. Layouts: one
+ * row; two rows of five, the left five above the right five; the row turned 12 degrees on a canvas that
+ * keeps its corners; or a small row in the middle of a sheet as wide as the app keeps a photo. A lamp lights
+ * a row or two rows only.
+ */
+export function photograph(spec: RunSpec, layout: Layout = 'row', lamp?: Lamp): { img: Img; tubes: Pt[] } {
+  const scale = layout === 'small' ? 0.24 : 1
+  const [rw, rh] = [Math.round(W * scale), Math.round(H * scale)]
+  // The photo's size, where each photo pixel comes from in the render, and where a render point goes.
+  let [w, h] = [rw, rh]
+  let from = (p: Pt) => p
+  let to = (p: Pt) => p
+  if (layout === '2x5') {
+    ;[w, h] = [rw / 2, 2 * rh]
+    from = ([x, y]) => (y < rh ? [x, y] : [x + rw / 2, y - rh])
+    to = ([x, y]) => (x < rw / 2 ? [x, y] : [x - rw / 2, y + rh])
+  } else if (layout === 'tilted') {
+    const [cos, sin] = [Math.cos(Math.PI / 15), Math.sin(Math.PI / 15)]
+    ;[w, h] = [Math.ceil(rw * cos + rh * sin), Math.ceil(rw * sin + rh * cos)]
+    from = ([x, y]) => [rw / 2 + (x - w / 2) * cos + (y - h / 2) * sin, rh / 2 - (x - w / 2) * sin + (y - h / 2) * cos]
+    to = ([x, y]) => [w / 2 + (x - rw / 2) * cos - (y - rh / 2) * sin, h / 2 + (x - rw / 2) * sin + (y - rh / 2) * cos]
+  } else if (layout === 'small') {
+    ;[w, h] = [1400, 588]
+    const [ox, oy] = [Math.round((w - rw) / 2), Math.round((h - rh) / 2)]
+    from = ([x, y]) => [x - ox, y - oy]
+    to = ([x, y]) => [x + ox, y + oy]
+  }
+  let light: ((x: number, y: number, out: RGB) => void) | undefined
+  if (lamp) {
+    if (layout !== 'row' && layout !== '2x5') throw new Error('A lamp lights a row or two rows only')
+    const [lit, day] = [lightCast(lamp.kelvin || 6500), lightCast(6500)]
+    const gain = lamp.kelvin ? lit.map((v, c) => v / day[c]) : [0.85, 0.85, 0.85]
+    const top = lamp.kelvin ? Math.max(...gain) : 1
+    light = (x, y, out) => {
+      const [px, py] = to([x, y])
+      const t = lamp.from === 'left' ? px / (w - 1) : lamp.from === 'right' ? 1 - px / (w - 1) : py / (h - 1)
+      for (let c = 0; c < 3; c++) out[c] = gain[c] / top + (1 - gain[c] / top) * t
+    }
+  }
+  const src = new Uint32Array(render(spec, scale, light).data.buffer)
+  const out = new Uint32Array(w * h)
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const [sx, sy] = from([x, y]).map(Math.round)
+      out[y * w + x] = sx >= 0 && sx < rw && sy >= 0 && sy < rh ? src[sy * rw + sx] : src[0] // paper beyond the render
+    }
+  const tubes = spec.tubes.map((_, i) => to([liquidCentre(spec, i).x * scale, liquidCentre(spec, i).y * scale]))
+  return { img: { width: w, height: h, data: new Uint8ClampedArray(out.buffer) }, tubes }
 }

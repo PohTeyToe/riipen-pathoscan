@@ -3,8 +3,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { PNG } from 'pngjs'
-import { LIN8, lightCast, toSrgb } from '../src/lib/color'
-import { liquidCentre, makeRun, render } from '../src/lib/synth'
+import { makeRun, photograph, type Conditions, type Lamp, type Layout } from '../src/lib/synth'
 
 // run.ts imports package.json, which this runner can't load, so its reader version is read from the source.
 const READER_VERSION = readFileSync(new URL('../src/app/run.ts', import.meta.url), 'utf8').match(/READER_VERSION = '([^']+)'/)![1]
@@ -114,68 +113,22 @@ type Pt = [number, number]
 /**
  * A synthetic run from the demo's own renderer, as a camera file, laid out as a row, two rows of five, a row
  * tilted 12 degrees, or a small row on a big sheet (tubes 23 px apart, so a ring's button reaches over its
- * neighbours). Seed 4: two positives and one tube the reader holds. `tubes` are the liquid centres in the
- * photo, in label order: +, −, then 1 to 8. `lamp`: a lamp of that colour temperature at one edge of the
- * photo (`from`, the left by default), fading to daylight at the far edge, or with 0 a plain shade, 15% darker
- * there; `ev`: stops added to the run's exposure. Both as scripts/lamp-sweep.ts makes them.
+ * neighbours). Seed 0: two positives and one tube the reader holds, the paper short of clipping. `tubes` are
+ * the liquid centres in the photo, in label order: +, −, then 1 to 8. `cond` pins the run's light as makeRun
+ * does; `lamp`: a lamp of that colour temperature at one edge of the photo (`from`, the left by default),
+ * fading to daylight at the far edge, or with 0 a plain shade, 15% darker there; `ev`: stops added to the
+ * run's exposure. All as scripts/lamp-sweep.ts makes them (synth.ts photograph).
  */
 function syntheticPhoto(
-  layout: 'row' | '2x5' | 'tilted' | 'small' = 'row',
-  { seed = 4, lamp, from: side = 'left', ev = 0 }: { seed?: number; lamp?: number; from?: 'left' | 'right' | 'top'; ev?: number } = {},
+  layout: Layout = 'row',
+  { seed = 0, cond, lamp, from = 'left', ev = 0 }: { seed?: number; cond?: Conditions; lamp?: number; from?: Lamp['from']; ev?: number } = {},
 ) {
-  const run = makeRun(seed)
+  const run = makeRun(seed, 'typical', cond)
   run.ev += ev
-  const scale = layout === 'small' ? 0.24 : 1
-  const img = render(run, scale)
-  const [W, H] = [img.width, img.height]
-  const src = new Uint32Array(img.data.buffer)
-  const tubes = run.tubes.map((_, i) => [liquidCentre(run, i).x * scale, liquidCentre(run, i).y * scale] as Pt)
-  // The output size, where each output pixel comes from in the render, and where a render point goes.
-  let [w, h] = [W, H]
-  let from = (p: Pt) => p
-  let to = (p: Pt) => p
-  if (layout === '2x5') {
-    // The left five tubes above the right five.
-    ;[w, h] = [W / 2, 2 * H]
-    from = ([x, y]) => (y < H ? [x, y] : [x + W / 2, y - H])
-    to = ([x, y]) => (x < W / 2 ? [x, y] : [x - W / 2, y + H])
-  } else if (layout === 'tilted') {
-    // Turned about its centre, on a canvas big enough to keep the corners.
-    const [cos, sin] = [Math.cos(Math.PI / 15), Math.sin(Math.PI / 15)]
-    ;[w, h] = [Math.ceil(W * cos + H * sin), Math.ceil(W * sin + H * cos)]
-    from = ([x, y]) => [W / 2 + (x - w / 2) * cos + (y - h / 2) * sin, H / 2 - (x - w / 2) * sin + (y - h / 2) * cos]
-    to = ([x, y]) => [w / 2 + (x - W / 2) * cos - (y - H / 2) * sin, h / 2 + (x - W / 2) * sin + (y - H / 2) * cos]
-  } else if (layout === 'small') {
-    // In the middle of a sheet as wide as the app keeps a photo.
-    ;[w, h] = [1400, 588]
-    const [ox, oy] = [Math.round((w - W) / 2), Math.round((h - H) / 2)]
-    from = ([x, y]) => [x - ox, y - oy]
-    to = ([x, y]) => [x + ox, y + oy]
-  }
-  const out = new Uint32Array(w * h)
-  for (let y = 0; y < h; y++)
-    for (let x = 0; x < w; x++) {
-      const [sx, sy] = from([x, y]).map(Math.round)
-      out[y * w + x] = sx >= 0 && sx < W && sy >= 0 && sy < H ? src[sy * W + sx] : src[0] // paper beyond the render
-    }
-  if (lamp !== undefined) {
-    const [lit, day] = [lightCast(lamp), lightCast(6500)]
-    const gain = lamp ? lit.map((v, c) => v / day[c]) : [0.85, 0.85, 0.85]
-    const top = lamp ? Math.max(...gain) : 1
-    const px = new Uint8Array(out.buffer)
-    for (let y = 0; y < h; y++)
-      for (let x = 0; x < w; x++) {
-        const t = side === 'left' ? x / (w - 1) : side === 'right' ? 1 - x / (w - 1) : y / (h - 1)
-        for (let c = 0; c < 3; c++) {
-          const o = (y * w + x) * 4 + c
-          const g = gain[c] / top
-          px[o] = Math.round(toSrgb(LIN8[px[o]] * (g + (1 - g) * t)) * 255)
-        }
-      }
-  }
-  const png = new PNG({ width: w, height: h })
-  png.data = Buffer.from(out.buffer)
-  return { file: { name: 'tubes.png', mimeType: 'image/png', buffer: PNG.sync.write(png) }, size: [w, h] as Pt, tubes: tubes.map(to), run }
+  const { img, tubes } = photograph(run, layout, lamp === undefined ? undefined : { kelvin: lamp, from })
+  const png = new PNG({ width: img.width, height: img.height })
+  png.data = Buffer.from(img.data.buffer)
+  return { file: { name: 'tubes.png', mimeType: 'image/png', buffer: PNG.sync.write(png) }, size: [img.width, img.height] as Pt, tubes, run }
 }
 
 /** The exported CSV, downloaded: its rows by column name. */
@@ -536,6 +489,7 @@ for (const [seed, acidic] of [
   test(`two rows of five under a warm lamp at the left: seed ${seed}'s acidic negative is not called positive`, async ({ page }) => {
     // In even light this negative reads 77 to 78% like the positive control and is held. The 3000 K lamp
     // across the photo once pushed it past 80%, a positive call; the white's range under the lamp holds it.
+    // Seed 142's own light also clips the paper, so its run is now held as too bright before that.
     await page.goto('/app.html')
     await toPhoto(page, 'Lamp rows')
     const photo = syntheticPhoto('2x5', { seed, lamp: 3000 })
@@ -572,20 +526,83 @@ for (const [light, lamp, from] of [
     expect(calls[3]).not.toBe('Negative')
   })
 
-test("half a stop brighter, a clipped red does not make seed 3's acidic negative positive", async ({ page }) => {
-  // The camera clips the red of the paper and of the orange tubes. Brighter, the green and blue still rise and
-  // the red can't, so this acidic negative looked yellower than the controls did and was called positive.
-  await page.goto('/app.html')
-  await toPhoto(page, 'Bright')
-  const photo = syntheticPhoto('row', { seed: 3, ev: 0.5 })
+/**
+ * Takes a photo for the run on the Photo screen, taps a ring onto each tube the finder missed, as a grower
+ * would, and labels them: the read result.
+ */
+async function readPhoto(page: Page, photo: ReturnType<typeof syntheticPhoto>) {
   await page.locator('input[type=file]').setInputFiles(photo.file)
+  await expect(page.getByRole('heading', { name: /tubes$/ })).toBeVisible()
+  const rings = await page.locator('.shot ellipse').evaluateAll((els) => els.map((e) => [Number(e.getAttribute('cx')), Number(e.getAttribute('cy'))]))
+  for (const tube of photo.tubes) if (!rings.some(([x, y]) => Math.hypot(x - tube[0], y - tube[1]) < 30)) await tapPhoto(page, photo.size, tube)
   await expect(page.getByRole('heading', { name: '10 tubes', exact: true })).toBeVisible()
   await label(page, photo)
+}
+
+/** The reader's calls the export gives, against each tube's truth: the tubes called wrong, by kind. */
+async function wrongCalls(page: Page, photo: ReturnType<typeof syntheticPhoto>) {
   const column = await exportCsv(page)
-  const truth = photo.run.tubes.map((t) => (t.truth === 'pos' ? 'Positive' : 'Negative'))
   const calls = column('Reader call')
-  expect(calls.filter((c, i) => c !== 'Held' && c !== truth[i])).toEqual([])
+  return { calls, warnings: column('Reader warnings'), wrong: calls.flatMap((c, i) => (c !== 'Held' && c !== (photo.run.tubes[i].truth === 'pos' ? 'Positive' : 'Negative') ? [photo.run.tubes[i].kind] : [])) }
+}
+
+test("under a 10000 K light half a stop brighter, seed 732's pale positive is not called negative", async ({ page }) => {
+  // The paper clipped to [236, 254, 255] while the tube read [215, 139, 151]: the white it was read against had
+  // lost light in green and blue, which made the tube look pinker than it is. A tube read against a clipped
+  // white is held, with a retake asked.
+  await page.goto('/app.html')
+  await toPhoto(page, 'Cool bright')
+  const photo = syntheticPhoto('row', { seed: 732, cond: { kelvin: 10000, ev: 0.5 } })
+  await readPhoto(page, photo)
+  const { calls, wrong } = await wrongCalls(page, photo)
+  expect(wrong).toEqual([])
+  expect(calls[3]).not.toBe('Negative')
+  await expect(page.getByRole('button', { name: 'Retake photo' })).toBeVisible()
+})
+
+test("a stop brighter under a warm lamp at the top, seed 3's acidic negative is not called positive", async ({ page }) => {
+  await page.goto('/app.html')
+  await toPhoto(page, 'Warm bright')
+  const photo = syntheticPhoto('row', { seed: 3, ev: 1, lamp: 3000, from: 'top' })
+  await readPhoto(page, photo)
+  const { calls, wrong } = await wrongCalls(page, photo)
+  expect(wrong).toEqual([])
   expect(calls[2]).not.toBe('Positive')
+})
+
+test('a run failed for a clipped control is retaken from the result, keeping the guide, and reads the new photo', async ({ page }) => {
+  // Seed 3 half a stop brighter: the camera clips the red of the paper and of the orange tubes. Read as it was,
+  // its acidic negative looked yellower than the controls and was called positive.
+  await page.goto('/app.html')
+  await toPhoto(page, 'Retake')
+  const bright = syntheticPhoto('row', { seed: 3, ev: 0.5 })
+  await readPhoto(page, bright)
+  await expect(page.getByRole('heading', { name: 'Run failed', exact: true })).toBeVisible()
+  await expect(page.getByText(/^Too bright at the (positive|negative) control\. Retake with less light\.$/)).toBeVisible()
+  const { warnings } = await wrongCalls(page, bright)
+  expect(new Set(warnings).size).toBe(1)
+  expect(warnings[0]).toMatch(/^Too bright at the/)
+
+  // Retake: back to the photo step of the same run, and a reload stays there instead of opening the old result.
+  await page.getByRole('button', { name: 'Retake photo' }).click()
+  await expect(page.getByRole('heading', { name: 'Take photo', exact: true })).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Take photo', exact: true })).toBeVisible()
+  // The guide's progress stays: Back goes to its last step.
+  await page.getByRole('button', { name: 'Back' }).click()
+  await expect(page.getByText(`Step ${steps} of ${steps}`)).toBeVisible()
+  await page.getByRole('button', { name: 'Done' }).click()
+
+  // The same tubes with less light are read, and the result is the run's from now on.
+  const darker = syntheticPhoto('row', { seed: 3, ev: -1 })
+  await readPhoto(page, darker)
+  await expect(page.getByRole('heading', { name: '2 of 8 positive', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Retake photo' })).toHaveCount(0)
+  expect((await wrongCalls(page, darker)).wrong).toEqual([])
+  await page.reload()
+  await expect(page.getByRole('heading', { name: '2 of 8 positive', exact: true })).toBeVisible()
+  await page.goto('/app.html')
+  await expect(page.getByRole('listitem').filter({ hasText: 'Retake' })).toHaveCount(1)
 })
 
 test("a finger on a tube whose ring was removed adds it back, though a neighbour's ring button covers it", async ({ page }) => {
