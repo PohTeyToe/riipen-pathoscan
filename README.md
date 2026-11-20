@@ -10,7 +10,7 @@ Live: https://riipen-pathoscan.vercel.app
 
 The page calls the calibrated reader **Tube Reader** and the naive one **Fixed cut**. The rest of this README keeps "calibrated" and "naive".
 
-1. **The first screen** reads one synthetic run in three steps: the positive control came out weak, a midpoint rule calls two in-between negatives positive, and the calibrated reader flags the control and holds those two for a look. The steps play once on their own, with a Pause button. If the browser asks for reduced motion they wait for a tap. The run is seed 176 of the weak-control scenario, the first one where the midpoint rule makes two wrong calls, the calibrated reader none, and the control reads weaker than three samples. That is the pattern measured in PathoScan's photo (below). Every caption is computed from the run, and `src/page.test.ts` checks both the captions and the seed rule.
+1. **The first screen** reads one synthetic run in three steps: the positive control came out weak, a midpoint rule calls two in-between negatives positive, and the calibrated reader flags the control and holds those two for a look. The steps play once on their own, with a Pause button. If the browser asks for reduced motion they wait for a tap. The run is seed 22 of the weak-control scenario, the first one where the midpoint rule makes two wrong calls, the calibrated reader none, and the control reads weaker than three samples. That is the pattern measured in PathoScan's photo (below). Every caption is computed from the run, and `src/page.test.ts` checks both the captions and the seed rule.
 2. **The case-study photo** as a chart: the hue of each tube, its handwritten call, the midpoint between the controls and the positive control's hue. The numbers come from `data/case-study.json`.
 3. **The lab.** A typical run (seed 7, the first that matches the eval's per-run averages) with a row of lights under the tubes for each reader. Pick run pH shift, light colour or exposure and drag the slider: the run redraws and both readers re-read it. The slider steps through the points of the eval's sweeps, and the chart and counts beside it are those sweeps from `data/eval.json`, so the numbers on screen are the eval's, not a fresh sample. Light colour barely moves either reader; a shift toward pink breaks the fixed cut. Scenarios (weak positive control, acidic extract, glare, a bubble, low volume) and New run change the run. Tap a light for what the camera saw, the colour with the paper made white, and what each rule decided and why.
 4. **The eval**: both readers on the 16,000 held-out samples, as unit charts (one square is 16 samples) with the exact counts.
@@ -47,11 +47,11 @@ All numbers come from the scripts below, run on the code in `src/lib`.
 | | Wrong | Held | Right among calls made |
 |---|---|---|---|
 | Naive | 1,249 | 0 | 92.2% |
-| Calibrated | 490 | 1,630 (10%) | 96.6% |
+| Calibrated | 462 | 1,780 (11%) | 96.8% |
 
-412 positives never changed colour enough to see. They are all 412 of the naive reader's misses in that group. The calibrated reader gets 398 of them wrong and holds the other 14. No colour reader gets them right. The naive reader's losses are mostly the orange middle: it calls 639 of 917 weak positives negative. The calibrated reader holds 670 of those and gets 8 wrong.
+412 positives never changed colour enough to see. They are all 412 of the naive reader's misses in that group. The calibrated reader gets 393 of them wrong and holds the other 19. No colour reader gets them right. The naive reader's losses are mostly the orange middle: it calls 639 of 917 weak positives negative. The calibrated reader holds 720 of those and gets none wrong.
 
-What surprised me: **light colour doesn't break the fixed cut** in this model. A warm cast squeezes hues together, and the best cut sits near the hue that moves least. What breaks it is a pH shift shared by the whole run. At -0.3 the naive reader makes 87 wrong calls per 320 samples against 26 with no shift, while the calibrated reader stays at 8 to 9. Blown-out photos (+2 stops) hurt both readers. The finder loses 93 of 400 tubes, and the calibrated reader holds 170 samples rather than guess.
+What surprised me: **light colour doesn't break the fixed cut** in this model. A warm cast squeezes hues together, and the best cut sits near the hue that moves least. What breaks it is a pH shift shared by the whole run. At -0.3 the naive reader makes 87 wrong calls per 320 samples against 26 with no shift, while the calibrated reader stays at 7 to 8. Blown-out photos (+2 stops) hurt both readers. The finder loses 93 of 400 tubes, and the calibrated reader holds 170 samples rather than guess.
 
 ### Real photos (`npm run eval:real`, `data/real-eval.json`)
 
@@ -59,18 +59,29 @@ The fair comparison covers 664 sample wells whose assay has both controls on the
 
 | | Wrong | Held |
 |---|---|---|
-| Naive (cut learned on synthetic) | 301 | 0 |
+| Naive (cut learned on synthetic) | 304 | 0 |
 | Naive, best cut for these wells picked with hindsight (50°) | 17 | 0 |
-| Calibrated, nothing retuned | 23 | 243 |
+| Calibrated, nothing retuned | 17 | 270 |
 | The paper's own hue calls (on the 438 of these wells it reports) | 7 | 0 |
-| Calibrated, on those same 438 wells | 8 | 152 |
+| Calibrated, on those same 438 wells | 7 | 167 |
 
 - A fixed cut doesn't travel. On these plates the negatives read orange, not pink.
-- Most of the calibrated reader's held wells sit on four plates whose controls are 14° to 19° apart. That's under the 20° minimum I set on synthetic runs. At 10° it would hold 55 and still get 23 wrong. I kept 20°, because changing it after seeing these results would be tuning on the test set.
+- Most of the calibrated reader's held wells sit on four plates whose controls are 14° to 19° apart. That's under the 20° minimum I set on synthetic runs. At 10° it would hold 126 and still get 17 wrong. I kept 20°, because changing it after seeing these results would be tuning on the test set.
 - 208 more scored wells have no pair of controls on their plate. The calibrated reader holds all of them.
 - The paper's calls are better on the wells both of us read. Its cut was set for this assay and these plates. This reader saw neither before.
 - The scores use the labelled well positions. Run on the same photos, the automatic finder covers 910 of the 996 wells read here. It also returns 21 regions on wells the scores skip or on a well it already found, and 8 on no well at all.
 - The page decodes the photos with the browser, `scripts/eval-real.ts` with jpeg-js. Hues near the fixed cut can land on the other side, so a single photo's counts on the page can differ a little from a recount in Node. On the Supp. Fig. 5a plate that Zenodo labels SuppFig5_d, the fixed cut gets 31 of 45 wrong in Chrome and 25 in Node. The totals above are from Node.
+
+### A lamp at one side (`npx tsx scripts/lamp-sweep.ts`)
+
+Synthetic runs with seeds 0 to 199, each as a row of ten and as two rows of five, go through the field app's own photo path in Chromium: the saved JPEG, the rings, the grower's taps, then the read. Each is read in even light and under a 3000, 2400 or 10000 K lamp at the left, right or top, fading to daylight at the far side.
+
+| | Wrong | Held | Tubes the lamp turned wrong |
+|---|---|---|---|
+| Even light, 3,200 samples | 88 | 9.3% | |
+| Under a lamp, 28,800 samples | 766 | 9.6% | 0 |
+
+No tube that even light read right or held is called wrong under a lamp. The same holds for seeds 200 to 599. On seeds 600 to 999, 10 lamp reads call a tube that even light held, and all 10 sit on a band edge (p 0.14 to 0.17 or 0.82 to 0.83). Even light held them by a hair: one tube at p = 0.17 had a range reaching 0.201. A plain shade with no colour, 15% darker at one side, does the same to the same tubes (7 in 6 shades, against 10 in 18 lamps). Any second photo can move a tube on the edge of the band across it.
 
 ## PathoScan's published photo: what the tool measures
 
@@ -90,9 +101,9 @@ So the line for any message is: "Your positive control reads less yellow than al
 ## How it works
 
 1. **Find** (`src/lib/find.ts`). Make the paper neutral: the white of each part of the photo is the brightest third of the pixels around it, so a lamp that warms one side doesn't turn that paper into "liquid". A second pass takes each area against the first estimate, pixel by pixel, so the white follows a lamp's gradient right up to the frame instead of running cool. Keep pixels that are clearly pink, orange or yellow. Drop any region with the frame or the dark table along one side: it isn't a tube on paper. Join pieces that a glare streak or bubble splits, and sort the regions into reading order. A placed or labelled disc skips this step. Both readers get the same regions and pixels.
-2. **Measure.** Tell liquid from paper against the white of the area around the tube (or, under a lamp's tint, against the white map at each pixel), and take the per-channel median of the liquid pixels. The naive reader uses that colour's HSV hue. The calibrated reader divides it by the white of the paper beside the tube, the median of pale, neutral pixels in a ring around it, then converts to CIELAB. Where the white map's colour at the tube is more than 10% off the photo's white (a lamp at one end of the rack), the ring is also read with each pixel taken against the map's white where it sits, so light that changes across the ring still gives the white at the tube. Whichever way more of the ring passes as paper gives the white: on a plate the map can lean towards the wells' colour, while the plastic still reads neutral. With no paper in the ring, the whole photo's white stands in.
+2. **Measure.** Tell liquid from paper against the white map at each pixel, set right by the paper in a ring around the tube (the median of the ring's pale, neutral pixels as a share of the map), and take the per-channel median of the liquid pixels. The naive reader uses that colour's HSV hue. The calibrated reader takes each pixel against the same white and converts the median to CIELAB. That white is only known so well, so each tube also gets the range of hues it could have: under each side of the ring's white (left, right, above, below), which disagree when the light changes across the tube in a way the map doesn't follow; under the ring's paper as one white for the whole tube, which disagrees when a tube that fills much of the photo has tinted the map; and, with paper on fewer than two sides, under the whole photo's white. In even light these agree to a fraction of a degree. With no paper in the ring, the map alone gives the white.
 3. **Scale** (`src/lib/readers.ts`). The calibrated reader puts each sample on a line from the negative control's Lab hue (0) to the positive control's (1). With several positive controls it uses the one that turned furthest and flags any that didn't turn. Several negative controls are averaged if they agree. If they don't, one may be contaminated, and it holds the group. A one-feature logistic model maps the position to p. A plate with two assays is read as two groups, each against its own controls.
-4. **Call or hold.** p ≥ 0.8 is positive and p ≤ 0.2 is negative. Anything in between is held. It also holds tubes with fewer than 25 clear pixels or too little colour, a tube whose ring paper only reads as paper under a lamp's tint and then reads as liquid (no white there matches its light), and a found sample whose box is over three times the size of the run's median found box, since that region has likely spread into paper or table. It holds the whole run when the controls are under 20° apart or a control has no white under its own light, and it flags a positive control that reads weaker than samples.
+4. **Call or hold.** A tube is positive only if every hue its range allows, read against every hue the controls' ranges allow, gives p ≥ 0.8. It is negative only if every one gives p ≤ 0.2. Each range reaches at least 1° either side, about what two photos of the same tubes differ by. Anything else is held. A flag counts the tubes held only for their range and asks for a retake in even light. It also holds tubes with fewer than 25 clear pixels or too little colour, and a found sample whose box is over three times the size of the run's median found box, since that region has likely spread into paper or table. It holds the whole run when the controls are under 20° apart, and it flags a positive control that reads weaker than samples.
 
 The "model" is a two-parameter logistic regression. I don't call it AI. All of it runs in the browser in milliseconds.
 
@@ -102,7 +113,7 @@ The "model" is a two-parameter logistic regression. I don't call it AI. All of i
 - A positive whose colour never changed enough to see, for example from a low amount of target, looks negative to any colour reader.
 - An end photo can't see when a tube turned, so it can't tell a late, non-specific turn from a real one. A frame a minute from the box could.
 - Colour isn't severity. LAMP saturates, so how yellow a tube ends up says little about how much target it started with. This tool reads tubes. It says nothing about a plant or a field.
-- A tube with no paper visible beside it is corrected by the whole photo's white, even under a lamp at one end of the rack. On the real plate photos, holding those tubes instead held twice as many wells, nearly all of which were read right. Keep paper in view around each tube.
+- A tube with no paper visible beside it is read against the white map alone, which is smoothed over an eighth of the photo. Its range takes in the whole photo's white, so under a lamp it is held more often. Keep paper in view around each tube.
 - The synthetic numbers depend on my assumptions above. The real photos are a different assay in a different format. None of this has been checked on PathoBox images.
 
 ## Run it
@@ -117,6 +128,7 @@ npm run build        # type-check, then a static build in dist/
 npm run e2e          # Playwright: builds, serves on 5112, runs the field app offline and checks the demo (Chromium)
 npm run eval         # refit and rescore the synthetic eval, writes data/eval.json (about a minute)
 npm run eval:real    # score the real photos, writes data/real-eval.json
+npx tsx scripts/lamp-sweep.ts      # the lamp check above (about 4 minutes)
 npx tsx scripts/case-study-check.ts <photo.png>   # the PathoScan photo check above
 npm run measure -- <photo> [names] ["x:y:r;..."]  # any photo, found or hand-placed
 npx tsx scripts/read-runs.ts <manifest.json> > <out.json>  # a batch of photos with named tubes and control groups, as JSON on stdout

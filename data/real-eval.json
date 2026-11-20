@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-19",
+ "generated": "2026-11-20",
  "note": "Real photos, CC0. Truth from the paper (RT-qPCR, set status or controls), never from colour. See data/real/labels.json.",
  "images": 26,
  "excluded": [
@@ -17,37 +17,37 @@
      "neg": 4
     },
     "neg": {
-     "pos": 297,
+     "pos": 300,
      "held": 0,
-     "neg": 341
+     "neg": 338
     }
    },
    "samples": 664,
-   "wrong": 301,
+   "wrong": 304,
    "held": 0,
    "sensitivity": 0.8461538461538461,
-   "specificity": 0.5344827586206896,
-   "accuracyCalled": 0.5466867469879518
+   "specificity": 0.5297805642633229,
+   "accuracyCalled": 0.5421686746987951
   },
   "calibrated": {
    "confusion": {
     "pos": {
-     "pos": 12,
-     "held": 9,
-     "neg": 5
+     "pos": 6,
+     "held": 16,
+     "neg": 4
     },
     "neg": {
-     "pos": 18,
-     "held": 234,
-     "neg": 386
+     "pos": 13,
+     "held": 254,
+     "neg": 371
     }
    },
    "samples": 664,
-   "wrong": 23,
-   "held": 243,
-   "sensitivity": 0.46153846153846156,
-   "specificity": 0.6050156739811913,
-   "accuracyCalled": 0.9453681710213777
+   "wrong": 17,
+   "held": 270,
+   "sensitivity": 0.23076923076923078,
+   "specificity": 0.5815047021943573,
+   "accuracyCalled": 0.9568527918781726
   },
   "paper": {
    "confusion": {
@@ -80,37 +80,37 @@
      "neg": 17
     },
     "neg": {
-     "pos": 316,
+     "pos": 319,
      "held": 0,
-     "neg": 357
+     "neg": 354
     }
    },
    "samples": 872,
-   "wrong": 333,
+   "wrong": 336,
    "held": 0,
    "sensitivity": 0.914572864321608,
-   "specificity": 0.5304606240713224,
-   "accuracyCalled": 0.6181192660550459
+   "specificity": 0.5260029717682021,
+   "accuracyCalled": 0.6146788990825688
   },
   "calibrated": {
    "confusion": {
     "pos": {
-     "pos": 12,
-     "held": 182,
-     "neg": 5
+     "pos": 6,
+     "held": 189,
+     "neg": 4
     },
     "neg": {
-     "pos": 18,
-     "held": 269,
-     "neg": 386
+     "pos": 13,
+     "held": 289,
+     "neg": 371
     }
    },
    "samples": 872,
-   "wrong": 23,
-   "held": 451,
-   "sensitivity": 0.06030150753768844,
-   "specificity": 0.5735512630014858,
-   "accuracyCalled": 0.9453681710213777
+   "wrong": 17,
+   "held": 478,
+   "sensitivity": 0.03015075376884422,
+   "specificity": 0.5512630014858841,
+   "accuracyCalled": 0.9568527918781726
   }
  },
  "noControls": 208,
@@ -118,22 +118,22 @@
   "calibrated": {
    "confusion": {
     "pos": {
-     "pos": 12,
-     "held": 9,
-     "neg": 5
+     "pos": 6,
+     "held": 16,
+     "neg": 4
     },
     "neg": {
      "pos": 3,
-     "held": 143,
-     "neg": 266
+     "held": 151,
+     "neg": 258
     }
    },
    "samples": 438,
-   "wrong": 8,
-   "held": 152,
-   "sensitivity": 0.46153846153846156,
-   "specificity": 0.6456310679611651,
-   "accuracyCalled": 0.972027972027972
+   "wrong": 7,
+   "held": 167,
+   "sensitivity": 0.23076923076923078,
+   "specificity": 0.6262135922330098,
+   "accuracyCalled": 0.974169741697417
   },
   "paper": {
    "confusion": {
@@ -182,22 +182,22 @@
   "calibrated": {
    "confusion": {
     "pos": {
-     "pos": 13,
-     "held": 8,
-     "neg": 5
+     "pos": 7,
+     "held": 15,
+     "neg": 4
     },
     "neg": {
-     "pos": 18,
-     "held": 47,
-     "neg": 573
+     "pos": 13,
+     "held": 111,
+     "neg": 514
     }
    },
    "samples": 664,
-   "wrong": 23,
-   "held": 55,
-   "sensitivity": 0.5,
-   "specificity": 0.8981191222570533,
-   "accuracyCalled": 0.9622331691297209
+   "wrong": 17,
+   "held": 126,
+   "sensitivity": 0.2692307692307692,
+   "specificity": 0.8056426332288401,
+   "accuracyCalled": 0.9684014869888475
   }
  },
  "misses": [
@@ -208,7 +208,7 @@
    "truth": "neg",
    "naive": "positive",
    "calibrated": "positive",
-   "reason": "93% like the positive control.",
+   "reason": "95% like the positive control.",
    "basis": "Fig. 2b/text: individual samples 'previously found to be negative with RT-qPCR'; N8 by column order (confirmed by hue, N8 = H1)",
    "paper": "pos"
   },
@@ -219,18 +219,7 @@
    "truth": "neg",
    "naive": "positive",
    "calibrated": "positive",
-   "reason": "91% like the positive control.",
-   "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
-   "paper": "not reported"
-  },
-  {
-   "file": "LAMP11_SuppFig5_a_cv15-20.jpg",
-   "figure": "Supp. Fig. 5a (Zenodo label SuppFig5_a)",
-   "well": "B1 (CV15-20)",
-   "truth": "neg",
-   "naive": "positive",
-   "calibrated": "positive",
-   "reason": "90% like the positive control.",
+   "reason": "95% like the positive control.",
    "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
    "paper": "not reported"
   },
@@ -241,18 +230,7 @@
    "truth": "neg",
    "naive": "positive",
    "calibrated": "positive",
-   "reason": "93% like the positive control.",
-   "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
-   "paper": "not reported"
-  },
-  {
-   "file": "LAMP11_SuppFig5_a_cv15-20.jpg",
-   "figure": "Supp. Fig. 5a (Zenodo label SuppFig5_a)",
-   "well": "B2 (CV15-20)",
-   "truth": "neg",
-   "naive": "positive",
-   "calibrated": "positive",
-   "reason": "84% like the positive control.",
+   "reason": "95% like the positive control.",
    "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
    "paper": "not reported"
   },
@@ -274,7 +252,7 @@
    "truth": "neg",
    "naive": "positive",
    "calibrated": "positive",
-   "reason": "88% like the positive control.",
+   "reason": "99% like the positive control.",
    "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
    "paper": "not reported"
   },
@@ -285,29 +263,7 @@
    "truth": "neg",
    "naive": "positive",
    "calibrated": "positive",
-   "reason": "94% like the positive control.",
-   "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
-   "paper": "not reported"
-  },
-  {
-   "file": "LAMP11_SuppFig5_a_cv15-20.jpg",
-   "figure": "Supp. Fig. 5a (Zenodo label SuppFig5_a)",
-   "well": "A4 (CV15-20)",
-   "truth": "neg",
-   "naive": "positive",
-   "calibrated": "positive",
-   "reason": "80% like the positive control.",
-   "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
-   "paper": "not reported"
-  },
-  {
-   "file": "LAMP11_SuppFig5_a_cv15-20.jpg",
-   "figure": "Supp. Fig. 5a (Zenodo label SuppFig5_a)",
-   "well": "F6 (CV15-20)",
-   "truth": "neg",
-   "naive": "positive",
-   "calibrated": "positive",
-   "reason": "89% like the positive control.",
+   "reason": "95% like the positive control.",
    "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
    "paper": "not reported"
   },
@@ -318,18 +274,7 @@
    "truth": "neg",
    "naive": "positive",
    "calibrated": "positive",
-   "reason": "93% like the positive control.",
-   "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
-   "paper": "not reported"
-  },
-  {
-   "file": "LAMP13_SuppFig5_c_cv15-20.jpg",
-   "figure": "Supp. Fig. 5a (Zenodo label SuppFig5_c)",
-   "well": "F1 (CV15-20)",
-   "truth": "neg",
-   "naive": "positive",
-   "calibrated": "positive",
-   "reason": "81% like the positive control.",
+   "reason": "95% like the positive control.",
    "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
    "paper": "not reported"
   },
@@ -340,7 +285,7 @@
    "truth": "neg",
    "naive": "positive",
    "calibrated": "positive",
-   "reason": "86% like the positive control.",
+   "reason": "100% like the positive control.",
    "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
    "paper": "not reported"
   },
@@ -351,7 +296,7 @@
    "truth": "neg",
    "naive": "positive",
    "calibrated": "positive",
-   "reason": "97% like the positive control.",
+   "reason": "94% like the positive control.",
    "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
    "paper": "not reported"
   },
@@ -362,7 +307,7 @@
    "truth": "neg",
    "naive": "positive",
    "calibrated": "positive",
-   "reason": "99% like the positive control.",
+   "reason": "98% like the positive control.",
    "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
    "paper": "not reported"
   },
@@ -373,7 +318,7 @@
    "truth": "neg",
    "naive": "positive",
    "calibrated": "positive",
-   "reason": "98% like the positive control.",
+   "reason": "100% like the positive control.",
    "basis": "Supp. Fig. 5a legend: all 148 gargle lavages SARS-CoV-2-negative",
    "paper": "not reported"
   },
@@ -398,17 +343,6 @@
    "reason": "100% like the negative control.",
    "basis": "Supp Fig 7b Source Data: P-B Ct 24.56",
    "paper": "neg"
-  },
-  {
-   "file": "LAMP19_SuppFig7_a.jpg",
-   "figure": "Supp. Fig. 7a",
-   "well": "PC20_L (CV1-6)",
-   "truth": "pos",
-   "naive": "positive",
-   "calibrated": "negative",
-   "reason": "94% like the negative control.",
-   "basis": "image label 'P-C 1/20'; Supp Fig 7b Source Data: Ct 25.36",
-   "paper": "pos"
   },
   {
    "file": "LAMP19_SuppFig7_a.jpg",
@@ -439,7 +373,7 @@
    "truth": "neg",
    "naive": "positive",
    "calibrated": "positive",
-   "reason": "92% like the positive control.",
+   "reason": "94% like the positive control.",
    "basis": "N476 (RT-qPCR negative; Supp Fig 8 legend: false positive next to P31, negative on repeat); matched by its Orf1a hue 37.5",
    "paper": "pos"
   },
@@ -450,7 +384,7 @@
    "truth": "neg",
    "naive": "positive",
    "calibrated": "positive",
-   "reason": "96% like the positive control.",
+   "reason": "95% like the positive control.",
    "basis": "N475 (RT-qPCR negative; Supp Fig 8 legend: false positive next to P31, negative on repeat); matched by its N hue 46.5",
    "paper": "pos"
   }
@@ -461,5 +395,5 @@
   "onOtherWells": 21,
   "offWells": 8
  },
- "seconds": 10
+ "seconds": 16
 }
