@@ -1,3 +1,4 @@
+// Bundles idb-keyval 6.3.0, Copyright 2016 Jake Archibald, Apache License 2.0: see live-store-8ea660e.LICENSES.txt.
 // The live app's store (8ea660e, schema 2), built as it ships: src/app/store.ts, run.ts and update.ts with
 // idb-keyval. e2e loads it into a tab to stand in for an old tab of that app. React, which only its useUpdate
 // needs, is left out. Built with, in a worktree at 8ea660e holding an entry that re-exports those modules:
