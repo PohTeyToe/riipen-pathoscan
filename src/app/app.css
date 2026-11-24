@@ -100,6 +100,7 @@ p {
   flex-direction: column;
   gap: 20px;
   padding: 28px var(--pad);
+  container-type: inline-size;
 }
 h1 {
   font-stretch: 108%;
@@ -121,11 +122,14 @@ h1 {
   font-weight: 700;
   color: var(--alert);
 }
-/* A guide step's picture: one box for every step, whatever the picture's shape. */
+/* A guide step's picture: one box for every step, whatever the picture's shape, half as tall as it is wide.
+   Where the screen is too short for that (a laptop), it takes the height the step leaves it, so Done stays in view. */
 .picture {
   display: block;
+  flex: 1 1 0;
   width: 100%;
-  aspect-ratio: 2;
+  min-height: 6rem;
+  max-height: 50cqw;
   object-fit: contain;
 }
 .timer {
@@ -329,8 +333,21 @@ h1 {
   outline-offset: 3px;
 }
 .shot {
-  position: relative;
   margin-inline: calc(-1 * var(--pad));
+}
+.frame {
+  position: relative;
+}
+/* Fills the height its screen leaves, so the whole photo is in view above the actions. Narrower than the screen
+   when the photo is tall for it: the frame keeps the photo's shape, so a tap maps to the same point in the photo. */
+.shot.fit {
+  flex: 1 1 0;
+  min-height: 15rem;
+  container-type: size;
+}
+.fit .frame {
+  width: min(100cqw, 100cqh * var(--ratio));
+  margin-inline: auto;
 }
 .shot img {
   display: block;
@@ -458,4 +475,61 @@ h1 {
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+/* Result on a laptop: the read and its calls beside the photo, which fits the screen's height. On a phone the
+   two parts are just the screen's content, in order. */
+.summary,
+.calls {
+  display: contents;
+}
+@media (min-width: 900px) {
+  .result {
+    max-width: 1200px;
+    height: 100dvh;
+  }
+  .result .body {
+    display: grid;
+    grid-template: 'summary photo' auto 'calls photo' minmax(0, 1fr) / minmax(0, 1fr) auto;
+    gap: 20px 40px;
+    min-height: 0;
+    padding-block: 20px;
+    container-type: size;
+  }
+  .summary,
+  .calls {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .summary {
+    grid-area: summary;
+  }
+  .calls {
+    grid-area: calls;
+    overflow-y: auto;
+  }
+  /* As tall as the screen allows, and no wider than half of it. */
+  .result .shot {
+    grid-area: photo;
+    width: min(50cqw, 100cqh * var(--ratio));
+    margin: 0;
+  }
+  /* Tighter, and in two columns where there's room, so a held tube is in view with the headline. */
+  .result .tubes {
+    columns: 15rem 2;
+    column-gap: 32px;
+  }
+  .result .tubes li {
+    break-inside: avoid;
+    min-height: 48px;
+    padding: 6px 0;
+  }
+  .result .choices button {
+    min-height: 48px;
+  }
+  .result .actions .btn:not(.ghost) {
+    flex: 0 1 20rem;
+    margin-inline-start: auto;
+  }
 }

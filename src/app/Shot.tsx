@@ -1,4 +1,4 @@
-import { useId, useLayoutEffect, useRef, useState, type MouseEvent } from 'react'
+import { useId, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
 import type { Region } from '../lib/find'
 import { REACH_PX } from './reader'
 
@@ -19,10 +19,12 @@ interface Props {
   onRing?: (i: number) => void
   /** What a keyboard can't do here, for screen readers. */
   hint?: string
+  /** As big as the space its screen leaves it allows, at the photo's own shape, so every tube is in view. */
+  fit?: boolean
 }
 
 /** The run's photo with a numbered ring on each tube. */
-export function Shot({ src, rings, onTap, onRing, hint }: Props) {
+export function Shot({ src, rings, onTap, onRing, hint, fit }: Props) {
   const [size, setSize] = useState<{ src: string; w: number; h: number }>()
   const hintId = useId()
   const group = useRef<HTMLDivElement>(null)
@@ -56,48 +58,50 @@ export function Shot({ src, rings, onTap, onRing, hint }: Props) {
   }
   const pct = (v: number, of: number) => `${(100 * v) / of}%`
   return (
-    <div className="shot">
-      {src && <img src={src} alt="" onLoad={(e) => setSize({ src, w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })} />}
-      {size && font && (
-        <svg
-          viewBox={`0 0 ${size.w} ${size.h}`}
-          fontSize={font}
-          onClick={onTap && tap}
-          {...(onRing ? { 'aria-hidden': true } : { role: 'img', 'aria-label': `${rings.length} rings` })}
-        >
-          {rings.map(({ region, label, tone }, i) => {
-            const e = ellipse(region)
-            return (
-              <g key={i} className={tone ? `ring ${tone}` : 'ring'}>
-                <ellipse {...e} />
-                <text x={e.cx} y={e.cy - e.ry - font * 0.2}>
-                  {label}
-                </text>
-              </g>
-            )
-          })}
-        </svg>
-      )}
-      {size && font && onRing && (
-        <div ref={group} className="hits" role="group" aria-label={`${rings.length} rings`} aria-describedby={hint ? hintId : undefined} tabIndex={-1}>
-          {rings.map(({ region, action }, i) => {
-            const e = ellipse(region)
-            return (
-              <button
-                key={i}
-                type="button"
-                aria-label={action}
-                style={{ left: pct(e.cx - e.rx, size.w), top: pct(e.cy - e.ry, size.h), width: pct(2 * e.rx, size.w), height: pct(2 * e.ry, size.h) }}
-                onClick={(ev) => {
-                  ev.stopPropagation() // a ring chosen is never also a tap on the photo
-                  chosen.current = i
-                  onRing(i)
-                }}
-              />
-            )
-          })}
-        </div>
-      )}
+    <div className={fit ? 'shot fit' : 'shot'} style={font ? ({ '--ratio': size!.w / size!.h } as CSSProperties) : undefined}>
+      <div className="frame">
+        {src && <img src={src} alt="" onLoad={(e) => setSize({ src, w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })} />}
+        {size && font && (
+          <svg
+            viewBox={`0 0 ${size.w} ${size.h}`}
+            fontSize={font}
+            onClick={onTap && tap}
+            {...(onRing ? { 'aria-hidden': true } : { role: 'img', 'aria-label': `${rings.length} rings` })}
+          >
+            {rings.map(({ region, label, tone }, i) => {
+              const e = ellipse(region)
+              return (
+                <g key={i} className={tone ? `ring ${tone}` : 'ring'}>
+                  <ellipse {...e} />
+                  <text x={e.cx} y={e.cy - e.ry - font * 0.2}>
+                    {label}
+                  </text>
+                </g>
+              )
+            })}
+          </svg>
+        )}
+        {size && font && onRing && (
+          <div ref={group} className="hits" role="group" aria-label={`${rings.length} rings`} aria-describedby={hint ? hintId : undefined} tabIndex={-1}>
+            {rings.map(({ region, action }, i) => {
+              const e = ellipse(region)
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  aria-label={action}
+                  style={{ left: pct(e.cx - e.rx, size.w), top: pct(e.cy - e.ry, size.h), width: pct(2 * e.rx, size.w), height: pct(2 * e.ry, size.h) }}
+                  onClick={(ev) => {
+                    ev.stopPropagation() // a ring chosen is never also a tap on the photo
+                    chosen.current = i
+                    onRing(i)
+                  }}
+                />
+              )
+            })}
+          </div>
+        )}
+      </div>
       {hint && (
         <span id={hintId} className="sr-only">
           {hint}

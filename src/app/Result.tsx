@@ -31,71 +31,75 @@ export function Result({ run, assay, act, error }: { run: Run; assay: Assay; act
     })
 
   return (
-    <div className="screen">
+    <div className="screen result">
       <Bar field={run.field} />
       <main className="body">
-        {failed ? (
-          <>
-            <h1>Run failed</h1>
-            {/* The reader's own reason, which says what to do: retake the photo, check the controls, or rerun. */}
-            {(read.flags.length ? read.flags : ["The controls didn't separate. Rerun with fresh reagents."]).map((f) => (
-              <p key={f} className="lead">
-                {f}
+        <div className="summary">
+          {failed ? (
+            <>
+              <h1>Run failed</h1>
+              {/* The reader's own reason, which says what to do: retake the photo, check the controls, or rerun. */}
+              {(read.flags.length ? read.flags : ["The controls didn't separate. Rerun with fresh reagents."]).map((f) => (
+                <p key={f} className="lead">
+                  {f}
+                </p>
+              ))}
+            </>
+          ) : (
+            <>
+              <h1 className="count">
+                {positives} of {samples.length} positive
+              </h1>
+              <p className="lead">
+                {run.outcome === 'treat' ? assay.advice.treat : run.outcome === 'dont-treat' ? assay.advice.dontTreat : 'Call the held tubes below.'}
               </p>
-            ))}
-          </>
-        ) : (
-          <>
-            <h1 className="count">
-              {positives} of {samples.length} positive
-            </h1>
-            <p className="lead">
-              {run.outcome === 'treat' ? assay.advice.treat : run.outcome === 'dont-treat' ? assay.advice.dontTreat : 'Call the held tubes below.'}
-            </p>
-            {tapsDecided(run) && (
-              <p className="note">
-                {run.outcome === 'treat' ? yourCalls(run.tappedPositives ?? 0, positives) : 'Your calls decided this.'}
-              </p>
-            )}
-            {read.flags.map((f) => (
-              <p key={f} className="alert">
-                {f}
-              </p>
-            ))}
-            <p className="note">{assay.advice.disclaimer}</p>
-          </>
-        )}
-        {asksRetake(read) && (
-          // Back to the photo step for this run: the guide's progress stays, the photo and its read go.
-          <Action ghost onClick={() => act(() => retakePhoto(run))}>
-            Retake photo
-          </Action>
-        )}
-        <Shot src={url} rings={run.regions!.map((region, i) => ({ region, label: LABELS[i] + (roles[i] === 'sample' ? MARK[calls[i]] : ''), tone: calls[i] }))} />
-        {failed && <p className="note">Your calls are notes. They don't count.</p>}
-        <ol className="tubes">
-          {samples.map((i) => (
-            <li key={i}>
-              <span className="no">{LABELS[i]}</span>
-              {read.tubes[i].call === 'held' ? (
-                <span className="pick">
-                  {heldReason(read, i) && <span className="why">{heldReason(read, i)}</span>}
-                  <span>Look again: yellow or pink?</span>
-                  <span className="choices">
-                    {(['pos', 'neg'] as const).map((t) => (
-                      <button key={t} type="button" aria-pressed={run.taps[i] === t} onClick={() => tap(i, t)}>
-                        {t === 'pos' ? 'Yellow' : 'Pink'}
-                      </button>
-                    ))}
-                  </span>
-                </span>
-              ) : (
-                <span className="call">{read.tubes[i].call === 'pos' ? 'Positive' : 'Negative'}</span>
+              {tapsDecided(run) && (
+                <p className="note">
+                  {run.outcome === 'treat' ? yourCalls(run.tappedPositives ?? 0, positives) : 'Your calls decided this.'}
+                </p>
               )}
-            </li>
-          ))}
-        </ol>
-        {error}
+              {read.flags.map((f) => (
+                <p key={f} className="alert">
+                  {f}
+                </p>
+              ))}
+              <p className="note">{assay.advice.disclaimer}</p>
+            </>
+          )}
+          {asksRetake(read) && (
+            // Back to the photo step for this run: the guide's progress stays, the photo and its read go.
+            <Action ghost onClick={() => act(() => retakePhoto(run))}>
+              Retake photo
+            </Action>
+          )}
+        </div>
+        <Shot src={url} rings={run.regions!.map((region, i) => ({ region, label: LABELS[i] + (roles[i] === 'sample' ? MARK[calls[i]] : ''), tone: calls[i] }))} />
+        <div className="calls">
+          {failed && <p className="note">Your calls are notes. They don't count.</p>}
+          <ol className="tubes">
+            {samples.map((i) => (
+              <li key={i}>
+                <span className="no">{LABELS[i]}</span>
+                {read.tubes[i].call === 'held' ? (
+                  <span className="pick">
+                    {heldReason(read, i) && <span className="why">{heldReason(read, i)}</span>}
+                    <span>Look again: yellow or pink?</span>
+                    <span className="choices">
+                      {(['pos', 'neg'] as const).map((t) => (
+                        <button key={t} type="button" aria-pressed={run.taps[i] === t} onClick={() => tap(i, t)}>
+                          {t === 'pos' ? 'Yellow' : 'Pink'}
+                        </button>
+                      ))}
+                    </span>
+                  </span>
+                ) : (
+                  <span className="call">{read.tubes[i].call === 'pos' ? 'Positive' : 'Negative'}</span>
+                )}
+              </li>
+            ))}
+          </ol>
+          {error}
+        </div>
       </main>
       <footer className="actions">
         <Action ghost onClick={() => void exportNow()}>

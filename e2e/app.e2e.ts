@@ -1,7 +1,7 @@
 import { execSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import { devices, expect, test, type Locator, type Page } from '@playwright/test'
 import { PNG } from 'pngjs'
 import { darken as darkenBy, makeRun, photograph, type Conditions, type Img, type Lamp, type Layout } from '../src/lib/synth'
 
@@ -118,7 +118,8 @@ type Pt = [number, number]
  * does; `lamp`: a lamp of that colour temperature at one edge of the photo (`from`, the left by default),
  * fading to daylight at the far edge, or with 0 a plain shade, 15% darker there; `ev`: stops added to the
  * run's exposure; `darken`: stops the photo is darkened by after the camera clipped it. All as
- * scripts/lamp-sweep.ts makes them (synth.ts photograph and darken). `edit` changes the camera's pixels.
+ * scripts/lamp-sweep.ts makes them (synth.ts photograph and darken). `edit` changes the camera's pixels. `above`:
+ * rows of paper added above the tubes, for a photo taller than the layout's own.
  */
 function syntheticPhoto(
   layout: Layout = 'row',
@@ -130,13 +131,20 @@ function syntheticPhoto(
     ev = 0,
     darken = 0,
     edit,
-  }: { seed?: number; cond?: Conditions; lamp?: number; from?: Lamp['from']; ev?: number; darken?: number; edit?: (img: Img, tubes: Pt[]) => void } = {},
+    above = 0,
+  }: { seed?: number; cond?: Conditions; lamp?: number; from?: Lamp['from']; ev?: number; darken?: number; edit?: (img: Img, tubes: Pt[]) => void; above?: number } = {},
 ) {
   const run = makeRun(seed, 'typical', cond)
   run.ev += ev
   const shot = photograph(run, layout, lamp === undefined ? undefined : { kelvin: lamp, from })
-  const img = darken ? darkenBy(shot.img, darken) : shot.img
-  const tubes = shot.tubes
+  let img = darken ? darkenBy(shot.img, darken) : shot.img
+  let tubes = shot.tubes
+  if (above) {
+    const data = new Uint32Array(img.width * (img.height + above)).fill(new Uint32Array(img.data.buffer)[0])
+    data.set(new Uint32Array(img.data.buffer), img.width * above)
+    img = { width: img.width, height: img.height + above, data: new Uint8ClampedArray(data.buffer) }
+    tubes = tubes.map(([x, y]) => [x, y + above])
+  }
   edit?.(img, tubes)
   const png = new PNG({ width: img.width, height: img.height })
   png.data = Buffer.from(img.data.buffer)
@@ -360,6 +368,56 @@ test('a double tap, even a slow one, never acts on the step or screen its first 
   // A tap made once the screen is ready still counts at once.
   await page.getByRole('button', { name: 'Back' }).click()
   await expect(page.getByText(`Step ${steps} of ${steps}`)).toBeVisible()
+})
+
+/** The middle of the ring nearest the point `at` in the photo, on screen. */
+async function ringCentre(page: Page, at: Pt) {
+  const rings = await page.locator('.shot ellipse').all()
+  const near = await Promise.all(rings.map(async (r) => Math.hypot(Number(await r.getAttribute('cx')) - at[0], Number(await r.getAttribute('cy')) - at[1])))
+  const box = (await rings[near.indexOf(Math.min(...near))].boundingBox())!
+  return [box.x + box.width / 2, box.y + box.height / 2] as Pt
+}
+
+test('on a 390 x 844 phone, a tall photo fits above the actions, so the last tube can be tapped without scrolling', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/app.html')
+  await toPhoto(page, 'Tall photo')
+  const photo = syntheticPhoto('2x5', { above: 150 }) // 500 x 990: the tubes low in a photo taller than 9:16
+  await page.locator('input[type=file]').setInputFiles(photo.file)
+  await expect(page.getByRole('heading', { name: '10 tubes', exact: true })).toBeVisible()
+  expect(await page.evaluate(() => scrollY)).toBe(0)
+  const [x, y] = await ringCentre(page, photo.tubes[9])
+  expect(await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('.shot'), [x, y])).toBe(true)
+  const shot = (await page.locator('.shot svg').boundingBox())!
+  expect(shot.y + shot.height).toBeLessThanOrEqual((await page.locator('.actions').boundingBox())!.y)
+  // Its shape is the photo's, so a tap lands on the tube it's on.
+  await label(page, photo)
+  await expect(page.getByRole('heading', { name: '2 of 8 positive', exact: true })).toBeVisible()
+})
+
+// A laptop, as shared on a call for a demo. Its own browser settings: not a phone.
+const { defaultBrowserType: _, ...laptop } = devices['Desktop Chrome']
+test.describe('on a 1280 x 720 laptop', () => {
+  test.use(laptop)
+
+  test('timer steps and the photo fit the screen, and the result shows the held tube beside the photo', async ({ page }) => {
+    await page.goto('/app.html')
+    await toPhoto(page, 'Laptop') // every step, timer steps 2, 7 and 9 too, with no scrolling
+    const photo = syntheticPhoto('2x5')
+    await page.locator('input[type=file]').setInputFiles(photo.file)
+    await expect(page.getByRole('heading', { name: '10 tubes', exact: true })).toBeVisible()
+    const shot = page.locator('.shot svg')
+    const box = (await shot.boundingBox())!
+    expect(box.y + box.height).toBeLessThanOrEqual((await page.locator('.actions').boundingBox())!.y)
+    expect(box.width / box.height).toBeCloseTo(photo.size[0] / photo.size[1], 2)
+    expect(await page.evaluate(() => document.documentElement.scrollHeight - innerHeight)).toBeLessThanOrEqual(0)
+    await label(page, photo)
+
+    await expect(page.getByRole('heading', { name: '2 of 8 positive', exact: true })).toBeInViewport({ ratio: 1 })
+    await expect(page.getByRole('listitem').filter({ hasText: 'Look again: yellow or pink?' })).toBeInViewport({ ratio: 1 })
+    await expect(page.locator('.shot img')).toBeInViewport({ ratio: 1 })
+    expect(await page.evaluate(() => document.documentElement.scrollHeight - innerHeight)).toBeLessThanOrEqual(0)
+  })
 })
 
 /** Puts a run into the phone's store exactly as given, as another version of the app might have saved it. */
