@@ -291,6 +291,7 @@ async function toPhoto(page: Page, field: string) {
     await page.getByRole('button', { name: 'Done' }).click()
   }
   await expect(page.getByRole('heading', { name: 'Take photo', exact: true })).toBeVisible()
+  await expect(page.locator('input[type=file]')).toBeEnabled() // after a moment, so a double tap on Done can't open the camera
   expect(pictures.size).toBe(steps)
   return pictures
 }
@@ -304,6 +305,61 @@ test('offline on a 360 x 740 phone, every guide step shows its picture with no s
   await page.reload()
   // Each picture is its own file, as a photo swapped in would be, and came from the precache.
   for (const src of await toPhoto(page, 'Pictures')) expect(cached).toContain(new URL(src).pathname)
+})
+
+/** A finger's two taps on the middle of `target`, the second `ms` after the first. */
+async function doubleTap(page: Page, target: Locator, ms: number) {
+  const box = (await target.boundingBox())!
+  const [x, y] = [box.x + box.width / 2, box.y + box.height / 2]
+  await page.touchscreen.tap(x, y)
+  await page.waitForTimeout(ms)
+  await page.touchscreen.tap(x, y)
+}
+
+test('a double tap, even a slow one, never acts on the step or screen its first tap opened', async ({ page }) => {
+  await page.goto('/app.html')
+  await newRun(page, 'Double tap')
+  const id = runId(page)
+  const done = page.getByRole('button', { name: 'Done' })
+  const start = page.getByRole('button', { name: 'Start timer' })
+  /** The steps finished, once any write a tap started is stored. */
+  const finished = async () => {
+    const run = (await storedRun(page, id)) as { steps: Record<string, { done?: boolean; timerStartedAt?: number }> }
+    return Object.keys(run.steps).filter((s) => run.steps[s].done)
+  }
+  // Each second tap lands where the next screen's main button is. At 700 ms it used to finish that step unseen.
+  await expect(done).toBeEnabled()
+  await doubleTap(page, done, 120)
+  await expect(start).toBeEnabled() // armed: a second tap that counted has acted by now
+  await expect(page.getByText(`Step 2 of ${steps}`)).toBeVisible()
+  await expect(page.getByRole('timer')).toHaveText('20:00')
+  await doubleTap(page, start, 350)
+  await expect(done).toBeEnabled()
+  expect(await finished()).toEqual(['pick'])
+  await doubleTap(page, done, 700)
+  await expect(done).toBeEnabled()
+  await expect(page.getByText(`Step 3 of ${steps}`)).toBeVisible()
+  expect(await finished()).toEqual(['pick', 'preheat'])
+
+  // On the last step, the second tap lands on Take photo: it doesn't open the camera.
+  for (let i = 3; i < steps; i++) {
+    await expect(page.getByText(`Step ${i} of ${steps}`)).toBeVisible()
+    if (await start.isVisible()) await start.click()
+    await done.click()
+  }
+  await expect(page.getByText(`Step ${steps} of ${steps}`)).toBeVisible()
+  await start.click()
+  await expect(done).toBeEnabled()
+  let chooser = false
+  page.on('filechooser', () => (chooser = true))
+  await doubleTap(page, done, 700)
+  await expect(page.locator('input[type=file]')).toBeEnabled()
+  await expect(page.getByRole('heading', { name: 'Take photo', exact: true })).toBeVisible()
+  expect(chooser).toBe(false)
+
+  // A tap made once the screen is ready still counts at once.
+  await page.getByRole('button', { name: 'Back' }).click()
+  await expect(page.getByText(`Step ${steps} of ${steps}`)).toBeVisible()
 })
 
 /** Puts a run into the phone's store exactly as given, as another version of the app might have saved it. */

@@ -168,6 +168,7 @@ h1 {
   text-decoration: none;
   cursor: pointer;
   touch-action: manipulation;
+  transition: opacity 0.15s;
 }
 .btn:active {
   background: var(--ultra-deep);
@@ -180,6 +181,9 @@ h1 {
 }
 .body .btn.ghost {
   align-self: stretch;
+}
+.btn[data-arming] {
+  opacity: 0.5;
 }
 .btn:disabled:not([data-arming]) {
   border-color: var(--rule);

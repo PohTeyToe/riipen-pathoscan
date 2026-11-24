@@ -8,7 +8,7 @@ import { addRing, findRings, LABELS, readTubes, removeRing, ringAt, ROLES, tapIn
 import type { Run } from './run'
 import { Shot } from './Shot'
 import { getPhoto, saveRead, takePhoto } from './store'
-import { Bar } from './ui'
+import { Bar, useArmed } from './ui'
 
 interface Props {
   run: Run
@@ -31,6 +31,8 @@ export function Photo({ run, assay, act, back, error }: Props) {
   const [order, setOrder] = useState<number[]>([])
   const [busy, setBusy] = useState(false)
   const [bad, setBad] = useState(false)
+  // Opened by Done on the last step: a double tap there mustn't also open the camera.
+  const armed = useArmed()
 
   // Always from the saved file, so a reload or a reread sees the same pixels.
   useEffect(() => {
@@ -81,13 +83,13 @@ export function Photo({ run, assay, act, back, error }: Props) {
   }
 
   const camera = (label: string, ghost?: boolean) => (
-    <label className={ghost ? 'btn ghost camera' : 'btn camera'}>
+    <label className={ghost ? 'btn ghost camera' : 'btn camera'} data-arming={armed ? undefined : ''}>
       {busy ? 'Reading…' : label}
       <input
         type="file"
         accept="image/*"
         capture="environment"
-        disabled={busy}
+        disabled={busy || !armed}
         onChange={(e) => {
           const file = e.target.files?.[0]
           e.target.value = ''

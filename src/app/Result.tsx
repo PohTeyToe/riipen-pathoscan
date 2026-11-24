@@ -101,9 +101,7 @@ export function Result({ run, assay, act, error }: { run: Run; assay: Assay; act
         <Action ghost onClick={() => void exportNow()}>
           Export
         </Action>
-        <a className="btn" href="#/">
-          Done
-        </a>
+        <Action href="#/">Done</Action>
       </footer>
     </div>
   )
