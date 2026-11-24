@@ -405,7 +405,10 @@ test('the second tap of a double tap, even a slow one, never acts on the screen 
   for (const tube of photo.tubes) await tapPhoto(page, photo.size, tube)
   const result = page.getByRole('heading', { name: '2 of 8 positive', exact: true })
   await doubleTap(page, page.getByRole('button', { name: 'Continue' }), 700, result)
+  // Until it is armed, Done is no link at all, so a middle click can't follow it either.
+  await expect(page.getByRole('link', { name: 'Done' })).toHaveCount(0)
   await arm(page)
+  await expect(page.getByRole('link', { name: 'Done' })).toHaveCount(1)
   await expect(result).toBeVisible()
   expect(page.url()).toContain('#/run/')
 })

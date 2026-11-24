@@ -49,13 +49,13 @@ export function useArmed() {
   return armed
 }
 
-/** A button, or with `href` a link, that takes no tap until it is armed (useArmed). It shows faded until then. */
+/** A button, or with `href` a link, that takes no tap until it is armed (useArmed). It shows faded until then; the link has no target until then, so a middle click can't follow it either. */
 export function Action({ onClick, href, ghost, children }: { onClick?: () => void; href?: string; ghost?: boolean; children: ReactNode }) {
   const armed = useArmed()
   const look = { className: ghost ? 'btn ghost' : 'btn', 'data-arming': armed ? undefined : '' }
   if (href)
     return (
-      <a {...look} href={href} aria-disabled={!armed || undefined} onClick={(e) => (armed ? onClick?.() : e.preventDefault())}>
+      <a {...look} href={armed ? href : undefined} aria-disabled={!armed || undefined} onClick={armed ? onClick : undefined}>
         {children}
       </a>
     )
