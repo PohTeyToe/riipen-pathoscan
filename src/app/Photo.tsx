@@ -136,14 +136,16 @@ export function Photo({ run, assay, act, back, error }: Props) {
     }
   })
   return (
-    <div className="screen">
+    <div className="screen photo">
       <Bar field={run.field} step="Photo" />
       <main className="body">
-        <h1>{stage === 'label' ? `${order.length} of ${n} labelled` : n === assay.tubes ? `${n} tubes` : `${n} of ${assay.tubes} tubes`}</h1>
-        <p className="note">{stage === 'rings' ? 'Tap a tube to ring it. Tap a ring to remove it.' : 'Tap the tubes in order: +, −, then 1 to 8.'}</p>
-        <Shot fit src={shot.url} rings={labels} onTap={tap} onRing={pick} hint={stage === 'rings' ? 'Adding a ring needs a tap on the photo.' : undefined} />
-        {status}
-        {error}
+        <div className="side">
+          <h1>{stage === 'label' ? `${order.length} of ${n} labelled` : n === assay.tubes ? `${n} tubes` : `${n} of ${assay.tubes} tubes`}</h1>
+          <p className="note">{stage === 'rings' ? 'Tap a tube to ring it. Tap a ring to remove it.' : 'Tap the tubes in order: +, −, then 1 to 8.'}</p>
+          {status}
+          {error}
+        </div>
+        <Shot src={shot.url} rings={labels} onTap={tap} onRing={pick} hint={stage === 'rings' ? 'Adding a ring needs a tap on the photo.' : undefined} />
       </main>
       <footer className="actions">
         {stage === 'rings' ? (

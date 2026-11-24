@@ -155,6 +155,7 @@ function syntheticPhoto(
 async function exportCsv(page: Page) {
   await page.evaluate(() => Object.defineProperty(navigator, 'canShare', { value: undefined, configurable: true }))
   const downloaded = page.waitForEvent('download')
+  await arm(page)
   await page.getByRole('button', { name: 'Export' }).click()
   const csv = readFileSync((await (await downloaded).path())!, 'utf8')
   const [head, ...rows] = csv.slice(1).trimEnd().split('\r\n').map((line) => line.split(','))
@@ -276,13 +277,20 @@ test('a run goes from the guide to a photo, rings, labels tapped in order and a 
 /** Steps in the Sclerotinia guide. */
 const steps = 9
 
-/** A new run, on its first guide step. */
+/** A new run, on its first guide step, with a fake clock on the page (in step with real time until arm moves it). */
 async function newRun(page: Page, field: string) {
+  await page.clock.install()
   await page.getByRole('link', { name: 'New run' }).click()
   await page.getByLabel('Field name').fill(field)
   await page.getByRole('button', { name: 'Start run' }).click()
   await expect(page.getByText(`Step 1 of ${steps}`)).toBeVisible()
 }
+
+/**
+ * Moves the page's clock on past the wait before a new screen's buttons take a tap (useArmed in ui.tsx: two frames,
+ * then a second), so a test doesn't spend real seconds on it.
+ */
+const arm = (page: Page) => page.clock.runFor(1100)
 
 /** A new run, through the guide to the Photo screen. Each step shows its own picture, loaded, and fits the screen. Returns the pictures. */
 async function toPhoto(page: Page, field: string) {
@@ -295,11 +303,17 @@ async function toPhoto(page: Page, field: string) {
     await expect.poll(() => picture.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBeGreaterThan(0)
     pictures.add(await picture.evaluate((img: HTMLImageElement) => img.src))
     expect(await page.evaluate(() => document.documentElement.scrollHeight - innerHeight)).toBeLessThanOrEqual(0)
-    if (await page.getByRole('button', { name: 'Start timer' }).isVisible()) await page.getByRole('button', { name: 'Start timer' }).click()
+    await arm(page)
+    if (await page.getByRole('button', { name: 'Start timer' }).isVisible()) {
+      await page.getByRole('button', { name: 'Start timer' }).click()
+      await expect(page.getByRole('button', { name: 'Done' })).toBeVisible()
+      await arm(page)
+    }
     await page.getByRole('button', { name: 'Done' }).click()
   }
   await expect(page.getByRole('heading', { name: 'Take photo', exact: true })).toBeVisible()
-  await expect(page.locator('input[type=file]')).toBeEnabled() // after a moment, so a double tap on Done can't open the camera
+  await arm(page)
+  await expect(page.locator('input[type=file]')).toBeEnabled()
   expect(pictures.size).toBe(steps)
   return pictures
 }
@@ -315,59 +329,126 @@ test('offline on a 360 x 740 phone, every guide step shows its picture with no s
   for (const src of await toPhoto(page, 'Pictures')) expect(cached).toContain(new URL(src).pathname)
 })
 
-/** A finger's two taps on the middle of `target`, the second `ms` after the first. */
-async function doubleTap(page: Page, target: Locator, ms: number) {
+/**
+ * A finger's two taps on the middle of `target`, `ms` apart on the page's paused clock. The second comes once
+ * `opened`, the screen the first tap opens, is on show.
+ */
+async function doubleTap(page: Page, target: Locator, ms: number, opened: Locator) {
   const box = (await target.boundingBox())!
   const [x, y] = [box.x + box.width / 2, box.y + box.height / 2]
   await page.touchscreen.tap(x, y)
-  await page.waitForTimeout(ms)
+  await expect(opened).toBeVisible()
+  await page.clock.runFor(ms)
   await page.touchscreen.tap(x, y)
 }
 
-test('a double tap, even a slow one, never acts on the step or screen its first tap opened', async ({ page }) => {
+/** Stops the page's clock: from here on, time passes only by runFor. */
+const pauseClock = async (page: Page) => page.clock.pauseAt((await page.evaluate(() => Date.now())) + 1000)
+
+/** The steps the run has finished, once any write a tap started is stored. */
+async function finished(page: Page) {
+  const run = (await storedRun(page, runId(page))) as { steps: Record<string, { done?: boolean }> }
+  return Object.keys(run.steps).filter((s) => run.steps[s].done)
+}
+
+test('the second tap of a double tap, even a slow one, never acts on the screen its first tap opened', async ({ page }) => {
   await page.goto('/app.html')
-  await newRun(page, 'Double tap')
-  const id = runId(page)
+  await pauseClock(page)
   const done = page.getByRole('button', { name: 'Done' })
   const start = page.getByRole('button', { name: 'Start timer' })
-  /** The steps finished, once any write a tap started is stored. */
-  const finished = async () => {
-    const run = (await storedRun(page, id)) as { steps: Record<string, { done?: boolean; timerStartedAt?: number }> }
-    return Object.keys(run.steps).filter((s) => run.steps[s].done)
-  }
-  // Each second tap lands where the next screen's main button is. At 700 ms it used to finish that step unseen.
-  await expect(done).toBeEnabled()
-  await doubleTap(page, done, 120)
-  await expect(start).toBeEnabled() // armed: a second tap that counted has acted by now
-  await expect(page.getByText(`Step 2 of ${steps}`)).toBeVisible()
-  await expect(page.getByRole('timer')).toHaveText('20:00')
-  await doubleTap(page, start, 350)
-  await expect(done).toBeEnabled()
-  expect(await finished()).toEqual(['pick'])
-  await doubleTap(page, done, 700)
-  await expect(done).toBeEnabled()
-  await expect(page.getByText(`Step 3 of ${steps}`)).toBeVisible()
-  expect(await finished()).toEqual(['pick', 'preheat'])
+  const step = (i: number) => page.getByText(`Step ${i} of ${steps}`)
+  // Each second tap lands on the main button of the screen the first one opened. A button that took it would
+  // have written by the time the next one is armed.
+  await page.getByRole('link', { name: 'New run' }).click()
+  await page.getByLabel('Field name').fill('Double tap')
+  await doubleTap(page, page.getByRole('button', { name: 'Start run' }), 700, step(1))
+  await arm(page)
+  expect(await finished(page)).toEqual([])
+  await doubleTap(page, done, 120, step(2))
+  await arm(page)
+  await expect(page.getByRole('timer')).toHaveText('20:00') // not started
+  await doubleTap(page, start, 350, done)
+  await arm(page)
+  expect(await finished(page)).toEqual(['pick'])
+  await doubleTap(page, done, 700, step(3))
+  await arm(page)
+  await doubleTap(page, done, 950, step(4))
+  await arm(page)
+  await expect(step(4)).toBeVisible()
+  expect(await finished(page)).toEqual(['pick', 'preheat', 'label'])
 
-  // On the last step, the second tap lands on Take photo: it doesn't open the camera.
-  for (let i = 3; i < steps; i++) {
-    await expect(page.getByText(`Step ${i} of ${steps}`)).toBeVisible()
-    if (await start.isVisible()) await start.click()
+  // The last step's Done, then Take photo: the camera doesn't open.
+  for (let i = 4; i < steps; i++) {
+    if (await start.isVisible()) {
+      await start.click()
+      await expect(done).toBeVisible()
+      await arm(page)
+    }
     await done.click()
+    await expect(step(i + 1)).toBeVisible()
+    await arm(page)
   }
-  await expect(page.getByText(`Step ${steps} of ${steps}`)).toBeVisible()
   await start.click()
-  await expect(done).toBeEnabled()
+  await expect(done).toBeVisible()
+  await arm(page)
   let chooser = false
   page.on('filechooser', () => (chooser = true))
-  await doubleTap(page, done, 700)
-  await expect(page.locator('input[type=file]')).toBeEnabled()
-  await expect(page.getByRole('heading', { name: 'Take photo', exact: true })).toBeVisible()
+  await doubleTap(page, done, 700, page.getByRole('heading', { name: 'Take photo', exact: true }))
+  await arm(page)
   expect(chooser).toBe(false)
+  expect(await finished(page)).toHaveLength(steps)
 
-  // A tap made once the screen is ready still counts at once.
-  await page.getByRole('button', { name: 'Back' }).click()
-  await expect(page.getByText(`Step ${steps} of ${steps}`)).toBeVisible()
+  // Continue on the labelled photo, then Done on the result: the result stays on show.
+  const photo = syntheticPhoto()
+  await page.locator('input[type=file]').setInputFiles(photo.file)
+  await page.getByRole('button', { name: 'Continue' }).click()
+  for (const tube of photo.tubes) await tapPhoto(page, photo.size, tube)
+  const result = page.getByRole('heading', { name: '2 of 8 positive', exact: true })
+  await doubleTap(page, page.getByRole('button', { name: 'Continue' }), 700, result)
+  await arm(page)
+  await expect(result).toBeVisible()
+  expect(page.url()).toContain('#/run/')
+})
+
+/** Shows or hides the page, as switching apps or tabs does. Headless, a page is always in view, so its state is set here. */
+const setVisible = (page: Page, visible: boolean) =>
+  page.evaluate((visible) => {
+    Object.defineProperty(document, 'visibilityState', { value: visible ? 'visible' : 'hidden', configurable: true })
+    document.dispatchEvent(new Event('visibilitychange'))
+  }, visible)
+
+test('a new step takes no tap until it has been in view for a second, whether the page was hidden before it was drawn or after', async ({ page }) => {
+  await page.goto('/app.html')
+  await newRun(page, 'Hidden')
+  await pauseClock(page)
+  await arm(page)
+  const start = page.getByRole('button', { name: 'Start timer' })
+  const done = page.getByRole('button', { name: 'Done' })
+
+  // Hidden before step 2 is drawn: time hidden counts for nothing.
+  await setVisible(page, false)
+  await done.click()
+  await expect(page.getByText(`Step 2 of ${steps}`)).toBeVisible()
+  await page.clock.runFor(10_000)
+  await expect(start).toBeDisabled()
+  await setVisible(page, true)
+  await page.clock.runFor(900)
+  await expect(start).toBeDisabled()
+  await page.clock.runFor(200)
+  await expect(start).toBeEnabled()
+
+  // Hidden 600 ms into Done's wait: back in view, the wait starts again.
+  await start.click()
+  await expect(done).toBeVisible()
+  await page.clock.runFor(600)
+  await setVisible(page, false)
+  await page.clock.runFor(10_000)
+  await expect(done).toBeDisabled()
+  await setVisible(page, true)
+  await page.clock.runFor(900)
+  await expect(done).toBeDisabled()
+  await page.clock.runFor(200)
+  await expect(done).toBeEnabled()
 })
 
 /** The middle of the ring nearest the point `at` in the photo, on screen. */
@@ -378,19 +459,17 @@ async function ringCentre(page: Page, at: Pt) {
   return [box.x + box.width / 2, box.y + box.height / 2] as Pt
 }
 
-test('on a 390 x 844 phone, a tall photo fits above the actions, so the last tube can be tapped without scrolling', async ({ page }) => {
+test('on a 390 x 844 phone, a tall photo is as wide as the screen, and scrolled to its end the last tube is clear of the actions', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/app.html')
   await toPhoto(page, 'Tall photo')
   const photo = syntheticPhoto('2x5', { above: 150 }) // 500 x 990: the tubes low in a photo taller than 9:16
   await page.locator('input[type=file]').setInputFiles(photo.file)
   await expect(page.getByRole('heading', { name: '10 tubes', exact: true })).toBeVisible()
-  expect(await page.evaluate(() => scrollY)).toBe(0)
+  expect((await page.locator('.shot svg').boundingBox())!.width).toBe(390)
+  await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight))
   const [x, y] = await ringCentre(page, photo.tubes[9])
   expect(await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('.shot'), [x, y])).toBe(true)
-  const shot = (await page.locator('.shot svg').boundingBox())!
-  expect(shot.y + shot.height).toBeLessThanOrEqual((await page.locator('.actions').boundingBox())!.y)
-  // Its shape is the photo's, so a tap lands on the tube it's on.
   await label(page, photo)
   await expect(page.getByRole('heading', { name: '2 of 8 positive', exact: true })).toBeVisible()
 })
@@ -400,15 +479,17 @@ const { defaultBrowserType: _, ...laptop } = devices['Desktop Chrome']
 test.describe('on a 1280 x 720 laptop', () => {
   test.use(laptop)
 
-  test('timer steps and the photo fit the screen, and the result shows the held tube beside the photo', async ({ page }) => {
+  test('timer steps fit the screen, the photo takes its height beside the actions, and the result shows the held tube beside the photo', async ({ page }) => {
     await page.goto('/app.html')
     await toPhoto(page, 'Laptop') // every step, timer steps 2, 7 and 9 too, with no scrolling
     const photo = syntheticPhoto('2x5')
     await page.locator('input[type=file]').setInputFiles(photo.file)
-    await expect(page.getByRole('heading', { name: '10 tubes', exact: true })).toBeVisible()
-    const shot = page.locator('.shot svg')
-    const box = (await shot.boundingBox())!
-    expect(box.y + box.height).toBeLessThanOrEqual((await page.locator('.actions').boundingBox())!.y)
+    await expect(page.getByRole('heading', { name: '10 tubes', exact: true })).toBeInViewport({ ratio: 1 })
+    await expect(page.getByRole('button', { name: 'Continue' })).toBeInViewport({ ratio: 1 })
+    const box = (await page.locator('.shot svg').boundingBox())!
+    expect(box.y).toBeGreaterThanOrEqual((await page.locator('.bar').boundingBox())!.height)
+    expect(box.y + box.height).toBeLessThanOrEqual(720)
+    expect(box.height).toBeGreaterThan(560) // the height under the bar, less a margin
     expect(box.width / box.height).toBeCloseTo(photo.size[0] / photo.size[1], 2)
     expect(await page.evaluate(() => document.documentElement.scrollHeight - innerHeight)).toBeLessThanOrEqual(0)
     await label(page, photo)
@@ -523,6 +604,7 @@ test('with the keyboard alone, rings can be removed, the tubes labelled and the 
   await page.goto('/app.html')
   await toPhoto(page, 'Keys')
   const camera = async () => {
+    await arm(page) // each photo opens a new Photo screen, its camera locked for a moment
     await tabTo(page, page.locator('input[type=file]'))
     const chooser = page.waitForEvent('filechooser')
     await page.keyboard.press(' ') // Space opens a file input; Enter doesn't in Chromium

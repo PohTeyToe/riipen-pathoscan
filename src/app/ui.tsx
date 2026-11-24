@@ -16,36 +16,36 @@ export function Bar({ field, step }: { field?: string; step?: string }) {
   )
 }
 
-/** About the quickest anyone reacts to something new on screen: a tap sooner can't be an answer to it. */
-const SHOWN_MS = 300
-/** Taps closer than this are one double tap, even a slow one. The slowest double click a desktop allows is 900 ms. */
-const DOUBLE_TAP_MS = 1000
-let lastTap = -Infinity
-let listening = false
+/** Longer than the gap between a double tap's two taps, even a slow one: the slowest double click a desktop allows is 900 ms. */
+const ARM_MS = 1000
 
 /**
- * False until a control that just came on screen may take a tap, so the second tap of a double tap never acts
- * on a screen the first one opened. That is once the screen has been painted and shown for SHOWN_MS, and
- * DOUBLE_TAP_MS have passed since the last tap anywhere on the page. A tap on a control that isn't ready yet
- * is dropped and doesn't count as a tap.
+ * False until a control that just came on screen may take a tap: once its screen has been painted and then in
+ * view for ARM_MS. Every such screen opens on a tap and is drawn tens of milliseconds later, so the second tap of a
+ * double tap never acts on a step the grower hasn't seen. Time with the page hidden doesn't count: back in view,
+ * the wait starts again.
  */
 export function useArmed() {
   const [armed, setArmed] = useState(false)
   useEffect(() => {
-    if (!listening) addEventListener('click', (e) => (e.target as Element).closest('[data-arming]') || (lastTap = performance.now()), true)
-    listening = true
+    if (armed) return
+    let frame = 0
     let timer: ReturnType<typeof setTimeout> | undefined
-    // The frame after next: this screen has been painted by then.
-    let frame = requestAnimationFrame(() => {
-      frame = requestAnimationFrame(() => {
-        timer = setTimeout(() => setArmed(true), Math.max(SHOWN_MS, lastTap + DOUBLE_TAP_MS - performance.now()))
-      })
-    })
+    const wait = () => {
+      cancelAnimationFrame(frame)
+      clearTimeout(timer)
+      if (document.visibilityState !== 'visible') return
+      // The frame after next: the screen has been painted by then.
+      frame = requestAnimationFrame(() => (frame = requestAnimationFrame(() => (timer = setTimeout(() => setArmed(true), ARM_MS)))))
+    }
+    wait()
+    document.addEventListener('visibilitychange', wait)
     return () => {
+      document.removeEventListener('visibilitychange', wait)
       cancelAnimationFrame(frame)
       clearTimeout(timer)
     }
-  }, [])
+  }, [armed])
   return armed
 }
 

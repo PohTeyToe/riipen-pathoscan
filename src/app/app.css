@@ -338,17 +338,6 @@ h1 {
 .frame {
   position: relative;
 }
-/* Fills the height its screen leaves, so the whole photo is in view above the actions. Narrower than the screen
-   when the photo is tall for it: the frame keeps the photo's shape, so a tap maps to the same point in the photo. */
-.shot.fit {
-  flex: 1 1 0;
-  min-height: 15rem;
-  container-type: size;
-}
-.fit .frame {
-  width: min(100cqw, 100cqh * var(--ratio));
-  margin-inline: auto;
-}
 .shot img {
   display: block;
   width: 100%;
@@ -531,5 +520,49 @@ h1 {
   .result .actions .btn:not(.ghost) {
     flex: 0 1 20rem;
     margin-inline-start: auto;
+  }
+}
+
+/* The photo screen. On a phone the photo is as wide as the screen, and the page scrolls to its last tube; a message
+   shows under the photo. On a laptop the heading, the messages and the actions sit beside the photo, which takes the
+   full height under the bar at its own shape, so a tap still maps to the same point in the photo. */
+.photo .side {
+  display: contents;
+}
+.photo .side .alert {
+  order: 1;
+}
+@media (min-width: 900px) {
+  .photo {
+    display: grid;
+    grid-template: 'bar bar' auto 'side photo' minmax(0, 1fr) 'actions photo' auto / 22rem minmax(0, 1fr);
+    max-width: none;
+    height: 100dvh;
+  }
+  .photo .bar {
+    grid-area: bar;
+  }
+  .photo .body {
+    display: contents;
+  }
+  .photo .side {
+    grid-area: side;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 28px var(--pad);
+  }
+  .photo .shot {
+    grid-area: photo;
+    margin: 0;
+    padding: 20px var(--pad);
+    container-type: size;
+  }
+  .photo .frame {
+    width: min(100cqw, 100cqh * var(--ratio));
+    margin-inline: auto;
+  }
+  .photo .actions {
+    grid-area: actions;
   }
 }

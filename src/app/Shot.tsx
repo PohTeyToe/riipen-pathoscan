@@ -19,12 +19,10 @@ interface Props {
   onRing?: (i: number) => void
   /** What a keyboard can't do here, for screen readers. */
   hint?: string
-  /** As big as the space its screen leaves it allows, at the photo's own shape, so every tube is in view. */
-  fit?: boolean
 }
 
 /** The run's photo with a numbered ring on each tube. */
-export function Shot({ src, rings, onTap, onRing, hint, fit }: Props) {
+export function Shot({ src, rings, onTap, onRing, hint }: Props) {
   const [size, setSize] = useState<{ src: string; w: number; h: number }>()
   const hintId = useId()
   const group = useRef<HTMLDivElement>(null)
@@ -58,7 +56,7 @@ export function Shot({ src, rings, onTap, onRing, hint, fit }: Props) {
   }
   const pct = (v: number, of: number) => `${(100 * v) / of}%`
   return (
-    <div className={fit ? 'shot fit' : 'shot'} style={font ? ({ '--ratio': size!.w / size!.h } as CSSProperties) : undefined}>
+    <div className="shot" style={font ? ({ '--ratio': size!.w / size!.h } as CSSProperties) : undefined}>
       <div className="frame">
         {src && <img src={src} alt="" onLoad={(e) => setSize({ src, w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })} />}
         {size && font && (
