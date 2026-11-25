@@ -1,8 +1,5 @@
-// PLACEHOLDER TEXT: a first pass at plain step text, for Taha to correct against a real kit. His text
-// and pictures replace these steps and the advice lines.
-// treatAt is Ethan's answer to open question 1 (Nov 24): treat starts at 2 positives of 8. coolMin is a default
-// until he answers open question 2 (see app-spec.md).
-// The pictures are our own drawings of generic kit. Swapping one is a change to its import line.
+// Guide copy follows the Sclerotinia Quick-Start Card, with field sampling and photo steps.
+// Confirm the field sampling route and the cool-down reminder length with Ethan.
 
 import type { Assay } from './assay'
 import pick from './sclerotinia/pick.svg'
@@ -15,70 +12,70 @@ import oil from './sclerotinia/oil.svg'
 import shade from './sclerotinia/shade.svg'
 import cool from './sclerotinia/cool.svg'
 
+// The Quick-Start Card calls for room temperature. This is a reminder interval.
 const coolMin = 5
 
 export const sclerotinia: Assay = {
   id: 'sclerotinia',
   name: 'Sclerotinia',
   tubes: 10,
-  treatAt: 2,
+  treatAt: 2, // Ethan confirmed treatment starts at two positives out of eight.
   coolMin,
   steps: [
-    // PROPOSAL: sent to Ethan on Nov 19 (open question 6), waiting for him to confirm how growers pick samples.
     {
       id: 'pick',
-      title: 'Pick the samples',
-      body: "Walk across the field in a W. Stop at 8 plants spread along the way, not all in one spot. Pick 4 petals from each plant. Keep each plant's petals apart. Each plant is one sample.",
-      image: { src: pick, alt: 'A field with a W-shaped path across it and 8 plants spread along the path, numbered 1 to 8.' },
+      title: 'Pick eight field samples',
+      body: 'Choose one flowering canola plant at each of eight spots spread across the field. Collect four petals from each plant and keep them together as one numbered sample.',
+      image: { src: pick, alt: 'Eight numbered plants spread along an example route through the field.' },
     },
     {
       id: 'preheat',
-      title: 'Pre-heat the PathoBox',
-      body: 'Turn the PathoBox on. Let it warm up for about 20 minutes.',
+      title: 'Warm up the PathoBox',
+      body: 'Turn on the PathoBox and start the 20-minute timer. Wait until the PathoBox tells you it’s ready to load.',
       image: { src: preheat, alt: 'A heat box warming up, next to a clock with 20 minutes marked.' },
       timerMin: 20,
     },
     {
       id: 'label',
-      title: 'Label the tubes',
-      body: 'Write 1 to 8 on 8 tubes, one number each. These are the sample tubes. Write POS on one more tube and NEG on another. You now have 10 tubes.',
-      image: { src: label, alt: 'A marker labels ten tubes in a rack: POS, NEG, then 1 to 8.' },
+      title: 'Label the reaction tubes',
+      body: 'Use the kit stickers to label the eight numbered reaction tubes and the two control tubes, POS and NEG. Keep the numbers matched to the samples you collected.',
+      image: { src: label, alt: 'Ten reaction tubes in a rack labelled POS, NEG, and 1 to 8.' },
     },
     {
       id: 'mix',
-      title: 'Add the mixes',
-      body: 'Add test mix to tubes 1 to 8. Add test mix to NEG too. Add positive mix to POS, and to no other tube.',
-      image: { src: mix, alt: 'One dropper adds positive mix to the POS tube; another adds test mix to NEG and the tubes 1 to 8.' },
+      title: 'Prepare the reaction tubes',
+      body: 'Use the kit pipette to add the Test mix to tubes 1 to 8 and the NEG tube. Add the Positive Test mix to the POS tube only.',
+      image: { src: mix, alt: 'Positive mix goes in POS. Test mix goes in NEG and tubes 1 to 8.' },
     },
     {
       id: 'crush',
       title: 'Crush the petals',
-      body: 'Take the 4 petals from one plant. Crush them together. Do the same for each of the 8 plants.',
-      image: { src: crush, alt: 'Four petals, then a finger and thumb pressing them flat.' },
+      body: 'Put four canola petals from one plant in its sample tube. Move the pestle up and down to crush them, then repeat for the other seven samples.',
+      image: { src: crush, alt: 'Four petals shown before and after crushing.' },
     },
     {
       id: 'dip',
-      title: 'Dip the dipstick',
-      body: 'Dip the dipstick 15 times. Then dip it 5 times. Then dip it 15 more times.',
+      title: 'Transfer each sample',
+      body: 'Dip a dipstick 15 times in the sample tube, 5 times in the wash tube, then 15 times in the matching reaction tube. Keep the dipstick tip off the bottom of the tubes. Discard it and use a fresh dipstick for the next sample.',
       image: { src: dip, alt: 'A dipstick dipped into a tube 15 times, then 5 times, then 15 times.' },
     },
     {
       id: 'oil',
-      title: 'Add oil and run',
-      body: 'Add oil to the tubes. Put the tubes in the PathoBox. Start the run. It takes 30 minutes.',
-      image: { src: oil, alt: 'A dropper adds a drop of oil to a tube, then the tubes go down into the heat box.' },
+      title: 'Run the test',
+      body: 'Add kit oil to all ten reaction tubes. Load the tubes into the PathoBox, close the lid and press the button. Start the 30-minute timer.',
+      image: { src: oil, alt: 'Oil goes into the reaction tubes before they are loaded into the PathoBox.' },
       timerMin: 30,
     },
     {
       id: 'shade',
-      title: 'Keep the tubes out of the sun',
-      body: 'Keep the tubes in the shade, out of direct sun. Shade lights them evenly.',
+      title: 'Shade the tubes before the photo',
+      body: 'Move the rack out of direct sun and leave it in even shade for the photo. Keep all ten tubes, including POS and NEG, in view.',
       image: { src: shade, alt: 'A hand held over the tubes keeps the sun off them.' },
     },
     {
       id: 'cool',
-      title: 'Cool the tubes',
-      body: 'Let the tubes cool to room temperature. The timer reminds you to check them.',
+      title: 'Cool the tubes and check the result',
+      body: 'Use the timer as a reminder to check that the tubes have cooled to room temperature before taking the photo. Compare the numbered tubes with this run’s controls, which usually look yellow for POS and pink for NEG. If the app flags that the controls are too similar, treat the run as invalid.',
       image: { src: cool, alt: 'The tubes cooling: a thermometer going down, next to a clock.' },
       timerMin: coolMin,
     },
