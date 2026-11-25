@@ -561,7 +561,7 @@ test('a run saved by a newer version of the app is left alone, and Reload is off
   page.on('pageerror', (e) => errors.push(e.message))
   await page.goto('/app.html')
   await expect(page.getByRole('heading', { name: 'Runs', exact: true })).toBeVisible()
-  const future = { schema: 4, id: 'saved-by-a-newer-app', field: 'Future', createdAt: Date.now(), steps: 'a shape this app has never seen' }
+  const future = { schema: 5, id: 'saved-by-a-newer-app', field: 'Future', createdAt: Date.now(), steps: 'a shape this app has never seen' }
   await storeRaw(page, future)
   await page.reload()
   await expect(page.getByRole('status')).toContainText('New version ready.')
@@ -933,7 +933,7 @@ declare global {
 
 test("an old tab of the live app (schema 2) can't change a run this app has opened, and is offered Reload", async ({ page, context }) => {
   // The live app's store binds a tap to no photo. Left open on a result while this app retakes and reads
-  // another photo, its Yellow was written to the new photo's result. This app stores the run as schema 3 once
+  // another photo, its Yellow was written to the new photo's result. This app stores the run as schema 4 once
   // it opens it, and that store leaves alone a run of a schema over its own.
   await page.goto('/app.html')
   await toPhoto(page, 'Live tab')
@@ -959,7 +959,7 @@ test("an old tab of the live app (schema 2) can't change a run this app has open
   // This app opens the run, retakes it and reads a photo with less light: two positives, sample 1 held.
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Run failed', exact: true })).toBeVisible()
-  expect(await storedRun(page, id)).toMatchObject({ schema: 3, take: 0 })
+  expect(await storedRun(page, id)).toMatchObject({ schema: 4, take: 0 })
   await page.getByRole('button', { name: 'Retake photo' }).click()
   await page.getByRole('button', { name: 'Back' }).click()
   await page.getByRole('button', { name: 'Done' }).click()
