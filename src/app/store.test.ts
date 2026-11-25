@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'
 import { createStore, get, keys, set } from 'idb-keyval'
 import { describe, expect, it, vi } from 'vitest'
 import { sclerotinia } from './assays/sclerotinia'
-import { currentStep, newRun, READER_VERSION, withStep } from './run'
+import { currentStep, newRun, READER_VERSION, SCHEMA, withStep } from './run'
 import type { RunRead } from '../lib/readers'
 import { ROLES } from './reader'
 import { addRun, getPhoto, getRun, listRuns, NewerRun, retakePhoto, saveRead, setStepDone, setTap, startTimer, takePhoto, type Seen } from './store'
@@ -14,9 +14,9 @@ const run = (field: string, createdAt: number) => newRun(sclerotinia, { field, n
 const on = (id: string, take = 0): Seen => ({ id, take })
 
 describe('a new run', () => {
-  it('follows the schema-3 shape: no step started, no photo taken, ten empty taps, no outcome', () => {
+  it('follows the schema-4 shape: no step started, no photo taken, ten empty taps, no outcome', () => {
     const r = newRun(sclerotinia, { field: '  North 40 ', notes: ' wet ' }, 5, 'a')
-    expect(r).toMatchObject({ schema: 3, take: 0, id: 'a', assay: 'sclerotinia', field: 'North 40', notes: 'wet', createdAt: 5, steps: {} })
+    expect(r).toMatchObject({ schema: 4, take: 0, id: 'a', assay: 'sclerotinia', field: 'North 40', notes: 'wet', createdAt: 5, steps: {} })
     expect(r.taps).toEqual(Array(10).fill(null))
     expect(r.outcome).toBeUndefined()
     expect('gps' in r).toBe(false)
@@ -138,7 +138,7 @@ describe('a run saved by the 8-step guide (schema 1)', () => {
   it('opens on the cool-down, with each timer on its own step', async () => {
     await set(old.id, old, db)
     const r = (await getRun(old.id))!
-    expect(r).toMatchObject({ schema: 3, take: 0 })
+    expect(r).toMatchObject({ schema: 4, take: 0 })
     expect(sclerotinia.steps[currentStep(r, sclerotinia)].id).toBe('cool')
     expect(r.steps.cool).toEqual({ done: false, timerStartedAt: t + 95 * 60_000 })
     const timers = Object.fromEntries(sclerotinia.steps.map((s) => [s.id, r.steps[s.id]?.timerStartedAt]))
@@ -149,10 +149,10 @@ describe('a run saved by the 8-step guide (schema 1)', () => {
   it('is stored in the new shape once opened, progress intact', async () => {
     await set(old.id, old, db)
     await getRun(old.id)
-    expect(await get(old.id, db)).toMatchObject({ schema: 3, take: 0, steps: { preheat: { done: true, timerStartedAt: t }, cool: { done: false, timerStartedAt: t + 95 * 60_000 } } })
+    expect(await get(old.id, db)).toMatchObject({ schema: 4, take: 0, steps: { preheat: { done: true, timerStartedAt: t }, cool: { done: false, timerStartedAt: t + 95 * 60_000 } } })
     await setStepDone(on(old.id), 'cool', true)
     const stored = await get(old.id, db)
-    expect(stored).toMatchObject({ schema: 3, steps: { preheat: { done: true, timerStartedAt: t }, cool: { done: true, timerStartedAt: t + 95 * 60_000 } } })
+    expect(stored).toMatchObject({ schema: 4, steps: { preheat: { done: true, timerStartedAt: t }, cool: { done: true, timerStartedAt: t + 95 * 60_000 } } })
     expect(currentStep(stored, sclerotinia)).toBe(-1)
   })
 
@@ -164,30 +164,44 @@ describe('a run saved by the 8-step guide (schema 1)', () => {
 
 describe('a run saved by the app before photo takes (schema 2)', () => {
   const db = createStore('pathoscan-field', 'runs')
-  // As that app stored a run with a photo: the schema-3 shape without `take`.
+  // As that app stored a run with a photo: the current shape without `take`.
   const { take: _take, ...fields } = run('two', 950)
   const old = { ...fields, schema: 2, photoKey: 'id-two/p' }
 
   it('is listed without being stored again', async () => {
     await set(old.id, old, db)
-    expect((await listRuns()).find((r) => r.id === old.id)).toEqual({ ...old, schema: 3, take: 0 })
+    expect((await listRuns()).find((r) => r.id === old.id)).toEqual({ ...old, schema: 4, take: 0 })
     expect(await get(old.id, db)).toEqual(old)
   })
 
   it('is stored on its first take once opened, out of reach of the older app', async () => {
     await set(old.id, old, db)
     const r = (await getRun(old.id))!
-    expect(r).toEqual({ ...old, schema: 3, take: 0 })
+    expect(r).toEqual({ ...old, schema: 4, take: 0 })
     // 8ea660e's store refuses, before any edit, a run whose schema is over its own 2 (e2e covers that store).
     expect(await get(old.id, db)).toEqual(r)
     expect(await getRun(old.id)).toEqual(r)
   })
 })
 
+describe('a run saved by the app that took a threshold on every tap (schema 3)', () => {
+  it('is stored as schema 4 once opened, with nothing else changed, out of reach of that app', async () => {
+    const db = createStore('pathoscan-field', 'runs')
+    const old = { ...run('three', 960), schema: 3, take: 1, photoKey: 'id-three/p' }
+    await set(old.id, old, db)
+    expect((await listRuns()).find((r) => r.id === old.id)).toEqual({ ...old, schema: 4 })
+    expect(await get(old.id, db)).toEqual(old)
+    const r = (await getRun(old.id))!
+    expect(r).toEqual({ ...old, schema: 4 })
+    // That app's store refuses, before any edit, a run whose schema is over its own 3, as 8ea660e's does over 2.
+    expect(await get(old.id, db)).toEqual(r)
+  })
+})
+
 describe('a run saved by a newer app (another tab already updated)', () => {
   it('is left alone, unread and unwritten, and Reload is offered', async () => {
     const db = createStore('pathoscan-field', 'runs')
-    const future = { schema: 4, id: 'id-future', createdAt: 99_000, steps: 'a shape this app has never seen' }
+    const future = { schema: SCHEMA + 1, id: 'id-future', createdAt: 99_000, steps: 'a shape this app has never seen' }
     await set(future.id, future, db)
     expect(currentUpdate()).toBeNull()
     await expect(getRun(future.id)).rejects.toBeInstanceOf(NewerRun)
@@ -201,7 +215,7 @@ describe('a run saved by a newer app (another tab already updated)', () => {
       await expect(takePhoto(seen, new Blob(['x']))).rejects.toBeInstanceOf(NewerRun)
       await expect(saveRead(seen, [], [], { status: 'ok', flags: [], tubes: [] }, 3)).rejects.toBeInstanceOf(NewerRun)
       await expect(retakePhoto(seen)).rejects.toBeInstanceOf(NewerRun)
-      await expect(setTap(seen, 2, 'pos', 3)).rejects.toBeInstanceOf(NewerRun)
+      await expect(setTap(seen, 2, 'pos')).rejects.toBeInstanceOf(NewerRun)
     }
     expect(await get(future.id, db)).toEqual(future)
     const saved = await keys(createStore('pathoscan-photos', 'photos'))
@@ -299,7 +313,7 @@ describe('the read and the taps', () => {
     await setStepDone(on('id-retake'), 'cool', true)
     const key = (await takePhoto(on('id-retake'), jpeg('first')))!
     expect(await saveRead(on('id-retake', 1), regions, roles, twoHeld, 3)).toBe(true)
-    expect(await setTap(on('id-retake', 1), 4, 'pos', 3)).toBe(true)
+    expect(await setTap(on('id-retake', 1), 4, 'pos')).toBe(true)
     expect(await retakePhoto(on('id-retake', 1))).toBe(true)
     const r = (await getRun('id-retake'))!
     for (const k of ['photoKey', 'regions', 'roles', 'read', 'readerPositives', 'tappedPositives', 'rule', 'outcome']) expect(r).not.toHaveProperty(k)
@@ -326,19 +340,39 @@ describe('the read and the taps', () => {
     const seen = await readRun('taps', 7200)
     vi.resetModules()
     const tabB = await import('./store')
-    await setTap(seen, 4, 'neg', 3)
-    await tabB.setTap(seen, 5, 'pos', 3) // B never saw A's tap
+    await setTap(seen, 4, 'neg')
+    await tabB.setTap(seen, 5, 'pos') // B never saw A's tap
     const r = await getRun('id-taps')
     expect(r?.taps.slice(4, 6)).toEqual(['neg', 'pos'])
     expect(r?.read).toEqual(twoHeld)
     expect(r).toMatchObject({ readerPositives: 2, tappedPositives: 1, outcome: 'treat' })
-    await setTap(seen, 5, null, 3)
+    await setTap(seen, 5, null)
     expect((await getRun('id-taps'))?.outcome).toBeUndefined()
+  })
+
+  it("keeps the rule a run was read under through every tap, and reads a new run under the assay's rule", async () => {
+    // Read at 3: two positives, so a held tube decides it. The assay's rule is 2 now.
+    const seen = await readRun('old-rule', 7230)
+    expect(seen).toMatchObject({ rule: { treatAt: 3 } })
+    expect(await setTap(seen, 4, 'neg')).toBe(true)
+    expect(await getRun('id-old-rule')).toMatchObject({ rule: { treatAt: 3 }, tappedPositives: 0 })
+    expect((await getRun('id-old-rule'))?.outcome).toBeUndefined() // tube 4 still open
+    expect(await setTap(seen, 5, 'neg')).toBe(true)
+    expect(await getRun('id-old-rule')).toMatchObject({ rule: { treatAt: 3 }, outcome: 'dont-treat' })
+    expect(await setTap(seen, 5, 'pos')).toBe(true)
+    expect(await getRun('id-old-rule')).toMatchObject({ rule: { treatAt: 3 }, tappedPositives: 1, outcome: 'treat' })
+
+    await addRun(run('new-rule', 7240))
+    expect(await takePhoto(on('id-new-rule'), jpeg('first'))).not.toBeNull()
+    expect(await saveRead(on('id-new-rule', 1), regions, roles, twoHeld, sclerotinia.treatAt)).toBe(true)
+    expect(await getRun('id-new-rule')).toMatchObject({ rule: { treatAt: 2 }, readerPositives: 2, outcome: 'treat' })
+    expect(await setTap(on('id-new-rule', 1), 4, 'neg')).toBe(true)
+    expect(await getRun('id-new-rule')).toMatchObject({ rule: { treatAt: 2 }, outcome: 'treat' })
   })
 
   it('refuses a tap on a tube the reader called', async () => {
     const seen = await readRun('called', 7250)
-    expect(await setTap(seen, 2, 'neg', 3)).toBe(false) // sample 1 read positive
+    expect(await setTap(seen, 2, 'neg')).toBe(false) // sample 1 read positive
     expect((await getRun('id-called'))?.taps).toEqual(Array(10).fill(null))
   })
 
@@ -351,12 +385,12 @@ describe('the read and the taps', () => {
     expect(await takePhoto(on('id-stale-tap', 2), jpeg('second'))).not.toBeNull()
     expect(await saveRead(on('id-stale-tap', 3), regions, roles, twoHeld, 3)).toBe(true)
     const before = (await getRun('id-stale-tap'))!
-    expect(await tabB.setTap(old, 4, 'pos', 3)).toBe(false)
+    expect(await tabB.setTap(old, 4, 'pos')).toBe(false)
     expect(await getRun('id-stale-tap')).toEqual(before)
     expect(before).toMatchObject({ readerPositives: 2, tappedPositives: 0 })
     expect(before.outcome).toBeUndefined()
     // A tap on the result on show still counts.
-    expect(await setTap(before, 4, 'pos', 3)).toBe(true)
+    expect(await setTap(before, 4, 'pos')).toBe(true)
     expect(await getRun('id-stale-tap')).toMatchObject({ tappedPositives: 1, outcome: 'treat' })
   })
 
@@ -399,7 +433,7 @@ describe('the read and the taps', () => {
 
   it('fails a refused run and keeps its taps as notes that never count', async () => {
     const seen = await readRun('failed', 7300, read(Array(8).fill('held'), 'failed'))
-    for (const i of [2, 3, 4, 5]) await setTap(seen, i, 'pos', 3)
+    for (const i of [2, 3, 4, 5]) await setTap(seen, i, 'pos')
     const r = await getRun('id-failed')
     expect(r).toMatchObject({ outcome: 'failed', rule: { treatAt: 3 } })
     expect(r?.taps.filter((t) => t === 'pos')).toHaveLength(4)

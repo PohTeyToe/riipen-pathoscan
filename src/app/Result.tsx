@@ -23,7 +23,7 @@ export function Result({ run, assay, act, error }: { run: Run; assay: Assay; act
   const positives = (run.readerPositives ?? 0) + (run.tappedPositives ?? 0)
   const calls = finalCalls(run)
   // Every write and the export name the take on show. A stale tab's is refused; the refresh shows the run now.
-  const tap = (i: number, t: Tap) => act(() => setTap(run, i, run.taps[i] === t ? null : t, assay.treatAt))
+  const tap = (i: number, t: Tap) => act(() => setTap(run, i, run.taps[i] === t ? null : t))
   const exportNow = () =>
     act(async () => {
       const now = await getRun(run.id)

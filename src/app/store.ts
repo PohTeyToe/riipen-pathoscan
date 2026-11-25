@@ -133,12 +133,12 @@ export async function retakePhoto(seen: Seen): Promise<boolean> {
   return done
 }
 
-/** The grower's eye call on tube i of the read, kept apart from the reader's. Recounts the outcome under the current rule. Refused (false) if the reader didn't hold that tube. */
-export const setTap = (seen: Seen, i: number, tap: Tap, treatAt: number) =>
+/** The grower's eye call on tube i of the read, kept apart from the reader's. Recounts the outcome under the rule the run was read under. Refused (false) if the reader didn't hold that tube. */
+export const setTap = (seen: Seen, i: number, tap: Tap) =>
   change(seen, (run) => {
-    if (!run.read || !run.roles || run.read.tubes[i]?.call !== 'held') return null
+    if (!run.read || !run.roles || !run.rule || run.read.tubes[i]?.call !== 'held') return null
     const taps = run.taps.map((t, j) => (j === i ? tap : t))
-    return { ...run, taps, ...tally(run.read, run.roles, taps, treatAt) }
+    return { ...run, taps, ...tally(run.read, run.roles, taps, run.rule.treatAt) }
   })
 
 /** Ask the browser not to clear our data under storage pressure. Safe to call on every run. */

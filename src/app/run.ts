@@ -19,9 +19,10 @@ export interface StepProgress {
 /**
  * The newest run shape this app reads and writes. A run saved with a higher one came from a newer app, which
  * that app leaves alone. Schema 3 added `take`: an app of schema 2 can't bind its writes to the photo on show,
- * so the bump also fences its tabs off the runs this app has opened.
+ * so the bump also fences its tabs off the runs this app has opened. Schema 4 has schema 3's shape: an app of
+ * schema 3 recounts a run under its own treatAt on every tap, so it must not write to a run this app has opened.
  */
-export const SCHEMA = 3
+export const SCHEMA = 4
 
 export interface Run {
   schema: typeof SCHEMA
@@ -47,7 +48,7 @@ export interface Run {
   taps: Tap[]
   readerPositives?: number
   tappedPositives?: number
-  /** The rule in force when the outcome was set. */
+  /** The rule the run was read under. A tap recounts the run under this rule, never the assay's rule of the day. */
   rule?: { treatAt: number }
   outcome?: Outcome
   appVersion: string
@@ -82,6 +83,7 @@ export function withStep(run: Run, stepId: string, patch: Partial<StepProgress>)
 /** A run as IndexedDB may hold it: the current shape, or one saved by an older app. */
 export type StoredRun =
   | Run
+  | (Omit<Run, 'schema'> & { schema: 3 })
   | (Omit<Run, 'schema' | 'take'> & { schema: 2 })
   | (Omit<Run, 'schema' | 'take' | 'steps'> & { schema: 1; steps: StepProgress[] })
 
@@ -95,6 +97,7 @@ const SCHEMA_1_STEPS: Record<string, string[]> = { sclerotinia: ['preheat', 'lab
  */
 export function upgrade(run: StoredRun): Run {
   if (run.schema === SCHEMA) return run
+  if (run.schema === 3) return { ...run, schema: SCHEMA }
   if (run.schema === 2) return { ...run, schema: SCHEMA, take: 0 }
   const ids = SCHEMA_1_STEPS[run.assay] ?? []
   const steps: Run['steps'] = Object.fromEntries(run.steps.flatMap((s, i) => (ids[i] ? [[ids[i], s]] : [])))
