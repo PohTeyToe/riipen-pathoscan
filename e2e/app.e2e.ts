@@ -931,7 +931,7 @@ declare global {
   }
 }
 
-test("an old tab of the live app (schema 2) can't change a run this app has opened, and is offered Reload", async ({ page, context }) => {
+test("an old tab of an earlier app (schema 2) can't change a run this app has opened, and is offered Reload", async ({ page, context }) => {
   // The live app's store binds a tap to no photo. Left open on a result while this app retakes and reads
   // another photo, its Yellow was written to the new photo's result. This app stores the run as schema 4 once
   // it opens it, and that store leaves alone a run of a schema over its own.
