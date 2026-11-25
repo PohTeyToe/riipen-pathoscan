@@ -15,7 +15,7 @@ export interface Assay {
   name: string
   tubes: 10
   steps: Step[]
-  /** Positives needed for "treat". Open question 1 for Ethan. */
+  /** Positives needed for "treat". A saved run keeps the one it was last counted under, in its `rule`. */
   treatAt: number
   /** Minutes to cool before the photo. Open question 2 for Ethan. */
   coolMin: number

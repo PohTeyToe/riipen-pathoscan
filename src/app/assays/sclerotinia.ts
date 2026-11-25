@@ -1,6 +1,7 @@
 // PLACEHOLDER TEXT: a first pass at plain step text, for Taha to correct against a real kit. His text
 // and pictures replace these steps and the advice lines.
-// treatAt and coolMin are defaults until Ethan answers open questions 1 and 2 (see app-spec.md).
+// treatAt is Ethan's answer to open question 1 (Nov 24): treat starts at 2 positives of 8. coolMin is a default
+// until he answers open question 2 (see app-spec.md).
 // The pictures are our own drawings of generic kit. Swapping one is a change to its import line.
 
 import type { Assay } from './assay'
@@ -20,7 +21,7 @@ export const sclerotinia: Assay = {
   id: 'sclerotinia',
   name: 'Sclerotinia',
   tubes: 10,
-  treatAt: 3,
+  treatAt: 2,
   coolMin,
   steps: [
     // PROPOSAL: sent to Ethan on Nov 19 (open question 6), waiting for him to confirm how growers pick samples.
