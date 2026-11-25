@@ -1,5 +1,6 @@
 // Guide copy follows the Sclerotinia Quick-Start Card, with field sampling and photo steps.
 // Confirm the field sampling route and the cool-down reminder length with Ethan.
+// The pictures are our own drawings of generic kit. Swapping one is a change to its import line.
 
 import type { Assay } from './assay'
 import pick from './sclerotinia/pick.svg'
@@ -12,16 +13,18 @@ import oil from './sclerotinia/oil.svg'
 import shade from './sclerotinia/shade.svg'
 import cool from './sclerotinia/cool.svg'
 
-// The Quick-Start Card calls for room temperature. This is a reminder interval.
+// The Quick-Start Card calls for room temperature. This is a reminder interval: 5 minutes is a default until
+// Ethan answers open question 2 (see app-spec.md).
 const coolMin = 5
 
 export const sclerotinia: Assay = {
   id: 'sclerotinia',
   name: 'Sclerotinia',
   tubes: 10,
-  treatAt: 2, // Ethan confirmed treatment starts at two positives out of eight.
+  treatAt: 2, // Ethan's answer to open question 1 (Nov 24): treatment starts at two positives out of eight.
   coolMin,
   steps: [
+    // PROPOSAL: sent to Ethan on Nov 19 (open question 6), not yet confirmed.
     {
       id: 'pick',
       title: 'Pick eight field samples',
@@ -31,7 +34,7 @@ export const sclerotinia: Assay = {
     {
       id: 'preheat',
       title: 'Warm up the PathoBox',
-      body: 'Turn on the PathoBox and start the 20-minute timer. Wait until the PathoBox tells you it’s ready to load.',
+      body: "Turn on the PathoBox and start the 20-minute timer. Wait until the PathoBox tells you it's ready to load.",
       image: { src: preheat, alt: 'A heat box warming up, next to a clock with 20 minutes marked.' },
       timerMin: 20,
     },
@@ -74,8 +77,8 @@ export const sclerotinia: Assay = {
     },
     {
       id: 'cool',
-      title: 'Cool the tubes and check the result',
-      body: 'Use the timer as a reminder to check that the tubes have cooled to room temperature before taking the photo. Compare the numbered tubes with this run’s controls, which usually look yellow for POS and pink for NEG. If the app flags that the controls are too similar, treat the run as invalid.',
+      title: 'Cool the tubes',
+      body: 'Let the tubes cool to room temperature before taking the photo. The timer is a reminder to check them. Yellow is positive, pink is negative.',
       image: { src: cool, alt: 'The tubes cooling: a thermometer going down, next to a clock.' },
       timerMin: coolMin,
     },

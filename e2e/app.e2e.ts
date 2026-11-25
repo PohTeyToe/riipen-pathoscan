@@ -51,11 +51,11 @@ test('the field app installs its service worker, works offline and keeps a timer
   await start.click()
 
   // Step 1 has no timer; step 2 has a 20 minute one.
-  await expect(page.getByRole('heading', { name: 'Pick the samples', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Pick eight field samples', exact: true })).toBeVisible()
   await expect(page.getByText('Step 1 of 9')).toBeVisible()
   await expect(page.getByRole('timer')).toHaveCount(0)
   await page.getByRole('button', { name: 'Done' }).click()
-  await expect(page.getByRole('heading', { name: 'Pre-heat the PathoBox', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Warm up the PathoBox', exact: true })).toBeVisible()
   await expect(page.getByText('Step 2 of 9')).toBeVisible()
   await expect(page.getByText("Set your phone's alarm too.")).toBeVisible()
   await expect(page.getByRole('timer')).toHaveText('20:00')
@@ -72,7 +72,7 @@ test('the field app installs its service worker, works offline and keeps a timer
   // Five minutes later the tab is reloaded, still offline: the time left comes from the stored start.
   await page.clock.fastForward('05:00')
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Pre-heat the PathoBox', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Warm up the PathoBox', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Start timer' })).toHaveCount(0)
   const left = await secondsLeft(page)
   expect(left).toBeGreaterThan(14 * 60)
@@ -80,10 +80,10 @@ test('the field app installs its service worker, works offline and keeps a timer
 
   // Done moves to step 3; Back returns with the timer still running.
   await page.getByRole('button', { name: 'Done' }).click()
-  await expect(page.getByRole('heading', { name: 'Label the tubes', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Label the reaction tubes', exact: true })).toBeVisible()
   await expect(page.getByText('Step 3 of 9')).toBeVisible()
   await page.getByRole('button', { name: 'Back' }).click()
-  await expect(page.getByRole('heading', { name: 'Pre-heat the PathoBox', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Warm up the PathoBox', exact: true })).toBeVisible()
   expect(await secondsLeft(page)).toBeLessThanOrEqual(15 * 60)
 
   // The run is listed, in progress.
@@ -549,10 +549,10 @@ test('a run saved mid-guide by the 8-step app opens on its cool-down, each timer
   expect(left).toBeLessThanOrEqual(3 * 60)
   // Back: the shade step has no timer, and the oil step's 30 minutes ran out 10 minutes ago.
   await page.getByRole('button', { name: 'Back' }).click()
-  await expect(page.getByRole('heading', { name: 'Keep the tubes out of the sun', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Shade the tubes before the photo', exact: true })).toBeVisible()
   await expect(page.getByRole('timer')).toHaveCount(0)
   await page.getByRole('button', { name: 'Back' }).click()
-  await expect(page.getByRole('heading', { name: 'Add oil and run', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Run the test', exact: true })).toBeVisible()
   await expect(page.getByRole('timer')).toHaveText("Time's up")
 })
 
