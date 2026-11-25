@@ -47,7 +47,7 @@ export const sclerotinia: Assay = {
     {
       id: 'mix',
       title: 'Prepare the reaction tubes',
-      body: 'Use the kit pipette to add the Test mix to tubes 1 to 8 and the NEG tube. Add the Positive Test mix to the POS tube only.',
+      body: 'Use the single-channel pipette from the kit to add the Test mix to tubes 1 to 8 and the NEG tube. Add the Positive Test mix to the POS tube only.',
       image: { src: mix, alt: 'Positive mix goes in POS. Test mix goes in NEG and tubes 1 to 8.' },
     },
     {
