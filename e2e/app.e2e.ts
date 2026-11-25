@@ -185,7 +185,7 @@ test('a run goes from the guide to a photo, rings, labels tapped in order and a 
   await page.goto('/app.html')
   await page.evaluate(() => navigator.serviceWorker.ready)
   await toPhoto(page, 'Synthetic')
-  const photo = syntheticPhoto()
+  const photo = syntheticPhoto('row', { seed: 12 }) // one positive and one held tube: the grower's call decides the run
   await page.locator('input[type=file]').setInputFiles(photo.file)
   await expect(page.getByRole('heading', { name: '10 tubes', exact: true })).toBeVisible()
   const rings = page.locator('.shot ellipse')
@@ -219,25 +219,25 @@ test('a run goes from the guide to a photo, rings, labels tapped in order and a 
   await expect(page.locator('.shot text')).toHaveText(['+', '−', '1', '2', '3', '4', '5', '6', '7', '8'])
   await continueBtn.click()
 
-  // Two positives, one held tube: no advice until the grower calls it.
-  await expect(page.getByRole('heading', { name: '2 of 8 positive', exact: true })).toBeVisible()
+  // One positive, one held tube: no advice until the grower calls it.
+  await expect(page.getByRole('heading', { name: '1 of 8 positive', exact: true })).toBeVisible()
   await expect(page.getByText('Call the held tubes below.')).toBeVisible()
   const held = page.getByRole('listitem').filter({ hasText: 'Look again: yellow or pink?' })
   await expect(held).toHaveCount(1)
   await held.getByRole('button', { name: 'Yellow' }).click()
-  await expect(page.getByRole('heading', { name: '3 of 8 positive', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '2 of 8 positive', exact: true })).toBeVisible()
   await expect(page.getByText('Enough positives to treat.')).toBeVisible()
-  await expect(page.getByText('1 of the 3 positives is your call.')).toBeVisible()
+  await expect(page.getByText('1 of the 2 positives is your call.')).toBeVisible()
 
   // Saved: a reload opens the same result, and so does the list, offline.
   await page.reload()
-  await expect(page.getByRole('heading', { name: '3 of 8 positive', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '2 of 8 positive', exact: true })).toBeVisible()
   await expect(held.getByRole('button', { name: 'Yellow' })).toHaveAttribute('aria-pressed', 'true')
   await context.setOffline(true)
   await page.goto('/app.html')
   await expect(page.getByRole('listitem').filter({ hasText: 'Synthetic' })).toContainText('Treat')
   await page.getByRole('link', { name: /Synthetic/ }).click()
-  await expect(page.getByRole('heading', { name: '3 of 8 positive', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '2 of 8 positive', exact: true })).toBeVisible()
   await expect(page.locator('.shot img')).toHaveJSProperty('complete', true)
   expect(await page.locator('.shot img').evaluate((el: HTMLImageElement) => el.naturalWidth)).toBe(1000)
   await expect(rings).toHaveCount(10)
@@ -253,12 +253,12 @@ test('a run goes from the guide to a photo, rings, labels tapped in order and a 
   const [head, ...rows] = csv.slice(1).trimEnd().split('\r\n').map((line) => line.split(','))
   const column = (name: string) => rows.map((r) => r[head.indexOf(name)])
   expect(column('Tube')).toEqual(['POS', 'NEG', '1', '2', '3', '4', '5', '6', '7', '8'])
-  for (const [name, value] of [['Field', 'Synthetic'], ['Result', 'Treat'], ['Positives', '3'], ['Samples', '8'], ['Treat at', '3']])
+  for (const [name, value] of [['Field', 'Synthetic'], ['Result', 'Treat'], ['Positives', '2'], ['Samples', '8'], ['Treat at', '2']])
     expect(column(name)).toEqual(Array(10).fill(value))
   // The held tube is the grower's Yellow, and it counts.
   expect(column('Reader call').filter((c) => c === 'Held')).toHaveLength(1)
   expect(column('Grower call').filter(Boolean)).toEqual(['Positive'])
-  expect(column('Final call').filter((c) => c === 'Positive')).toHaveLength(4) // the positive control and 3 samples
+  expect(column('Final call').filter((c) => c === 'Positive')).toHaveLength(3) // the positive control and 2 samples
   expect(download.suggestedFilename()).toBe(`pathoscan-synthetic-${column('Date')[0]}.csv`)
 
   // Where the phone can share files, Export shares the same file instead.
@@ -853,7 +853,7 @@ test('a positive control whose paper is blown out on its upper side fails the ru
 
 test("a tap on a stale tab's old result can't change the result of the photo taken since", async ({ page, context }) => {
   // Tab B still shows the failed result of a clipped photo, every sample held. Tab A retakes it with less
-  // light: two positives and sample 1 held. Yellow for sample 1 on tab B must not make that three and Treat.
+  // light: two positives and sample 1 held. Yellow for sample 1 on tab B must not count on that photo.
   await page.goto('/app.html')
   await toPhoto(page, 'Two tabs')
   await readPhoto(page, syntheticPhoto('row', { seed: 3, ev: 0.5 }))
@@ -868,13 +868,12 @@ test("a tap on a stale tab's old result can't change the result of the photo tak
   const darker = syntheticPhoto('row', { seed: 3, ev: -1 })
   await readPhoto(page, darker)
   await expect(page.getByRole('heading', { name: '2 of 8 positive', exact: true })).toBeVisible()
-  await expect(page.getByText('Call the held tubes below.')).toBeVisible()
   const before = await exportCsv(page)
 
   await stale.locator('ol.tubes li').first().getByRole('button', { name: 'Yellow' }).click()
   // The stale tab is refused and shows the run as it is now.
   await expect(stale.getByRole('heading', { name: '2 of 8 positive', exact: true })).toBeVisible()
-  await expect(stale.getByText('Call the held tubes below.')).toBeVisible()
+  await expect(stale.getByText('Enough positives to treat.')).toBeVisible()
   await page.reload()
   await expect(page.getByRole('heading', { name: '2 of 8 positive', exact: true })).toBeVisible()
   await expect(page.locator('ol.tubes li').first().getByRole('button', { name: 'Yellow' })).toHaveAttribute('aria-pressed', 'false')
@@ -934,8 +933,8 @@ declare global {
 
 test("an old tab of the live app (schema 2) can't change a run this app has opened, and is offered Reload", async ({ page, context }) => {
   // The live app's store binds a tap to no photo. Left open on a result while this app retakes and reads
-  // another photo, its Yellow made an undecided result Treat. This app stores the run as schema 3 once it opens
-  // it, and that store leaves alone a run of a schema over its own.
+  // another photo, its Yellow was written to the new photo's result. This app stores the run as schema 3 once
+  // it opens it, and that store leaves alone a run of a schema over its own.
   await page.goto('/app.html')
   await toPhoto(page, 'Live tab')
   await readPhoto(page, syntheticPhoto('row', { seed: 3, ev: 0.5 }))
@@ -966,7 +965,6 @@ test("an old tab of the live app (schema 2) can't change a run this app has open
   await page.getByRole('button', { name: 'Done' }).click()
   await readPhoto(page, syntheticPhoto('row', { seed: 3, ev: -1 }))
   await expect(page.getByRole('heading', { name: '2 of 8 positive', exact: true })).toBeVisible()
-  await expect(page.getByText('Call the held tubes below.')).toBeVisible()
   const before = { run: await storedRun(page, id), photos: await photoKeys(page), csv: await exportCsv(page) }
 
   // Every write path of the old tab's store is refused before it edits, and Reload is offered there.

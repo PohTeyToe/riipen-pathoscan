@@ -9,7 +9,7 @@ import { Action, Bar } from './ui'
 
 const MARK = { pos: '+', neg: '−', held: '?' }
 
-/** How many of the positives came from the grower's taps: "1 of the 3 positives is your call." */
+/** How many of the positives came from the grower's taps: "1 of the 2 positives is your call." */
 export const yourCalls = (tapped: number, positives: number) =>
   `${tapped} of the ${positives} positives ${tapped === 1 ? 'is your call' : 'are your calls'}.`
 
