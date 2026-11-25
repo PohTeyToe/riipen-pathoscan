@@ -8,7 +8,10 @@ import { newRun, READER_VERSION, tally, type Run, type Tap } from './run'
 const BOM = String.fromCharCode(0xfeff)
 const at = new Date(2026, 10, 19, 7, 5).getTime() // local time, so the expected date and time hold in any zone
 
-/** A read run: controls, then the given sample calls and the grower's taps (by tube index), tallied at treatAt 3. */
+/**
+ * A read run: controls, then the given sample calls and the grower's taps (by tube index), tallied at treatAt 3,
+ * an older rule than the assay's: the file gives a run's own rule and outcome, never a recount at the rule now.
+ */
 function readRun(samples: TubeRead['call'][], t: Record<number, Tap> = {}, status: RunRead['status'] = 'ok', extra: Partial<Run> = {}): Run {
   const flags = status === 'failed' ? ['The controls are too close to call.'] : []
   const read: RunRead = { status, flags, tubes: [{ call: 'pos', reason: '' }, { call: 'neg', reason: '' }, ...samples.map((call) => ({ call, reason: '' }))] }
@@ -126,7 +129,7 @@ describe('the run CSV', () => {
     expect(column(rows, 'Reader call').slice(2, 6)).toEqual(['Positive', 'Held', 'Held', 'Held'])
     expect(column(rows, 'Grower call').slice(2, 6)).toEqual(['', 'Positive', 'Negative', ''])
     expect(column(rows, 'Final call').slice(2, 6)).toEqual(['Positive', 'Positive', 'Negative', 'Held'])
-    expect(rows[0]).toMatchObject({ Positives: '2', Result: 'In progress' }) // tube 4 could still make it 3
+    expect(rows[0]).toMatchObject({ Positives: '2', Result: 'In progress', 'Treat at': '3' }) // tube 4 could still make it 3
     expect(table(readRun(samples, { 3: 'pos', 4: 'neg', 5: 'pos' }))[0]).toMatchObject({ Positives: '3', Result: 'Treat' })
   })
 

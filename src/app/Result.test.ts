@@ -22,12 +22,12 @@ const tube = (labHue: number, clipped = false): Features => {
   return { raw: [200, 150, 80], rawHue: labHue, corrected: [0.8, 0.6, 0.3], lab, labHue, hueRange: [labHue, labHue], clipped, clear: 500, glare: 0, paperBeside: true }
 }
 
-/** The result screen's text for a run read from these tubes. */
-function screen(feats: (Features | null)[]): string {
+/** The result screen's text for a run read from these tubes and counted at treatAt. */
+function screen(feats: (Features | null)[], treatAt = sclerotinia.treatAt): string {
   const read = readCalibrated(feats, ROLES, MODEL, BAND)
   const taps = Array(10).fill(null)
   const regions = ROLES.map(() => ({ x0: 0, y0: 0, x1: 9, y1: 9, cx: 5, cy: 5 }))
-  const run: Run = { ...newRun(sclerotinia, { field: 'North 40', notes: '' }, 0, 'run-1'), read, roles: ROLES, regions, taps, ...tally(read, ROLES, taps, 3) }
+  const run: Run = { ...newRun(sclerotinia, { field: 'North 40', notes: '' }, 0, 'run-1'), read, roles: ROLES, regions, taps, ...tally(read, ROLES, taps, treatAt) }
   const html = renderToStaticMarkup(createElement(Result, { run, assay: sclerotinia, act: async () => {}, error: null }))
   return html.replace(/<[^>]+>/g, ' ').replace(/&#x27;/g, "'").replace(/\s+/g, ' ')
 }
@@ -66,5 +66,14 @@ describe('held tubes on the result screen', () => {
     expect(text).toContain('Run failed')
     expect(text.split('Too bright at the positive control. Retake with less light.')).toHaveLength(2)
     expect(text).toContain('Retake photo')
+  })
+})
+
+describe('a run saved under an older rule', () => {
+  it('shows the outcome it was counted with, not a recount at the rule now', () => {
+    const twoAndHeld = [tube(90), tube(10), tube(95), tube(95), tube(50), ...Array.from({ length: 5 }, () => tube(12))]
+    expect(sclerotinia.treatAt).toBe(2)
+    expect(screen(twoAndHeld)).toContain('2 of 8 positive Enough positives to treat.')
+    expect(screen(twoAndHeld, 3)).toContain('2 of 8 positive Call the held tubes below.')
   })
 })
