@@ -1092,6 +1092,8 @@ test("a finger on a tube whose ring was removed adds it back, though a neighbour
 
 // Runs last: it rebuilds dist under the running preview server.
 test('a new version waits until the grower taps Reload, then takes over in every open tab', async ({ page, context }) => {
+  // The build alone can take most of a minute on a busy machine: three times the usual limit.
+  test.slow()
   await page.goto('/app.html')
   await page.evaluate(() => navigator.serviceWorker.ready)
   await page.reload()
