@@ -410,11 +410,12 @@ h1 {
   flex-direction: column;
   gap: 8px;
   font-weight: 700;
+}
+.pick .ask {
   color: var(--alert);
 }
 .pick .why {
   font-weight: 500;
-  color: var(--ink);
 }
 .choices {
   display: flex;

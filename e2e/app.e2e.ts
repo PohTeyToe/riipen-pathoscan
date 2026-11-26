@@ -222,10 +222,14 @@ test('a run goes from the guide to a photo, rings, labels tapped in order and a 
   // One positive, one held tube: no advice until the grower calls it.
   await expect(page.getByRole('heading', { name: '1 of 8 positive', exact: true })).toBeVisible()
   await expect(page.getByText('Call the held tubes below.')).toBeVisible()
-  const held = page.getByRole('listitem').filter({ hasText: 'Look again: yellow or pink?' })
+  const held = page.getByRole('listitem').filter({ has: page.getByRole('button', { name: 'Yellow' }) })
   await expect(held).toHaveCount(1)
+  await expect(held).toContainText('Look again: yellow or pink?')
   await held.getByRole('button', { name: 'Yellow' }).click()
   await expect(page.getByRole('heading', { name: '2 of 8 positive', exact: true })).toBeVisible()
+  // Called: the tube no longer asks, in red, to be looked at again.
+  await expect(held).not.toContainText('Look again')
+  await expect(held.getByText('Your call', { exact: true })).toHaveCSS('color', await page.locator('.tubes .no').first().evaluate((el) => getComputedStyle(el).color))
   await expect(page.getByText('Enough positives to treat.')).toBeVisible()
   await expect(page.getByText('1 of the 2 positives is your call.')).toBeVisible()
 

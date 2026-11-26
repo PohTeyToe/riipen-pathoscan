@@ -83,7 +83,7 @@ export function Result({ run, assay, act, error }: { run: Run; assay: Assay; act
                 {read.tubes[i].call === 'held' ? (
                   <span className="pick">
                     {heldReason(read, i) && <span className="why">{heldReason(read, i)}</span>}
-                    <span>Look again: yellow or pink?</span>
+                    {run.taps[i] ? <span>Your call</span> : <span className="ask">Look again: yellow or pink?</span>}
                     <span className="choices">
                       {(['pos', 'neg'] as const).map((t) => (
                         <button key={t} type="button" aria-pressed={run.taps[i] === t} onClick={() => tap(i, t)}>
