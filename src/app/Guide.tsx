@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useState, type ReactNode } from 'react'
 import { assays } from './assays'
 import type { Step } from './assays/assay'
 import { Photo } from './Photo'
@@ -26,6 +26,12 @@ export function Guide({ id }: { id: string }) {
   )
 
   const assay = run && assays[run.assay]
+  // Each screen opens at its top. Left where the last one was scrolled to, a result opened from a tall photo
+  // started halfway down, its headline out of view and its last tubes under the actions.
+  const screen = run && assay && (run.read ? 'result' : currentStep(run, assay))
+  useLayoutEffect(() => {
+    scrollTo(0, 0)
+  }, [screen])
   if (newer || !run || !assay) {
     const missing = run === null || failed || (run && !assay)
     return (

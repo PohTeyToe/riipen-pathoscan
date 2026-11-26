@@ -466,20 +466,28 @@ async function ringCentre(page: Page, at: Pt) {
   return [box.x + box.width / 2, box.y + box.height / 2] as Pt
 }
 
-test('on a 390 x 844 phone, a tall photo is as wide as the screen, and scrolled to its end the last tube is clear of the actions', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('/app.html')
-  await toPhoto(page, 'Tall photo')
-  const photo = syntheticPhoto('2x5', { above: 150 }) // 500 x 990: the tubes low in a photo taller than 9:16
-  await page.locator('input[type=file]').setInputFiles(photo.file)
-  await expect(page.getByRole('heading', { name: '10 tubes', exact: true })).toBeVisible()
-  expect((await page.locator('.shot svg').boundingBox())!.width).toBe(390)
-  await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight))
-  const [x, y] = await ringCentre(page, photo.tubes[9])
-  expect(await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('.shot'), [x, y])).toBe(true)
-  await label(page, photo)
-  await expect(page.getByRole('heading', { name: '2 of 8 positive', exact: true })).toBeVisible()
-})
+for (const [width, height] of [
+  [390, 844],
+  [360, 640],
+])
+  test(`on a ${width} x ${height} phone, a tall photo is as wide as the screen, and scrolled to its end the last tube is clear of the actions, on the photo and the result`, async ({ page }) => {
+    await page.goto('/app.html')
+    await toPhoto(page, 'Tall photo')
+    await page.setViewportSize({ width, height }) // after the guide, whose longest steps need more than 640 px
+    const photo = syntheticPhoto('2x5', { above: 150 }) // 500 x 990: the tubes low in a photo taller than 9:16
+    await page.locator('input[type=file]').setInputFiles(photo.file)
+    await expect(page.getByRole('heading', { name: '10 tubes', exact: true })).toBeVisible()
+    expect((await page.locator('.shot svg').boundingBox())!.width).toBe(width)
+    await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight))
+    const [x, y] = await ringCentre(page, photo.tubes[9])
+    expect(await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('.shot'), [x, y])).toBe(true)
+    await label(page, photo)
+    // The result opens at its top, not where the photo was scrolled to, and its last tube scrolls clear of the actions.
+    await expect(page.getByRole('heading', { name: '2 of 8 positive', exact: true })).toBeInViewport({ ratio: 1 })
+    await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight))
+    const last = (await page.locator('.tubes li').last().boundingBox())!
+    expect(last.y + last.height).toBeLessThanOrEqual((await page.locator('.actions').boundingBox())!.y)
+  })
 
 // A laptop, as shared on a call for a demo. Its own browser settings: not a phone.
 const { defaultBrowserType: _, ...laptop } = devices['Desktop Chrome']
