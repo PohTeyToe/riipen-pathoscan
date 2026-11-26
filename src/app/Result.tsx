@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import type { Assay } from './assays/assay'
 import { exportRun } from './csv'
 import { LABELS } from './reader'
-import { asksRetake, finalCalls, heldReason, tapsDecided, type Run, type Tap } from './run'
+import { asksRetake, finalCalls, heldReason, saysRetake, tapsDecided, type Run, type Tap } from './run'
 import { Shot } from './Shot'
 import { getPhoto, getRun, retakePhoto, setTap } from './store'
 import { Action, Bar } from './ui'
@@ -59,7 +59,9 @@ export function Result({ run, assay, act, error }: { run: Run; assay: Assay; act
                 </p>
               )}
               {read.flags.map((f) => (
-                <p key={f} className="alert">
+                // On a run that was read, a retake is only a way to read the held tubes, which the grower can call
+                // instead, so it isn't shown as a warning. A flag about the controls is.
+                <p key={f} className={saysRetake(f) ? 'note' : 'alert'}>
                   {f}
                 </p>
               ))}

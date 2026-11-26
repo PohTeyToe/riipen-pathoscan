@@ -118,8 +118,11 @@ export function heldReason(read: RunRead, i: number): string | undefined {
   return t.call === 'held' && t.reason && !read.flags.includes(t.reason) ? t.reason : undefined
 }
 
+/** True when this line from the reader asks for a new photo. */
+export const saysRetake = (s: string) => /\bretake\b/i.test(s)
+
 /** True when the reader asks for a new photo: a run flag or a held tube's reason says to retake it. */
-export const asksRetake = (read: RunRead) => [...read.flags, ...read.tubes.flatMap((_, i) => heldReason(read, i) ?? [])].some((s) => /\bretake\b/i.test(s))
+export const asksRetake = (read: RunRead) => [...read.flags, ...read.tubes.flatMap((_, i) => heldReason(read, i) ?? [])].some(saysRetake)
 
 /** Samples the reader held: the only tubes a grower's tap fills in. */
 export const heldSamples = (read: RunRead, roles: Role[]) => roles.flatMap((r, i) => (r === 'sample' && read.tubes[i].call === 'held' ? [i] : []))

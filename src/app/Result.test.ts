@@ -22,15 +22,23 @@ const tube = (labHue: number, clipped = false): Features => {
   return { raw: [200, 150, 80], rawHue: labHue, corrected: [0.8, 0.6, 0.3], lab, labHue, hueRange: [labHue, labHue], clipped, clear: 500, glare: 0, paperBeside: true }
 }
 
-/** The result screen's text for a run read from these tubes and counted at treatAt. */
-function screen(feats: (Features | null)[], treatAt = sclerotinia.treatAt): string {
+/** The result screen's markup for a run read from these tubes and counted at treatAt. */
+function markup(feats: (Features | null)[], treatAt = sclerotinia.treatAt): string {
   const read = readCalibrated(feats, ROLES, MODEL, BAND)
   const taps = Array(10).fill(null)
   const regions = ROLES.map(() => ({ x0: 0, y0: 0, x1: 9, y1: 9, cx: 5, cy: 5 }))
   const run: Run = { ...newRun(sclerotinia, { field: 'North 40', notes: '' }, 0, 'run-1'), read, roles: ROLES, regions, taps, ...tally(read, ROLES, taps, treatAt) }
-  const html = renderToStaticMarkup(createElement(Result, { run, assay: sclerotinia, act: async () => {}, error: null }))
-  return html.replace(/<[^>]+>/g, ' ').replace(/&#x27;/g, "'").replace(/\s+/g, ' ')
+  return renderToStaticMarkup(createElement(Result, { run, assay: sclerotinia, act: async () => {}, error: null })).replace(/&#x27;/g, "'")
 }
+
+/** The result screen's text. */
+const screen = (feats: (Features | null)[], treatAt?: number) =>
+  markup(feats, treatAt)
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+
+/** The class of the paragraph that says `text`. */
+const classOf = (html: string, text: RegExp) => new RegExp(`<p class="([^"]+)">${text.source}`).exec(html)?.[1]
 
 describe('a failed run on the result screen', () => {
   const samples = Array.from({ length: 8 }, () => tube(40))
@@ -66,6 +74,22 @@ describe('held tubes on the result screen', () => {
     expect(text).toContain('Run failed')
     expect(text.split('Too bright at the positive control. Retake with less light.')).toHaveLength(2)
     expect(text).toContain('Retake photo')
+  })
+})
+
+describe('the lines above a read run', () => {
+  // Sample 1 reads positive, but uneven light leaves its colour anywhere from the middle up: held, with a retake offered.
+  const unsure = { ...tube(85), hueRange: [45, 85] as [number, number] }
+  const negatives = Array.from({ length: 6 }, () => tube(12))
+  it('offer a retake for tubes held only by the light plainly, not as a warning', () => {
+    const html = markup([tube(90), tube(10), tube(95), unsure, ...negatives])
+    expect(screen([tube(90), tube(10), tube(95), unsure, ...negatives])).toContain('1 of 8 positive Call the held tubes below.')
+    expect(classOf(html, /1 tube was held only because this photo can't pin down its colour\. Retake/)).toBe('note')
+    expect(html).toContain('Retake photo')
+  })
+  it('still warn about a weak positive control', () => {
+    const html = markup([tube(60), tube(10), tube(95), unsure, ...negatives])
+    expect(classOf(html, /The positive control is weaker than/)).toBe('alert')
   })
 })
 
