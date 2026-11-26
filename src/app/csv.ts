@@ -75,10 +75,14 @@ export function csvName(run: Run): string {
   return `pathoscan-${field || 'run'}-${day(new Date(run.createdAt))}.csv`
 }
 
-/** Shares the file where the phone can share files, else downloads it. Call it from the tap: sharing needs one. */
+/**
+ * Opens the share sheet on a phone or tablet that can share files, else downloads the file. Call it from the tap:
+ * sharing needs one. A touch screen as the main pointer tells a phone or tablet from a laptop: Chrome on Windows
+ * and Safari on a Mac can share files too, but there the share box saves nothing, and a download is what's wanted.
+ */
 export async function exportRun(run: Run): Promise<void> {
   const file = new File([runCsv(run)], csvName(run), { type: 'text/csv' })
-  if (navigator.canShare?.({ files: [file] })) {
+  if (matchMedia('(pointer: coarse)').matches && navigator.canShare?.({ files: [file] })) {
     try {
       await navigator.share({ files: [file] })
       return

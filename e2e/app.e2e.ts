@@ -482,7 +482,7 @@ const { defaultBrowserType: _, ...laptop } = devices['Desktop Chrome']
 test.describe('on a 1280 x 720 laptop', () => {
   test.use(laptop)
 
-  test('timer steps fit the screen, the photo takes its height beside the actions, and the result shows the held tube beside the photo', async ({ page }) => {
+  test('timer steps fit the screen, the photo takes its height beside the actions, the result shows the held tube beside the photo, and Export downloads', async ({ page }) => {
     await page.goto('/app.html')
     await toPhoto(page, 'Laptop') // every step, timer steps 2, 7 and 9 too, with no scrolling
     const photo = syntheticPhoto('2x5')
@@ -501,6 +501,17 @@ test.describe('on a 1280 x 720 laptop', () => {
     await expect(page.getByRole('listitem').filter({ hasText: 'Look again: yellow or pink?' })).toBeInViewport({ ratio: 1 })
     await expect(page.locator('.shot img')).toBeInViewport({ ratio: 1 })
     expect(await page.evaluate(() => document.documentElement.scrollHeight - innerHeight)).toBeLessThanOrEqual(0)
+
+    // Chrome on Windows can share a file, but its share box saves nothing: a laptop downloads the file.
+    await page.evaluate(() => {
+      Object.defineProperty(navigator, 'canShare', { value: () => true })
+      Object.defineProperty(navigator, 'share', { value: async () => void ((window as unknown as { shared: boolean }).shared = true) })
+    })
+    const downloaded = page.waitForEvent('download')
+    await arm(page)
+    await page.getByRole('button', { name: 'Export' }).click()
+    expect((await downloaded).suggestedFilename()).toMatch(/^pathoscan-laptop-.+\.csv$/)
+    expect(await page.evaluate(() => (window as unknown as { shared?: boolean }).shared)).toBeUndefined()
   })
 })
 
