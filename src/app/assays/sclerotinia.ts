@@ -42,7 +42,7 @@ export const sclerotinia: Assay = {
       id: 'label',
       title: 'Label the reaction tubes',
       body: 'Use the kit stickers to label the eight numbered reaction tubes and the two control tubes, POS and NEG. Keep the numbers matched to the samples you collected.',
-      image: { src: label, alt: 'Ten reaction tubes in a rack labelled POS, NEG, and 1 to 8.' },
+      image: { src: label, alt: 'Stickers peeled off a sticker sheet label the ten tubes in the rack POS, NEG, and 1 to 8.' },
     },
     {
       id: 'mix',
@@ -54,7 +54,7 @@ export const sclerotinia: Assay = {
       id: 'crush',
       title: 'Crush the petals',
       body: 'Put four canola petals from one plant in its sample tube. Move the pestle up and down to crush them, then repeat for the other seven samples.',
-      image: { src: crush, alt: 'Four petals shown before and after crushing.' },
+      image: { src: crush, alt: 'Four petals go into the sample tube, and a pestle moves up and down to crush them.' },
     },
     {
       id: 'dip',

@@ -1,9 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" fill="none" stroke="#141b3f" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
-<style>.a{animation:u 1s ease-in-out 3}@keyframes u{50%{transform:translateY(-12px)}}.b{animation:v 1s ease-in-out 3}@keyframes v{50%{transform:translateY(12px)}}.c{transform-box:fill-box;transform-origin:center;animation:s 1s ease-in-out 3}@keyframes s{50%{transform:scaleY(1.7)}}@media (prefers-reduced-motion:reduce){*{animation:none!important}}</style>
-<defs><path id="l" d="M0 24C-4 18-16 2-15-10c1-10 9-14 15-12 6-2 14 2 15 12 1 12-11 28-15 34z"/></defs>
-<g fill="#fff"><use href="#l" transform="translate(66 46)"/><use href="#l" transform="translate(100 80) rotate(90)"/><use href="#l" transform="translate(66 114) rotate(180)"/><use href="#l" transform="translate(32 80) rotate(270)"/></g>
-<path d="M132 80h36m-12-12 12 12-12 12" stroke="#2a40b0" stroke-width="6"/>
-<path class="c" d="M206 80c6-9 14 3 22-3s14 6 22 0 14-4 24 3c-8 8-16-2-24 4s-14-5-22 0-16 4-22-4z" fill="#fff" stroke-width="4"/>
-<g class="a"><rect x="214" y="-16" width="52" height="84" rx="26" fill="#fff"/><rect x="225" y="36" width="30" height="24" rx="10" fill="#d6defa" stroke-width="4"/></g>
-<g class="b"><rect x="214" y="92" width="52" height="84" rx="26" fill="#fff"/><rect x="225" y="100" width="30" height="24" rx="10" fill="#d6defa" stroke-width="4"/></g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" fill="none" stroke="#141b3f" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+<style>.p{animation:u 1s ease-in-out 4}@keyframes u{50%{transform:translateY(-30px)}}@media (prefers-reduced-motion:reduce){*{animation:none!important}}</style>
+<defs><path id="l" d="M0 24C-4 18-16 2-15-10c1-10 9-14 15-12 6-2 14 2 15 12 1 12-11 28-15 34z" fill="#fff"/><path id="b" d="M200 48V104L220 150H236L256 104V48"/></defs>
+<use href="#l" transform="translate(42 56) rotate(-25)"/><use href="#l" transform="translate(84 56) rotate(25)"/><use href="#l" transform="translate(42 112) rotate(-155)"/><use href="#l" transform="translate(84 112) rotate(155)"/>
+<path d="M124 84h40m-12-12 12 12-12 12" stroke="#2a40b0" stroke-width="6"/>
+<use href="#b" fill="#fff"/>
+<path d="M202 98V104L221 148h14L254 104V98z" fill="#d6defa" stroke="none"/>
+<g stroke-width="3"><use href="#l" transform="translate(218 118) rotate(-60) scale(.45)"/><use href="#l" transform="translate(238 118) rotate(60) scale(.45)"/><use href="#l" transform="translate(222 134) rotate(15) scale(.4)"/><use href="#l" transform="translate(234 134) rotate(-15) scale(.4)"/></g>
+<rect class="p" x="222" y="6" width="12" height="102" rx="6" fill="#141b3f"/>
+<use href="#b"/><rect x="194" y="40" width="68" height="9" rx="3"/>
+<path d="M262 44h6"/><rect x="268" y="18" width="12" height="32" rx="4" fill="#fff"/>
+<path d="M302 56v60m-10-50 10-10 10 10m-20 40 10 10 10-10" stroke="#2a40b0" stroke-width="5"/>
 </svg>
