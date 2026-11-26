@@ -24,7 +24,7 @@ export function Runs() {
         {install === 'ios' && <p className="note">Install first: tap Share, then Add to Home Screen.</p>}
         {install && install !== 'ios' && (
           <button type="button" className="btn ghost" onClick={install.prompt}>
-            Install on this phone
+            Install this app
           </button>
         )}
         {failed && <p className="alert">Can't open storage on this phone.</p>}

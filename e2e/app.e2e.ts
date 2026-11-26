@@ -513,6 +513,18 @@ test.describe('on a 1280 x 720 laptop', () => {
     expect((await downloaded).suggestedFilename()).toMatch(/^pathoscan-laptop-.+\.csv$/)
     expect(await page.evaluate(() => (window as unknown as { shared?: boolean }).shared)).toBeUndefined()
   })
+
+  test('where the browser offers to install the app, Runs offers it in words true on a laptop too', async ({ page }) => {
+    await page.goto('/app.html')
+    await expect(page.getByRole('heading', { name: 'Runs', exact: true })).toBeVisible()
+    await page.evaluate(() => {
+      const offer = Object.assign(new Event('beforeinstallprompt'), { prompt: async () => void ((window as unknown as { asked: boolean }).asked = true) })
+      dispatchEvent(offer)
+    })
+    await page.getByRole('button', { name: 'Install this app' }).click()
+    expect(await page.evaluate(() => (window as unknown as { asked?: boolean }).asked)).toBe(true)
+    await expect(page.getByRole('button', { name: /^Install/ })).toHaveCount(0)
+  })
 })
 
 /** Puts a run into the phone's store exactly as given, as another version of the app might have saved it. */
