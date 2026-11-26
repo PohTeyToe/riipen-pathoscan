@@ -29,7 +29,7 @@ export const sclerotinia: Assay = {
       id: 'pick',
       title: 'Pick eight field samples',
       body: 'Choose one flowering canola plant at each of eight spots spread across the field. Collect four petals from each plant and keep them together as one numbered sample.',
-      image: { src: pick, alt: 'Eight numbered plants spread along an example route through the field.' },
+      image: { src: pick, alt: 'Eight numbered flowering plants spread across a field.' },
     },
     {
       id: 'preheat',

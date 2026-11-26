@@ -1,10 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" fill="none" stroke="#141b3f" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
-<style>.w{stroke-dasharray:100;animation:d 1.6s ease-out 3}@keyframes d{from{stroke-dashoffset:100}}@media (prefers-reduced-motion:reduce){*{animation:none!important}}</style>
+<style>text{font:700 18px Arial,Helvetica,sans-serif;fill:#141b3f;stroke:#fff;stroke-width:5px;paint-order:stroke}.p{transform-box:fill-box;transform-origin:50% 100%;animation:g .5s ease-out backwards}@keyframes g{from{transform:scale(0)}}@media (prefers-reduced-motion:reduce){*{animation:none!important}}</style>
+<defs><g id="p" fill="#fff" stroke-width="3"><path d="M0 0V-28M0-10c-9 0-14-5-15-12 7 0 13 4 15 12zM0-16c9-1 13-6 14-12-7 0-13 4-14 12z"/><circle cy="-33" r="7" fill="#2a40b0"/></g></defs>
 <rect x="6" y="6" width="308" height="148" rx="16" fill="#fff" stroke-width="5"/>
-<path d="M14 26h292M14 44h292M14 62h292M14 80h292M14 98h292M14 116h292M14 134h292" stroke="#c4cdf0" stroke-width="4" stroke-dasharray="0 10"/>
+<path d="M14 26h292M14 44h292M14 62h292M14 80h292M14 98h292M14 116h292M14 134h292" stroke="#c4cdf0" stroke-dasharray="0 10"/>
 <rect x="6" y="6" width="308" height="148" rx="16" stroke-width="5"/>
-<path class="w" d="M36 30 98 128 160 38 222 128 284 30" pathLength="100" stroke="#2a40b0" stroke-width="5"/>
-<path d="M270 34l14-4 2 14" stroke="#2a40b0" stroke-width="5"/>
-<g fill="#fff"><circle cx="57" cy="63" r="11"/><circle cx="77" cy="95" r="11"/><circle cx="119" cy="98" r="11"/><circle cx="139" cy="68" r="11"/><circle cx="181" cy="68" r="11"/><circle cx="201" cy="98" r="11"/><circle cx="243" cy="95" r="11"/><circle cx="263" cy="63" r="11"/></g>
-<g fill="#141b3f" stroke="none" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="15" text-anchor="middle"><text x="57" y="68">1</text><text x="77" y="100">2</text><text x="119" y="103">3</text><text x="139" y="73">4</text><text x="181" y="73">5</text><text x="201" y="103">6</text><text x="243" y="100">7</text><text x="263" y="68">8</text></g>
+<g class="p"><use href="#p" x="40" y="66"/><text x="57" y="64">1</text></g>
+<g class="p" style="animation-delay:.2s"><use href="#p" x="116" y="58"/><text x="133" y="56">2</text></g>
+<g class="p" style="animation-delay:.4s"><use href="#p" x="194" y="70"/><text x="211" y="68">3</text></g>
+<g class="p" style="animation-delay:.6s"><use href="#p" x="270" y="60"/><text x="287" y="58">4</text></g>
+<g class="p" style="animation-delay:.8s"><use href="#p" x="70" y="138"/><text x="87" y="136">5</text></g>
+<g class="p" style="animation-delay:1s"><use href="#p" x="148" y="130"/><text x="165" y="128">6</text></g>
+<g class="p" style="animation-delay:1.2s"><use href="#p" x="222" y="140"/><text x="239" y="138">7</text></g>
+<g class="p" style="animation-delay:1.4s"><use href="#p" x="280" y="128"/><text x="297" y="126">8</text></g>
 </svg>
