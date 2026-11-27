@@ -242,6 +242,7 @@ test('a run goes from the guide to a photo, rings, labels tapped in order and a 
   await context.setOffline(true)
   await page.goto('/app.html')
   await expect(page.getByRole('listitem').filter({ hasText: 'Synthetic' })).toContainText('Treat')
+  await expect(page.getByRole('listitem').filter({ hasText: 'Synthetic' })).toContainText('Sclerotinia on canola')
   await page.getByRole('link', { name: /Synthetic/ }).click()
   await expect(page.getByRole('heading', { name: '2 of 8 positive', exact: true })).toBeVisible()
   await expect(page.locator('.shot img')).toHaveJSProperty('complete', true)
@@ -259,7 +260,7 @@ test('a run goes from the guide to a photo, rings, labels tapped in order and a 
   const [head, ...rows] = csv.slice(1).trimEnd().split('\r\n').map((line) => line.split(','))
   const column = (name: string) => rows.map((r) => r[head.indexOf(name)])
   expect(column('Tube')).toEqual(['POS', 'NEG', '1', '2', '3', '4', '5', '6', '7', '8'])
-  for (const [name, value] of [['Field', 'Synthetic'], ['Result', 'Treat'], ['Positives', '2'], ['Samples', '8'], ['Treat at', '2']])
+  for (const [name, value] of [['Field', 'Synthetic'], ['Test', 'Sclerotinia on canola'], ['Result', 'Treat'], ['Positives', '2'], ['Samples', '8'], ['Treat at', '2']])
     expect(column(name)).toEqual(Array(10).fill(value))
   // The held tube is the grower's Yellow, and it counts.
   expect(column('Reader call').filter((c) => c === 'Held')).toHaveLength(1)
@@ -745,6 +746,31 @@ test('a run of six samples says so on its button before reading, counts six and 
   for (const [name, value] of [['Result', 'No advice'], ['Samples', '6'], ['Treat at', '']]) expect(column(name)).toEqual(Array(8).fill(value))
   await page.getByRole('link', { name: 'Done' }).click()
   await expect(page.getByRole('listitem').filter({ hasText: 'Six' })).toContainText('No advice')
+})
+
+test('a run of another PathoBox test goes straight to the photo, is read the same way and gives no spray advice', async ({ page }) => {
+  await page.goto('/app.html')
+  await page.getByRole('link', { name: 'New run' }).click()
+  await expect(page.getByRole('radio', { name: 'Sclerotinia on canola' })).toBeChecked()
+  await page.getByRole('radio', { name: 'Another PathoBox test' }).check()
+  await page.getByLabel('Field name').fill('Other test')
+  await page.getByRole('button', { name: 'Start run' }).click()
+  await expect(page.getByRole('heading', { name: 'Take photo', exact: true })).toBeVisible()
+  const photo = syntheticPhoto('row', { seed: 12 }) // one positive and one held tube
+  await page.locator('input[type=file]').setInputFiles(photo.file)
+  await expect(page.getByRole('heading', { name: '10 tubes', exact: true })).toBeVisible()
+  await label(page, photo)
+  await expect(page.getByRole('heading', { name: '1 of 8 positive', exact: true })).toBeVisible()
+  await expect(page.getByText('This test has no spray rule in the app, so this run gets no spray advice.')).toBeVisible()
+  await expect(page.getByText('Call the held tubes below.')).toBeVisible()
+  await page.getByRole('button', { name: 'Yellow' }).click()
+  await expect(page.getByRole('heading', { name: '2 of 8 positive', exact: true })).toBeVisible()
+  await expect(page.getByText(/to treat/)).toHaveCount(0)
+  const column = await exportCsv(page)
+  for (const [name, value] of [['Test', 'Another PathoBox test'], ['Result', 'No advice'], ['Treat at', '']]) expect(column(name)).toEqual(Array(10).fill(value))
+  await page.getByRole('link', { name: 'Done' }).click()
+  await expect(page.getByRole('listitem').filter({ hasText: 'Other test' })).toContainText('Another PathoBox test')
+  await expect(page.getByRole('listitem').filter({ hasText: 'Other test' })).toContainText('No advice')
 })
 
 test('under a warm lamp at one end of the rack, the reader holds the tubes it cannot read and calls none wrong', async ({ page }) => {

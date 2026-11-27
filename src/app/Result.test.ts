@@ -3,10 +3,12 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { Features } from '../lib/find'
 import { readCalibrated } from '../lib/readers'
+import type { Assay } from './assays/assay'
+import { other } from './assays/other'
 import { sclerotinia } from './assays/sclerotinia'
 import { BAND, MODEL, ROLES } from './reader'
 import { Result, yourCalls } from './Result'
-import { newRun, tally, type Run } from './run'
+import { newRun, tally, treatAtFor, type Run } from './run'
 
 describe('the line on calls that decided a result', () => {
   it('agrees with one call and with many', () => {
@@ -23,13 +25,13 @@ const tube = (labHue: number, clipped = false): Features => {
 }
 
 /** The result screen's markup for a run of as many tubes as given, read and counted at treatAt (null: no rule). */
-function markup(feats: (Features | null)[], treatAt: number | null = sclerotinia.rule.treatAt): string {
+function markup(feats: (Features | null)[], treatAt: number | null = sclerotinia.rule!.treatAt, assay: Assay = sclerotinia): string {
   const roles = ROLES.slice(0, feats.length)
   const read = readCalibrated(feats, roles, MODEL, BAND)
   const taps = roles.map(() => null)
   const regions = roles.map(() => ({ x0: 0, y0: 0, x1: 9, y1: 9, cx: 5, cy: 5 }))
-  const run: Run = { ...newRun(sclerotinia, { field: 'North 40', notes: '' }, 0, 'run-1'), read, roles, regions, taps, ...tally(read, roles, taps, treatAt ?? undefined) }
-  return renderToStaticMarkup(createElement(Result, { run, assay: sclerotinia, act: async () => {}, error: null })).replace(/&#x27;/g, "'")
+  const run: Run = { ...newRun(assay, { field: 'North 40', notes: '' }, 0, 'run-1'), read, roles, regions, taps, ...tally(read, roles, taps, treatAt ?? undefined) }
+  return renderToStaticMarkup(createElement(Result, { run, assay, act: async () => {}, error: null })).replace(/&#x27;/g, "'")
 }
 
 /** The result screen's text. */
@@ -109,10 +111,21 @@ describe('a run of fewer samples than the spray rule is for', () => {
   })
 })
 
+describe('a run of a test with no spray rule', () => {
+  it('counts and calls every sample, and says the test has no spray rule instead of advising', () => {
+    const feats = [tube(90), tube(10), tube(95), tube(95), ...Array.from({ length: 6 }, () => tube(12))]
+    expect(treatAtFor(other, 8)).toBeUndefined()
+    const text = markup(feats, null, other).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
+    expect(text).toContain('2 of 8 positive This test has no spray rule in the app, so this run gets no spray advice.')
+    expect(text).not.toMatch(/to treat/)
+    expect(text).toContain('8 Negative')
+  })
+})
+
 describe('a run saved under an older rule', () => {
   it('shows the outcome it was counted with, not a recount at the rule now', () => {
     const twoAndHeld = [tube(90), tube(10), tube(95), tube(95), tube(50), ...Array.from({ length: 5 }, () => tube(12))]
-    expect(sclerotinia.rule.treatAt).toBe(2)
+    expect(sclerotinia.rule!.treatAt).toBe(2)
     expect(screen(twoAndHeld)).toContain('2 of 8 positive Enough positives to treat.')
     expect(screen(twoAndHeld, 3)).toContain('2 of 8 positive Call the held tubes below.')
   })

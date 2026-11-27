@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { assays } from './assays'
 import { useInstall } from './install'
 import { OUTCOME_LABEL, type Run } from './run'
 import { listRuns } from './store'
@@ -37,6 +38,7 @@ export function Runs() {
                 <li key={r.id}>
                   <a href={`#/run/${encodeURIComponent(r.id)}`}>
                     <span className="field">{r.field}</span>
+                    <span className="test">{assays[r.assay]?.name ?? r.assay}</span>
                     <span className="date">{when.format(r.createdAt)}</span>
                     <span className={`chip ${outcome}`}>{OUTCOME_LABEL[outcome]}</span>
                   </a>

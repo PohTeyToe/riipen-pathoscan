@@ -166,7 +166,7 @@ src/run.ts      a synthetic run as the page shows it: drawn, found, measured, re
 src/caseStudy.ts the case-study numbers the page charts
 src/components/ hero story, rack and lights, case-study chart, lab, sweep chart, eval, real-photo bench, stage, scale strip, matrix, tube detail
 src/page.test.ts checks the page's runs and numbers against what it says about them
-app.html, src/app/ the field app (in progress): offline runs on the phone, a step guide with a drawing on each step and timers, the photo with rings and tubes labelled by tapping them in order, and the result, with a CSV export (one row per tube). Its service worker covers /app.html only
+app.html, src/app/ the field app (in progress): offline runs on the phone, of Sclerotinia on canola (a step guide with a drawing on each step and timers) or another PathoBox test (no guide), the photo with rings and tubes labelled by tapping them in order (+, −, then 1 to 8 samples, or fewer), and the result, with a CSV export (one row per tube). Spray advice is given only for Sclerotinia on canola with all 8 samples. Its service worker covers /app.html only
 e2e/            Playwright test for the field app
 scripts/        eval, real-photo eval, photo measurement, image IO for Node
 data/           eval.json, real-eval.json, real/labels.json

@@ -366,7 +366,7 @@ describe('the read and the taps', () => {
 
     await addRun(run('new-rule', 7240))
     expect(await takePhoto(on('id-new-rule'), jpeg('first'))).not.toBeNull()
-    expect(await saveRead(on('id-new-rule', 1), regions, roles, twoHeld, sclerotinia.rule.treatAt)).toBe(true)
+    expect(await saveRead(on('id-new-rule', 1), regions, roles, twoHeld, sclerotinia.rule!.treatAt)).toBe(true)
     expect(await getRun('id-new-rule')).toMatchObject({ rule: { treatAt: 2 }, readerPositives: 2, outcome: 'treat' })
     expect(await setTap(on('id-new-rule', 1), 4, 'neg')).toBe(true)
     expect(await getRun('id-new-rule')).toMatchObject({ rule: { treatAt: 2 }, outcome: 'treat' })

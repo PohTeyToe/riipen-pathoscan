@@ -20,8 +20,9 @@ const coolMin = 5
 
 export const sclerotinia: Assay = {
   id: 'sclerotinia',
-  name: 'Sclerotinia',
-  rule: { treatAt: 2, samples: 8 }, // Ethan's answer to open question 1 (Nov 24): treatment starts at two positives out of eight.
+  name: 'Sclerotinia on canola',
+  // Ethan's answer to open question 1 (Nov 24): treatment starts at two positives out of eight.
+  rule: { treatAt: 2, samples: 8, treat: 'Enough positives to treat.', dontTreat: 'Too few positives to treat.' },
   coolMin,
   steps: [
     // PROPOSAL: sent to Ethan on Nov 19 (open question 6), not yet confirmed.
@@ -83,9 +84,4 @@ export const sclerotinia: Assay = {
       timerMin: coolMin,
     },
   ],
-  advice: {
-    treat: 'Enough positives to treat.',
-    dontTreat: 'Too few positives to treat.',
-    disclaimer: 'A guide, not a diagnosis.',
-  },
 }

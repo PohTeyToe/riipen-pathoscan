@@ -22,8 +22,9 @@ export interface StepProgress {
  * that app leaves alone. Schema 3 added `take`: an app of schema 2 can't bind its writes to the photo on show,
  * so the bump also fences its tabs off the runs this app has opened. Schema 4 has schema 3's shape: an app of
  * schema 3 recounts a run under its own treatAt on every tap, so it must not write to a run this app has opened.
- * Schema 5 has schema 4's shape, but a run may have fewer than ten tubes, no `rule` and no taps before its read:
- * an app of schema 4 would show it as ten tubes under the Sclerotinia rule, so it must not open one.
+ * Schema 5 has schema 4's shape, but a run may be of a test with no spray rule, or have fewer than ten tubes, no
+ * `rule` and no taps before its read: an app of schema 4 would show it as ten tubes under the Sclerotinia rule,
+ * so it must not open one.
  */
 export const SCHEMA = 5
 
@@ -79,7 +80,7 @@ export function newRun(assay: Assay, input: Pick<Run, 'field' | 'notes' | 'gps'>
 }
 
 /** The treatAt a run of this many samples is read under: its test's rule, only for the number of samples the rule is for. */
-export const treatAtFor = (assay: Assay, samples: number) => (assay.rule.samples === samples ? assay.rule.treatAt : undefined)
+export const treatAtFor = (assay: Assay, samples: number) => (assay.rule?.samples === samples ? assay.rule.treatAt : undefined)
 
 /** The index of the step to show: the first one not done, or -1 when the guide is finished. */
 export const currentStep = (run: Run, assay: Assay) => assay.steps.findIndex((s) => !run.steps[s.id]?.done)

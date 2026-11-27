@@ -13,8 +13,11 @@ const MARK = { pos: '+', neg: '−', held: '?' }
 export const yourCalls = (tapped: number, positives: number) =>
   `${tapped} of the ${positives} positives ${tapped === 1 ? 'is your call' : 'are your calls'}.`
 
-/** In place of the advice on a run its test's spray rule doesn't cover. */
-export const noAdvice = (assay: Assay) => `The spray rule needs all ${assay.rule.samples} samples, so this run gets no spray advice.`
+/** In place of the advice on a run no spray rule covers: its test has none, or the run is short of the rule's samples. */
+export const noAdvice = (assay: Assay) =>
+  assay.rule
+    ? `The spray rule needs all ${assay.rule.samples} samples, so this run gets no spray advice.`
+    : 'This test has no spray rule in the app, so this run gets no spray advice.'
 
 /** Drawn from the stored run only. The reader doesn't run again. */
 export function Result({ run, assay, act, error }: { run: Run; assay: Assay; act: (write: () => Promise<unknown>) => Promise<void>; error: ReactNode }) {
@@ -57,9 +60,9 @@ export function Result({ run, assay, act, error }: { run: Run; assay: Assay; act
                 {!run.rule
                   ? noAdvice(assay)
                   : run.outcome === 'treat'
-                    ? assay.advice.treat
+                    ? assay.rule?.treat
                     : run.outcome === 'dont-treat'
-                      ? assay.advice.dontTreat
+                      ? assay.rule?.dontTreat
                       : 'Call the held tubes below.'}
               </p>
               {!run.rule && !run.outcome && <p className="note">Call the held tubes below.</p>}
@@ -75,7 +78,7 @@ export function Result({ run, assay, act, error }: { run: Run; assay: Assay; act
                   {f}
                 </p>
               ))}
-              <p className="note">{assay.advice.disclaimer}</p>
+              <p className="note">A guide, not a diagnosis.</p>
             </>
           )}
           {asksRetake(read) && (

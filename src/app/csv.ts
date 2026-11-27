@@ -2,6 +2,7 @@
 // filters it as one flat table. Built on the phone from the stored run, so it works offline.
 
 import type { Call } from '../lib/readers'
+import { assays } from './assays'
 import { LABELS } from './reader'
 import { finalCalls, heldReason, OUTCOME_LABEL, type Run, type Tap } from './run'
 
@@ -27,7 +28,7 @@ export function cell(v: Cell): string {
   return /[",\r\n]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s
 }
 
-const HEADER = ['Field', 'Date', 'Time', 'Result', 'Positives', 'Samples', 'Treat at', 'Tube', 'Reader call', 'Grower call', 'Final call', 'Notes', 'Reader warnings', 'Latitude', 'Longitude', 'Accuracy (m)', 'App version', 'Reader version', 'Run ID']
+const HEADER = ['Field', 'Test', 'Date', 'Time', 'Result', 'Positives', 'Samples', 'Treat at', 'Tube', 'Reader call', 'Grower call', 'Final call', 'Notes', 'Reader warnings', 'Latitude', 'Longitude', 'Accuracy (m)', 'App version', 'Reader version', 'Run ID']
 
 /** The CSV for a read run: a UTF-8 BOM (so Excel reads accents right), a header, then one row per tube in label order. */
 export function runCsv(run: Run): string {
@@ -40,6 +41,7 @@ export function runCsv(run: Run): string {
     const tap = run.taps[i]
     return [
       run.field,
+      assays[run.assay]?.name ?? run.assay,
       day(at),
       time(at),
       OUTCOME_LABEL[run.outcome ?? 'open'],

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { RunRead, TubeRead } from '../lib/readers'
+import { other } from './assays/other'
 import { sclerotinia } from './assays/sclerotinia'
 import { cell, csvName, runCsv } from './csv'
 import { ROLES } from './reader'
@@ -93,6 +94,7 @@ describe('the run CSV', () => {
     expect(column(rows, 'Tube')).toEqual(['POS', 'NEG', '1', '2', '3', '4', '5', '6', '7', '8'])
     expect(rows[0]).toEqual({
       Field: 'North 40',
+      Test: 'Sclerotinia on canola',
       Date: '2026-11-19',
       Time: '07:05',
       Result: 'Treat',
@@ -115,6 +117,16 @@ describe('the run CSV', () => {
     expect(rows[0]['App version']).toMatch(/^\d+\.\d+\.\d+$/)
     for (const name of ['Field', 'Date', 'Time', 'Result', 'Positives', 'Latitude', 'Run ID']) expect(new Set(column(rows, name)).size).toBe(1)
     expect(column(rows, 'Final call')).toEqual(['Positive', 'Negative', 'Positive', 'Positive', 'Negative', 'Negative', 'Positive', 'Negative', 'Negative', 'Negative'])
+  })
+
+  it('names the test, and gives a run with no spray rule no treat line and its own result', () => {
+    const read: RunRead = { status: 'ok', flags: [], tubes: (['pos', 'neg', 'pos', 'neg', 'neg'] as const).map((call) => ({ call, reason: '' })) }
+    const roles = ROLES.slice(0, 5)
+    const taps = roles.map(() => null)
+    const rows = table({ ...newRun(other, { field: 'North 40', notes: '' }, at, 'run-2'), read, roles, taps, ...tally(read, roles, taps) })
+    expect(column(rows, 'Tube')).toEqual(['POS', 'NEG', '1', '2', '3'])
+    for (const [name, value] of [['Test', 'Another PathoBox test'], ['Result', 'No advice'], ['Positives', '1'], ['Samples', '3'], ['Treat at', '']])
+      expect(column(rows, name)).toEqual(Array(5).fill(value))
   })
 
   it('gives each run the reader version that read it, so a run read by an older reader says so', () => {

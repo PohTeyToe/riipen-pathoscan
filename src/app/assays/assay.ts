@@ -11,15 +11,17 @@ export interface Step {
 }
 
 export interface Assay {
-  id: 'sclerotinia'
+  /** Saved runs name their test by this id: never change or reuse one. */
+  id: string
+  /** The test as New run, the run list and the CSV name it. */
   name: string
   steps: Step[]
   /**
-   * PathoScan's spray rule: treat at `treatAt` positives out of exactly `samples` samples. A run with another
-   * number of samples gets no advice. A run keeps the treatAt it was read under, in its `rule`.
+   * PathoScan's spray rule for this test, if it has given one: treat at `treatAt` positives out of exactly
+   * `samples` samples, and what the result says either side. A test with no rule, or a run with another number
+   * of samples, gets no advice. A run keeps the treatAt it was read under, in its `rule`.
    */
-  rule: { treatAt: number; samples: number }
+  rule?: { treatAt: number; samples: number; treat: string; dontTreat: string }
   /** Minutes to cool before the photo. Open question 2 for Ethan. */
-  coolMin: number
-  advice: { treat: string; dontTreat: string; disclaimer: string }
+  coolMin?: number
 }

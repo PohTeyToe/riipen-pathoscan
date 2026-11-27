@@ -1,11 +1,12 @@
 import { useState, type FormEvent } from 'react'
-import { sclerotinia } from './assays/sclerotinia'
+import { assays } from './assays'
 import { newRun, type Run } from './run'
 import { addRun, askPersist } from './store'
 
 const canLocate = 'geolocation' in navigator
 
 export function NewRun() {
+  const [test, setTest] = useState(Object.keys(assays)[0])
   const [field, setField] = useState('')
   const [notes, setNotes] = useState('')
   const [gps, setGps] = useState<Run['gps']>()
@@ -29,7 +30,7 @@ export function NewRun() {
     e.preventDefault()
     if (!field.trim() || saving) return
     setSaving(true)
-    const run = newRun(sclerotinia, { field, notes, gps })
+    const run = newRun(assays[test], { field, notes, gps })
     try {
       await addRun(run)
       void askPersist().catch(() => {})
@@ -49,6 +50,15 @@ export function NewRun() {
       </header>
       <main className="body">
         <h1>New run</h1>
+        <fieldset className="choice">
+          <legend>Test</legend>
+          {Object.values(assays).map((a) => (
+            <label key={a.id}>
+              <input type="radio" name="test" value={a.id} checked={test === a.id} onChange={() => setTest(a.id)} />
+              {a.name}
+            </label>
+          ))}
+        </fieldset>
         <label className="input">
           <span>Field name</span>
           <input value={field} onChange={(e) => setField(e.target.value)} required autoComplete="off" enterKeyHint="done" />
