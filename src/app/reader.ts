@@ -37,13 +37,26 @@ export function ringAt(rings: Region[], x: number, y: number, reach: number): nu
 }
 
 /**
- * A tap while fixing rings. On a ring it removes it (a finger, a petal, a pen mark). On empty paper it adds a
+ * A tap while fixing rings. On a ring it removes it (a finger, a petal, a pen mark). Anywhere else it adds a
  * ring for a tube the finder missed, as wide as the median ring's narrow side so it sits inside the liquid
  * (sized by the long side, as scripts/read-runs.ts does, it reads paper as glare). An added ring goes last.
  */
 export function tapRings(rings: Region[], x: number, y: number, reach: number): Region[] {
   const i = ringAt(rings, x, y, reach)
-  return i >= 0 ? removeRing(rings, i) : addRing(rings, x, y)
+  return i >= 0 && onRing(rings[i], x, y) ? removeRing(rings, i) : addRing(rings, x, y)
+}
+
+/**
+ * True when (x, y) is on the ring: inside its box grown on every side by half the box's narrow side, about where
+ * the ring is drawn. A tube touching this one has its middle past that, so a tap there is a tap on that tube,
+ * not on this ring. ringAt alone reaches a finger's width from the centre, which on small tubes in a wide photo
+ * covers the tube beside it.
+ */
+function onRing(r: Region, x: number, y: number): boolean {
+  const grow = inner(r)
+  const rx = (r.x1 - r.x0) / 2 + grow
+  const ry = (r.y1 - r.y0) / 2 + grow
+  return ((x - (r.x0 + r.x1) / 2) / rx) ** 2 + ((y - (r.y0 + r.y1) / 2) / ry) ** 2 < 1
 }
 
 export const removeRing = (rings: Region[], i: number) => rings.filter((_, j) => j !== i)

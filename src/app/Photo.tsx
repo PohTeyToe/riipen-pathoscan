@@ -4,7 +4,7 @@ import { loadImage } from '../lib/photo'
 import type { Img } from '../lib/synth'
 import type { Assay } from './assays/assay'
 import { encodePhoto } from './camera'
-import { addRing, findRings, LABELS, MIN_TUBES, readTubes, removeRing, ringAt, ROLES, tapInOrder } from './reader'
+import { findRings, LABELS, MIN_TUBES, readTubes, removeRing, ringAt, ROLES, tapInOrder, tapRings } from './reader'
 import { treatAtFor, type Run } from './run'
 import { Shot } from './Shot'
 import { getPhoto, saveRead, takePhoto } from './store'
@@ -80,9 +80,9 @@ export function Photo({ run, assay, act, back, error }: Props) {
     void act(() => saveRead(run, tubes, roles, readTubes(shot!.img, tubes, roles), treatAtFor(assay, tubes.length - 2)))
   }
   const tap = (x: number, y: number, reach: number) => {
+    if (stage === 'rings') return setRings(tapRings(rings, x, y, reach))
     const i = ringAt(rings, x, y, reach)
     if (i >= 0) pick(i)
-    else if (stage === 'rings') setRings(addRing(rings, x, y))
   }
 
   const camera = (label: string, ghost?: boolean) => (

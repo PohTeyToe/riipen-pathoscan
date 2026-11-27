@@ -3,7 +3,7 @@ import { discRegion, type Region } from '../lib/find'
 import type { RunRead, TubeRead } from '../lib/readers'
 import { liquidCentre, makeRun, render, type Img, type Role } from '../lib/synth'
 import { sclerotinia } from './assays/sclerotinia'
-import { findRings, LABELS, radius, readTubes, ringAt, ROLES, tapInOrder, tapRings } from './reader'
+import { findRings, LABELS, radius, readTubes, removeRing, ringAt, ROLES, tapInOrder, tapRings } from './reader'
 import { newRun, tally, tapsDecided, treatAtFor, type Run, type Tap } from './run'
 
 const box = (cx: number, cy: number, half: number): Region => ({ x0: cx - half, y0: cy - half, x1: cx + half, y1: cy + half, cx, cy })
@@ -58,6 +58,20 @@ describe('fixing rings', () => {
     const rings = [0, 30, 60, 90, 135].map((x) => box(x, 0, 3))
     expect(ringAt(rings, 120, 0, 40)).toBe(-1)
     expect(tapRings(rings, 120, 0, 40)).toHaveLength(6)
+  })
+  it('rings a tube touching a ringed one with a plain tap on it, so both are ringed, each labelled by its own tap', () => {
+    // Small tubes in a wide shot: liquid 12 px wide, most tubes 100 px apart, one pair touching 32 px apart.
+    // The finder ringed the first of the pair; a finger's reach (79 px) takes in the second.
+    const reach = 79
+    const rings = [box(0, 0, 6), box(100, 0, 6), box(200, 0, 6), box(400, 0, 6)]
+    const both = tapRings(rings, 232, 0, reach)
+    expect(both).toHaveLength(5)
+    expect(both.slice(0, 4)).toEqual(rings)
+    expect(ringAt(both, 200, 0, reach)).toBe(2)
+    expect(ringAt(both, 232, 0, reach)).toBe(4)
+    // A tap on either ring, or just off its edge, still removes that ring and no other.
+    expect(tapRings(both, 209, 2, reach)).toEqual(removeRing(both, 2))
+    expect(tapRings(both, 233, 1, reach)).toEqual(rings)
   })
   it('counts a tap inside a big ring as on it, whatever the reach', () => {
     expect(ringAt([box(100, 100, 40)], 135, 100, 5)).toBe(0)
