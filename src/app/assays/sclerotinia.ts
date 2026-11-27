@@ -43,7 +43,7 @@ export const sclerotinia: Assay = {
       id: 'label',
       title: 'Label the reaction tubes',
       body: 'The reaction tubes are the ten tubes with a pink bead inside. Use the kit stickers to label two of them POS and NEG, and the other eight 1 to 8 to match your samples.',
-      image: { src: label, alt: 'Stickers peeled off a sticker sheet label the ten tubes in the rack POS, NEG, and 1 to 8.' },
+      image: { src: label, alt: 'Stickers peeled off a sticker sheet label the ten tubes in the rack POS, NEG, and 1 to 8. Each tube has a pink bead.' },
     },
     {
       id: 'mix',
@@ -80,7 +80,7 @@ export const sclerotinia: Assay = {
       id: 'cool',
       title: 'Cool the tubes',
       body: 'Let the tubes cool to room temperature before taking the photo. The timer is a reminder to check them. Yellow is positive, pink is negative.',
-      image: { src: cool, alt: 'The tubes cooling: a thermometer going down, next to a clock.' },
+      image: { src: cool, alt: 'Yellow and pink tubes cooling in the rack: a thermometer going down, next to a clock.' },
       timerMin: coolMin,
     },
   ],

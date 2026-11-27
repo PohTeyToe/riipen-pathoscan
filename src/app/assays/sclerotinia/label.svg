@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" fill="none" stroke="#141b3f" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
 <style>.s{transform-box:fill-box;transform-origin:50% 0;animation:p 1.6s ease-in-out 3}@keyframes p{0%,12%{transform:translate(44px,-16px)}35%{transform:translate(38px,-30px) rotate(-16deg)}75%{transform:translate(0,-6px)}90%{transform:none}}@media (prefers-reduced-motion:reduce){*{animation:none!important}}</style>
-<defs><g id="t" fill="#fff"><path d="M-9 10V60L0 76 9 60V10z"/><rect x="-10" y="0" width="20" height="10" rx="2"/></g><rect id="k" x="-7" y="0" width="14" height="38" rx="3" fill="#d6defa" stroke-width="2.5"/><g id="u"><use href="#t"/><use href="#k" y="16"/></g></defs>
+<defs><g id="t" fill="#fff"><path d="M-9 10V60L0 76 9 60V10z"/><circle cy="64" r="4.5" fill="#ee8fa0" stroke-width="2"/><rect x="-10" y="0" width="20" height="10" rx="2"/></g><rect id="k" x="-7" y="0" width="14" height="38" rx="3" fill="#d6defa" stroke-width="2.5"/><g id="u"><use href="#t"/><use href="#k" y="16"/></g></defs>
 <rect x="2" y="96" width="230" height="32" rx="6" fill="#fff" stroke-width="5"/>
 <use href="#u" x="16" y="46"/><use href="#u" x="38" y="46"/><use href="#u" x="60" y="46"/><use href="#u" x="82" y="46"/><use href="#u" x="104" y="46"/><use href="#u" x="126" y="46"/><use href="#u" x="148" y="46"/><use href="#u" x="170" y="46"/><use href="#u" x="192" y="46"/><use href="#t" x="214" y="46"/>
 <rect x="244" y="38" width="70" height="106" rx="6" fill="#fff"/>
