@@ -1,10 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" fill="none" stroke="#141b3f" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
 <style>.w{animation:r 1.4s ease-in-out 3}.w+.w{animation-delay:.3s}.w+.w+.w{animation-delay:.6s}@keyframes r{50%{transform:translateY(-8px);opacity:.3}}@media (prefers-reduced-motion:reduce){*{animation:none!important}}</style>
-<g stroke="#b23a22"><path class="w" d="M58 66c-9-7 9-14 0-21s9-14 0-21"/><path class="w" d="M108 66c-9-7 9-14 0-21s9-14 0-21"/><path class="w" d="M158 66c-9-7 9-14 0-21s9-14 0-21"/></g>
-<rect x="18" y="78" width="180" height="66" rx="10" fill="#fff"/>
-<path d="M18 100h180"/>
-<g fill="#141b3f" stroke="none"><ellipse cx="48" cy="89" rx="9" ry="4.5"/><ellipse cx="78" cy="89" rx="9" ry="4.5"/><ellipse cx="108" cy="89" rx="9" ry="4.5"/><ellipse cx="138" cy="89" rx="9" ry="4.5"/><ellipse cx="168" cy="89" rx="9" ry="4.5"/></g>
-<circle cx="176" cy="123" r="8" fill="#b23a22" stroke="none"/>
+<g stroke="#b23a22" stroke-width="4"><path class="w" d="M112 36c-7-6 7-11 0-17s7-11 0-17"/><path class="w" d="M134 36c-7-6 7-11 0-17s7-11 0-17"/><path class="w" d="M156 36c-7-6 7-11 0-17s7-11 0-17"/></g>
+<g transform="translate(24 42)"><g id="box" stroke-width="4"><path d="M62 34L78 24H142L158 34L142 44H78z" fill="#0b0f26"/><path d="M62 34L78 44V78H62zM142 44L158 34V78H142z" fill="#2b3466"/><path d="M78 44H142V78H78z" fill="#141b3f"/><g class="l"><path d="M62 12L78 22V44L62 34zM142 22L158 12V34L142 44z" fill="#2b3466"/><path d="M78 22H142V44H78z" fill="#141b3f"/><path d="M62 12L78 2H142L158 12L142 22H78z" fill="#46518a"/><path d="M90 12c0-5 40-5 40 0s-40 5-40 0z" fill="#141b3f" stroke-width="3"/><path d="M65 32L78 40H142L155 32" stroke="#5d6799" stroke-width="2"/></g><rect x="0" y="76" width="170" height="34" rx="4" fill="#141b3f"/><rect x="6" y="40" width="96" height="36" rx="5" fill="#fff"/><rect x="14" y="48" width="60" height="20" rx="2" fill="#2a40b0" stroke-width="3"/><path d="M20 55h40M20 62h26" stroke="#d6defa" stroke-width="3"/><circle class="b" cx="88" cy="58" r="6" fill="#141b3f"/></g><!--/box--></g>
 <circle cx="262" cy="92" r="44" fill="#fff"/>
 <path d="M262 92V48a44 44 0 0 1 38.1 66z" fill="#d6defa" stroke="none"/>
 <circle cx="262" cy="92" r="44"/>

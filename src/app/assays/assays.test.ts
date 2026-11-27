@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { assays } from '.'
@@ -37,6 +37,16 @@ describe('step drawings', () => {
     expect(svg.length).toBeLessThan(6 * 1024)
     expect(svg).not.toMatch(/https?:\/\/(?!www\.w3\.org\/2000\/svg)/) // nothing fetched from outside
     expect(motionEnds(svg)).toBeLessThanOrEqual(5)
+  })
+
+  it('draws the PathoBox the same way in every picture that shows it', () => {
+    const boxes = new Map<string, string>()
+    for (const file of drawings) {
+      const box = readFileSync(join(dir, file), 'utf8').match(/<g id="box"[\s\S]*?<!--\/box-->/)?.[0]
+      if (box) boxes.set(basename(file), box)
+    }
+    expect([...boxes.keys()].sort()).toEqual(['oil.svg', 'preheat.svg'])
+    expect(new Set(boxes.values()).size).toBe(1)
   })
 
   it('counts every animation, its repeats and its delays', () => {

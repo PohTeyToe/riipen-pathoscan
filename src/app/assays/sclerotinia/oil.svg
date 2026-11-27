@@ -1,13 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" fill="none" stroke="#141b3f" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
-<style>.d{animation:f 1.2s ease-in 3}@keyframes f{80%{transform:translateY(30px);opacity:1}100%{transform:translateY(34px);opacity:0}}.t{animation:i 1.6s ease-in-out 3}@keyframes i{40%,70%{transform:translateY(30px)}}@media (prefers-reduced-motion:reduce){*{animation:none!important}}</style>
-<defs><pattern id="h" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><path d="M1 0v4" stroke-width="2"/></pattern><g id="f"><path d="M-9 8v28l9 18 9-18V8z" fill="#fff"/><path d="M-9 24v12l9 18 9-18V24z" fill="#6f84e6"/><path d="M-9 14h18v10H-9z" fill="url(#h)"/><rect x="-11" y="0" width="22" height="8" rx="2" fill="#fff"/></g></defs>
-<use href="#f" transform="translate(64 78) scale(1.3)"/>
-<rect x="54" y="6" width="20" height="24" rx="10" fill="#fff"/><path d="M58 30v20l4 14h4l4-14v-20z" fill="#fff"/><path d="M60 36h8v14h-8z" fill="url(#h)" stroke-width="2"/>
-<path class="d" d="M64 64c-4 6-4 10 0 10s4-4 0-10z" fill="url(#h)" stroke-width="2"/>
-<path d="M126 82l10 10-10 10" stroke="#2a40b0" stroke-width="5"/>
-<path d="M174 46v36m-10-10 10 10 10-10" stroke="#2a40b0" stroke-width="5"/>
-<g class="t"><use href="#f" x="210" y="40"/><use href="#f" x="242" y="40"/><use href="#f" x="274" y="40"/></g>
-<rect x="166" y="100" width="146" height="52" rx="8" fill="#fff" stroke-width="5"/>
-<path d="M166 114h146" stroke-width="5"/>
-<circle cx="292" cy="134" r="7" fill="#b23a22" stroke="none"/>
+<style>.d{animation:f 1.2s ease-in 2}@keyframes f{80%{transform:translateY(30px);opacity:1}100%{transform:translateY(34px);opacity:0}}.t{animation:i 1s ease-in 2.4s forwards}@keyframes i{to{transform:translateY(52px)}}.l{transform:translateY(-78px);animation:c .8s ease-in-out 3.4s forwards}@keyframes c{to{transform:none}}.b{transform-box:fill-box;transform-origin:center;animation:p .4s ease-in-out 4.2s}@keyframes p{50%{transform:scale(.6)}}@media (prefers-reduced-motion:reduce){*{animation:none!important}}</style>
+<defs><pattern id="h" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><path d="M1 0v4" stroke-width="2"/></pattern><g id="f"><path d="M-9 8v28l9 18 9-18V8z" fill="#fff"/><path d="M-9 24v12l9 18 9-18V24z" fill="#6f84e6"/><path d="M-9 14h18v10H-9z" fill="url(#h)"/><rect x="-11" y="0" width="22" height="8" rx="2" fill="#fff"/></g><clipPath id="c"><path d="M-20-120H190V44H102V40H-20z"/></clipPath></defs>
+<use href="#f" transform="translate(56 78) scale(1.3)"/>
+<rect x="46" y="6" width="20" height="24" rx="10" fill="#fff"/><path d="M50 30v20l4 14h4l4-14v-20z" fill="#fff"/><path d="M52 36h8v14h-8z" fill="url(#h)" stroke-width="2"/>
+<path class="d" d="M56 64c-4 6-4 10 0 10s4-4 0-10z" fill="url(#h)" stroke-width="2"/>
+<path d="M118 82l10 10-10 10" stroke="#2a40b0" stroke-width="5"/>
+<g transform="translate(150 64) scale(.84)"><g id="box" stroke-width="4"><path d="M62 34L78 24H142L158 34L142 44H78z" fill="#0b0f26"/><path d="M62 34L78 44V78H62zM142 44L158 34V78H142z" fill="#2b3466"/><path d="M78 44H142V78H78z" fill="#141b3f"/><g class="l"><path d="M62 12L78 22V44L62 34zM142 22L158 12V34L142 44z" fill="#2b3466"/><path d="M78 22H142V44H78z" fill="#141b3f"/><path d="M62 12L78 2H142L158 12L142 22H78z" fill="#46518a"/><path d="M90 12c0-5 40-5 40 0s-40 5-40 0z" fill="#141b3f" stroke-width="3"/><path d="M65 32L78 40H142L155 32" stroke="#5d6799" stroke-width="2"/></g><rect x="0" y="76" width="170" height="34" rx="4" fill="#141b3f"/><rect x="6" y="40" width="96" height="36" rx="5" fill="#fff"/><rect x="14" y="48" width="60" height="20" rx="2" fill="#2a40b0" stroke-width="3"/><path d="M20 55h40M20 62h26" stroke="#d6defa" stroke-width="3"/><circle class="b" cx="88" cy="58" r="6" fill="#141b3f"/></g><!--/box--><g clip-path="url(#c)"><g class="t" stroke-width="4"><use href="#f" transform="translate(88 -8) scale(.85)"/><use href="#f" transform="translate(110 -8) scale(.85)"/><use href="#f" transform="translate(132 -8) scale(.85)"/></g></g></g>
 </svg>

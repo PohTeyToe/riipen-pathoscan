@@ -1,6 +1,7 @@
 // Guide copy follows the Sclerotinia Quick-Start Card, with field sampling and photo steps.
 // Confirm the field sampling route and the cool-down reminder length with Ethan.
-// The pictures are our own drawings of generic kit. Swapping one is a change to its import line.
+// The pictures are our own drawings of the kit. The PathoBox is drawn from the unit on the Quick-Start Card and in
+// PathoScan's video, the same in every picture that shows it (assays.test.ts). Swapping one is a change to its import line.
 
 import type { Assay } from './assay'
 import pick from './sclerotinia/pick.svg'
@@ -35,7 +36,7 @@ export const sclerotinia: Assay = {
       id: 'preheat',
       title: 'Warm up the PathoBox',
       body: "Turn on the PathoBox and start the 20-minute timer. Wait until the PathoBox tells you it's ready to load.",
-      image: { src: preheat, alt: 'A heat box warming up, next to a clock with 20 minutes marked.' },
+      image: { src: preheat, alt: 'The PathoBox warming up, with its blue screen, button and six-sided lid, next to a clock with 20 minutes marked.' },
       timerMin: 20,
     },
     {
@@ -66,7 +67,7 @@ export const sclerotinia: Assay = {
       id: 'oil',
       title: 'Run the test',
       body: 'Add kit oil to all ten reaction tubes. Load the tubes into the PathoBox, close the lid and press the button. Start the 30-minute timer.',
-      image: { src: oil, alt: 'Oil goes into the reaction tubes before they are loaded into the PathoBox.' },
+      image: { src: oil, alt: 'Oil goes into each reaction tube. The tubes go into the top of the PathoBox, the lid goes back on and the button is pressed.' },
       timerMin: 30,
     },
     {
