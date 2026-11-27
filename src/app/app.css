@@ -155,6 +155,13 @@ h1 {
   background: var(--paper);
   border-top: 2px solid var(--ink);
 }
+/* A line under the buttons, about the primary one. */
+.actions:has(.under) {
+  flex-wrap: wrap;
+}
+.actions .under {
+  flex-basis: 100%;
+}
 .btn {
   flex: 1;
   display: flex;

@@ -14,10 +14,11 @@ const run = (field: string, createdAt: number) => newRun(sclerotinia, { field, n
 const on = (id: string, take = 0): Seen => ({ id, take })
 
 describe('a new run', () => {
-  it('follows the schema-4 shape: no step started, no photo taken, ten empty taps, no outcome', () => {
+  it('follows the schema-5 shape: no step started, no photo taken, no taps until the read says how many tubes, no outcome', () => {
     const r = newRun(sclerotinia, { field: '  North 40 ', notes: ' wet ' }, 5, 'a')
-    expect(r).toMatchObject({ schema: 4, take: 0, id: 'a', assay: 'sclerotinia', field: 'North 40', notes: 'wet', createdAt: 5, steps: {} })
-    expect(r.taps).toEqual(Array(10).fill(null))
+    expect(SCHEMA).toBe(5)
+    expect(r).toMatchObject({ schema: SCHEMA, take: 0, id: 'a', assay: 'sclerotinia', field: 'North 40', notes: 'wet', createdAt: 5, steps: {} })
+    expect(r.taps).toEqual([])
     expect(r.outcome).toBeUndefined()
     expect('gps' in r).toBe(false)
     expect(r.appVersion).toMatch(/^\d+\.\d+\.\d+$/)
@@ -138,7 +139,7 @@ describe('a run saved by the 8-step guide (schema 1)', () => {
   it('opens on the cool-down, with each timer on its own step', async () => {
     await set(old.id, old, db)
     const r = (await getRun(old.id))!
-    expect(r).toMatchObject({ schema: 4, take: 0 })
+    expect(r).toMatchObject({ schema: SCHEMA, take: 0 })
     expect(sclerotinia.steps[currentStep(r, sclerotinia)].id).toBe('cool')
     expect(r.steps.cool).toEqual({ done: false, timerStartedAt: t + 95 * 60_000 })
     const timers = Object.fromEntries(sclerotinia.steps.map((s) => [s.id, r.steps[s.id]?.timerStartedAt]))
@@ -149,10 +150,10 @@ describe('a run saved by the 8-step guide (schema 1)', () => {
   it('is stored in the new shape once opened, progress intact', async () => {
     await set(old.id, old, db)
     await getRun(old.id)
-    expect(await get(old.id, db)).toMatchObject({ schema: 4, take: 0, steps: { preheat: { done: true, timerStartedAt: t }, cool: { done: false, timerStartedAt: t + 95 * 60_000 } } })
+    expect(await get(old.id, db)).toMatchObject({ schema: SCHEMA, take: 0, steps: { preheat: { done: true, timerStartedAt: t }, cool: { done: false, timerStartedAt: t + 95 * 60_000 } } })
     await setStepDone(on(old.id), 'cool', true)
     const stored = await get(old.id, db)
-    expect(stored).toMatchObject({ schema: 4, steps: { preheat: { done: true, timerStartedAt: t }, cool: { done: true, timerStartedAt: t + 95 * 60_000 } } })
+    expect(stored).toMatchObject({ schema: SCHEMA, steps: { preheat: { done: true, timerStartedAt: t }, cool: { done: true, timerStartedAt: t + 95 * 60_000 } } })
     expect(currentStep(stored, sclerotinia)).toBe(-1)
   })
 
@@ -170,30 +171,31 @@ describe('a run saved by the app before photo takes (schema 2)', () => {
 
   it('is listed without being stored again', async () => {
     await set(old.id, old, db)
-    expect((await listRuns()).find((r) => r.id === old.id)).toEqual({ ...old, schema: 4, take: 0 })
+    expect((await listRuns()).find((r) => r.id === old.id)).toEqual({ ...old, schema: SCHEMA, take: 0 })
     expect(await get(old.id, db)).toEqual(old)
   })
 
   it('is stored on its first take once opened, out of reach of the older app', async () => {
     await set(old.id, old, db)
     const r = (await getRun(old.id))!
-    expect(r).toEqual({ ...old, schema: 4, take: 0 })
+    expect(r).toEqual({ ...old, schema: SCHEMA, take: 0 })
     // 8ea660e's store refuses, before any edit, a run whose schema is over its own 2 (e2e covers that store).
     expect(await get(old.id, db)).toEqual(r)
     expect(await getRun(old.id)).toEqual(r)
   })
 })
 
-describe('a run saved by the app that took a threshold on every tap (schema 3)', () => {
-  it('is stored as schema 4 once opened, with nothing else changed, out of reach of that app', async () => {
+// Schema 3: the app that took a threshold on every tap. Schema 4: the app that read only ten-tube runs.
+describe.each([3, 4])('a run saved by the schema-%i app', (schema) => {
+  it('is stored as the current schema once opened, with nothing else changed, out of reach of that app', async () => {
     const db = createStore('pathoscan-field', 'runs')
-    const old = { ...run('three', 960), schema: 3, take: 1, photoKey: 'id-three/p' }
+    const old = { ...run(`schema-${schema}`, 960), schema, take: 1, photoKey: `id-schema-${schema}/p`, taps: Array(10).fill(null) }
     await set(old.id, old, db)
-    expect((await listRuns()).find((r) => r.id === old.id)).toEqual({ ...old, schema: 4 })
+    expect((await listRuns()).find((r) => r.id === old.id)).toEqual({ ...old, schema: SCHEMA })
     expect(await get(old.id, db)).toEqual(old)
     const r = (await getRun(old.id))!
-    expect(r).toEqual({ ...old, schema: 4 })
-    // That app's store refuses, before any edit, a run whose schema is over its own 3, as 8ea660e's does over 2.
+    expect(r).toEqual({ ...old, schema: SCHEMA })
+    // That app's store refuses, before any edit, a run whose schema is over its own, as 8ea660e's does over 2.
     expect(await get(old.id, db)).toEqual(r)
   })
 })
@@ -318,7 +320,7 @@ describe('the read and the taps', () => {
     const r = (await getRun('id-retake'))!
     for (const k of ['photoKey', 'regions', 'roles', 'read', 'readerPositives', 'tappedPositives', 'rule', 'outcome']) expect(r).not.toHaveProperty(k)
     expect(r.take).toBe(2)
-    expect(r.taps).toEqual(Array(10).fill(null))
+    expect(r.taps).toEqual([])
     expect(r.steps.cool).toEqual({ done: true })
     expect(r.field).toBe('retake')
     expect(await getPhoto(key)).toBeUndefined()
@@ -364,10 +366,24 @@ describe('the read and the taps', () => {
 
     await addRun(run('new-rule', 7240))
     expect(await takePhoto(on('id-new-rule'), jpeg('first'))).not.toBeNull()
-    expect(await saveRead(on('id-new-rule', 1), regions, roles, twoHeld, sclerotinia.treatAt)).toBe(true)
+    expect(await saveRead(on('id-new-rule', 1), regions, roles, twoHeld, sclerotinia.rule.treatAt)).toBe(true)
     expect(await getRun('id-new-rule')).toMatchObject({ rule: { treatAt: 2 }, readerPositives: 2, outcome: 'treat' })
     expect(await setTap(on('id-new-rule', 1), 4, 'neg')).toBe(true)
     expect(await getRun('id-new-rule')).toMatchObject({ rule: { treatAt: 2 }, outcome: 'treat' })
+  })
+
+  it('reads a run of fewer samples with no rule: a call per tube, no advice until every held tube is called', async () => {
+    await addRun(run('short', 7245))
+    expect(await takePhoto(on('id-short'), jpeg('first'))).not.toBeNull()
+    const short = read(['pos', 'held', 'neg', 'neg', 'neg', 'neg'])
+    const six = roles.slice(0, 8)
+    expect(await saveRead(on('id-short', 1), regions.slice(0, 8), six, short, undefined)).toBe(true)
+    const r = (await getRun('id-short'))!
+    expect(r).toMatchObject({ roles: six, taps: Array(8).fill(null), readerPositives: 1, tappedPositives: 0 })
+    expect(r.rule).toBeUndefined()
+    expect(r.outcome).toBeUndefined()
+    expect(await setTap(r, 3, 'pos')).toBe(true)
+    expect(await getRun('id-short')).toMatchObject({ readerPositives: 1, tappedPositives: 1, outcome: 'no-advice' })
   })
 
   it('refuses a tap on a tube the reader called', async () => {

@@ -4,8 +4,8 @@ import { loadImage } from '../lib/photo'
 import type { Img } from '../lib/synth'
 import type { Assay } from './assays/assay'
 import { encodePhoto } from './camera'
-import { addRing, findRings, LABELS, readTubes, removeRing, ringAt, ROLES, tapInOrder } from './reader'
-import type { Run } from './run'
+import { addRing, findRings, LABELS, MIN_TUBES, readTubes, removeRing, ringAt, ROLES, tapInOrder } from './reader'
+import { treatAtFor, type Run } from './run'
 import { Shot } from './Shot'
 import { getPhoto, saveRead, takePhoto } from './store'
 import { Bar, useArmed } from './ui'
@@ -22,12 +22,14 @@ interface Props {
  * Take the photo, fix the rings, then label them by tapping the tubes in the order of the labels on the paper.
  * Roles come only from that order, never from where a tube sits. Continue reads the run and saves it. Guide
  * gives each stored photo its own instance of this screen, so the rings on show are always the stored photo's.
+ * A run may have fewer samples than a full kit: then the button says how many it will read, and a line under
+ * it says a full kit has more, so a tube the finder missed isn't read as a short run unnoticed.
  */
 export function Photo({ run, assay, act, back, error }: Props) {
   const [shot, setShot] = useState<{ url: string; img: Img }>()
   const [rings, setRings] = useState<Region[]>([])
   const [stage, setStage] = useState<'rings' | 'label'>('rings')
-  /** Ring indices in label order: order[0] is +, order[1] is −, then samples 1 to 8. */
+  /** Ring indices in label order: order[0] is +, order[1] is −, then the samples from 1. */
   const [order, setOrder] = useState<number[]>([])
   const [busy, setBusy] = useState(false)
   const [bad, setBad] = useState(false)
@@ -73,8 +75,9 @@ export function Photo({ run, assay, act, back, error }: Props) {
   // Stored in label order, so each tube's role and name is its position.
   const save = () => {
     const tubes = order.map((i) => rings[i])
+    const roles = ROLES.slice(0, tubes.length)
     // Refused if the run was read or its photo changed in another tab meanwhile; the refresh shows what's stored.
-    void act(() => saveRead(run, tubes, ROLES, readTubes(shot!.img, tubes, ROLES), assay.treatAt))
+    void act(() => saveRead(run, tubes, roles, readTubes(shot!.img, tubes, roles), treatAtFor(assay, tubes.length - 2)))
   }
   const tap = (x: number, y: number, reach: number) => {
     const i = ringAt(rings, x, y, reach)
@@ -106,7 +109,7 @@ export function Photo({ run, assay, act, back, error }: Props) {
         <Bar field={run.field} step="Photo" />
         <main className="body">
           <h1>Take photo</h1>
-          <p className="lead">All 10 tubes on white paper, in shade.</p>
+          <p className="lead">All the tubes, + and − too, on white paper, in shade.</p>
           {status}
           {error}
         </main>
@@ -118,6 +121,12 @@ export function Photo({ run, assay, act, back, error }: Props) {
     )
 
   const n = rings.length
+  const kit = LABELS.length
+  const readable = n >= MIN_TUBES && n <= kit
+  // A full kit reads as it always has. A run of fewer tubes says how many samples it reads, on the button itself.
+  const samples = n - 2
+  const short = readable && n < kit
+  const go = short ? `Read ${samples} sample${samples === 1 ? '' : 's'}` : 'Continue'
   const next = LABELS[order.length]
   const labels = rings.map((region, i) => {
     const label = stage === 'label' ? (LABELS[order.indexOf(i)] ?? '') : ''
@@ -140,8 +149,10 @@ export function Photo({ run, assay, act, back, error }: Props) {
       <Bar field={run.field} step="Photo" />
       <main className="body">
         <div className="side">
-          <h1>{stage === 'label' ? `${order.length} of ${n} labelled` : n === assay.tubes ? `${n} tubes` : `${n} of ${assay.tubes} tubes`}</h1>
-          <p className="note">{stage === 'rings' ? 'Tap a tube to ring it. Tap a ring to remove it.' : 'Tap the tubes in order: +, −, then 1 to 8.'}</p>
+          <h1>{stage === 'label' ? `${order.length} of ${n} labelled` : n === kit ? `${n} tubes` : `${n} of ${kit} tubes`}</h1>
+          <p className="note">
+            {stage === 'rings' ? 'Tap a tube to ring it. Tap a ring to remove it.' : `Tap the tubes in order: +, −, then ${samples === 1 ? '1' : `1 to ${samples}`}.`}
+          </p>
           {status}
           {error}
         </div>
@@ -155,14 +166,14 @@ export function Photo({ run, assay, act, back, error }: Props) {
             Back
           </button>
         )}
-        <button
-          type="button"
-          className="btn"
-          disabled={stage === 'rings' ? n !== assay.tubes : order.length !== n}
-          onClick={stage === 'rings' ? () => setStage('label') : save}
-        >
-          Continue
+        <button type="button" className="btn" disabled={stage === 'rings' ? !readable : order.length !== n} onClick={stage === 'rings' ? () => setStage('label') : save}>
+          {go}
         </button>
+        {short && (
+          <p className="note under">
+            A full kit has {kit - 2} samples. {stage === 'rings' ? 'Tap any tube that has no ring.' : 'Tap Back to ring a tube that has none.'}
+          </p>
+        )}
       </footer>
     </div>
   )

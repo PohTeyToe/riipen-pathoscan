@@ -4,7 +4,7 @@ import type { RunRead, TubeRead } from '../lib/readers'
 import { liquidCentre, makeRun, render, type Img, type Role } from '../lib/synth'
 import { sclerotinia } from './assays/sclerotinia'
 import { findRings, LABELS, radius, readTubes, ringAt, ROLES, tapInOrder, tapRings } from './reader'
-import { newRun, tally, tapsDecided, type Run, type Tap } from './run'
+import { newRun, tally, tapsDecided, treatAtFor, type Run, type Tap } from './run'
 
 const box = (cx: number, cy: number, half: number): Region => ({ x0: cx - half, y0: cy - half, x1: cx + half, y1: cy + half, cx, cy })
 const row = (n: number, half = 10) => Array.from({ length: n }, (_, i) => box(50 + i * 100, 100, half))
@@ -178,6 +178,18 @@ describe('the outcome', () => {
     expect(decided(3, { 3: 'pos', 4: 'pos' })).toBe(true)
     expect(decided(3, { 3: 'pos' })).toBe(false) // no outcome yet
     expect(decided(4, {})).toBe(false) // 3 at most: the reader alone already says don't treat
+  })
+
+  it("reads a run under its test's rule only with as many samples as the rule is for", () => {
+    expect(treatAtFor(sclerotinia, 8)).toBe(2)
+    for (const samples of [1, 6, 7]) expect(treatAtFor(sclerotinia, samples)).toBeUndefined()
+  })
+
+  it('gives no advice with no rule: the count, and an end once every held tube is called', () => {
+    const read: RunRead = { status: 'ok', flags: [], tubes: (['pos', 'neg', 'pos', 'held', 'neg'] as const).map((call) => ({ call, reason: '' })) }
+    const roles = ROLES.slice(0, 5)
+    expect(tally(read, roles, [null, null, null, null, null])).toEqual({ rule: undefined, readerPositives: 1, tappedPositives: 0, outcome: undefined })
+    expect(tally(read, roles, [null, null, null, 'pos', null])).toEqual({ rule: undefined, readerPositives: 1, tappedPositives: 1, outcome: 'no-advice' })
   })
 
   it('fails a run the reader refused, counts nothing and keeps the taps as notes', () => {

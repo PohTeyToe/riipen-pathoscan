@@ -21,8 +21,7 @@ const coolMin = 5
 export const sclerotinia: Assay = {
   id: 'sclerotinia',
   name: 'Sclerotinia',
-  tubes: 10,
-  treatAt: 2, // Ethan's answer to open question 1 (Nov 24): treatment starts at two positives out of eight.
+  rule: { treatAt: 2, samples: 8 }, // Ethan's answer to open question 1 (Nov 24): treatment starts at two positives out of eight.
   coolMin,
   steps: [
     // PROPOSAL: sent to Ethan on Nov 19 (open question 6), not yet confirmed.

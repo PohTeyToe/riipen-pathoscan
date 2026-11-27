@@ -49,10 +49,15 @@ export function tapRings(rings: Region[], x: number, y: number, reach: number): 
 export const removeRing = (rings: Region[], i: number) => rings.filter((_, j) => j !== i)
 export const addRing = (rings: Region[], x: number, y: number) => [...rings, discRegion(x, y, median(rings.map(inner)) || 12)]
 
-/** The labels on the grower's paper, in the order they tap the tubes. */
+/**
+ * The labels on a full kit's paper, in the order the grower taps the tubes: +, −, then samples 1 to 8. A run
+ * with fewer samples takes the first labels.
+ */
 export const LABELS = ['+', '−', '1', '2', '3', '4', '5', '6', '7', '8']
 /** Rings stored in label order have these roles: never worked out from where a tube sits in the photo. */
 export const ROLES: Role[] = LABELS.map((l) => (l === '+' ? 'pc' : l === '−' ? 'nc' : 'sample'))
+/** The fewest tubes a run can be read from: both controls and one sample. */
+export const MIN_TUBES = 3
 
 /**
  * A tap while labelling: an unlabelled ring gets the next label; a labelled one loses its label and every

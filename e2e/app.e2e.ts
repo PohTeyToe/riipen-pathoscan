@@ -199,8 +199,10 @@ test('a run goes from the guide to a photo, rings, labels tapped in order and a 
   await expect(continueBtn).toBeDisabled()
   await tapPhoto(page, photo.size, paper)
   await expect(page.getByRole('heading', { name: '10 tubes', exact: true })).toBeVisible()
+  // A ring taken off a tube: a run of fewer samples, which the button counts.
   await tapPhoto(page, photo.size, photo.tubes[4])
-  await expect(continueBtn).toBeDisabled()
+  await expect(continueBtn).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Read 7 samples' })).toBeEnabled()
   await page.reload() // the photo was saved: the rings come back as found
   await expect(page.getByRole('heading', { name: '10 tubes', exact: true })).toBeVisible()
 
@@ -596,7 +598,7 @@ test('a run saved by a newer version of the app is left alone, and Reload is off
   page.on('pageerror', (e) => errors.push(e.message))
   await page.goto('/app.html')
   await expect(page.getByRole('heading', { name: 'Runs', exact: true })).toBeVisible()
-  const future = { schema: 5, id: 'saved-by-a-newer-app', field: 'Future', createdAt: Date.now(), steps: 'a shape this app has never seen' }
+  const future = { schema: 6, id: 'saved-by-a-newer-app', field: 'Future', createdAt: Date.now(), steps: 'a shape this app has never seen' }
   await storeRaw(page, future)
   await page.reload()
   await expect(page.getByRole('status')).toContainText('New version ready.')
@@ -708,6 +710,41 @@ test('two rows of five and a tilted row are labelled by taps in order and read',
     await expect(page.getByRole('heading', { name: '2 of 8 positive', exact: true })).toBeVisible()
     await page.getByRole('link', { name: 'Done' }).click()
   }
+})
+
+test('a run of six samples says so on its button before reading, counts six and gives no spray advice', async ({ page }) => {
+  await page.goto('/app.html')
+  await toPhoto(page, 'Six')
+  const photo = syntheticPhoto()
+  await page.locator('input[type=file]').setInputFiles(photo.file)
+  await expect(page.getByRole('heading', { name: '10 tubes', exact: true })).toBeVisible()
+  await expect(page.getByText('A full kit has 8 samples.')).toHaveCount(0)
+  // The last two tubes aren't in this run: their rings come off.
+  for (const tube of photo.tubes.slice(8)) await tapPhoto(page, photo.size, tube)
+  await expect(page.getByRole('heading', { name: '8 of 10 tubes', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Continue' })).toHaveCount(0)
+  await expect(page.getByText('A full kit has 8 samples. Tap any tube that has no ring.')).toBeVisible()
+  await page.getByRole('button', { name: 'Read 6 samples' }).click()
+  await expect(page.getByText('Tap the tubes in order: +, −, then 1 to 6.')).toBeVisible()
+  await expect(page.getByText('A full kit has 8 samples. Tap Back to ring a tube that has none.')).toBeVisible()
+  const read = page.getByRole('button', { name: 'Read 6 samples' })
+  for (const [i, tube] of photo.tubes.slice(0, 8).entries()) {
+    await expect(read).toBeDisabled()
+    await tapPhoto(page, photo.size, tube)
+    await expect(page.getByRole('heading', { name: `${i + 1} of 8 labelled`, exact: true })).toBeVisible()
+  }
+  await read.click()
+
+  await expect(page.getByRole('heading', { name: /^\d of 6 positive$/ })).toBeVisible()
+  await expect(page.getByText('The spray rule needs all 8 samples, so this run gets no spray advice.')).toBeVisible()
+  await expect(page.getByText(/to treat/)).toHaveCount(0)
+  await expect(page.locator('.tubes li')).toHaveCount(6)
+  for (const held of await page.getByRole('button', { name: 'Pink' }).all()) await held.click()
+  const column = await exportCsv(page)
+  expect(column('Tube')).toEqual(['POS', 'NEG', '1', '2', '3', '4', '5', '6'])
+  for (const [name, value] of [['Result', 'No advice'], ['Samples', '6'], ['Treat at', '']]) expect(column(name)).toEqual(Array(8).fill(value))
+  await page.getByRole('link', { name: 'Done' }).click()
+  await expect(page.getByRole('listitem').filter({ hasText: 'Six' })).toContainText('No advice')
 })
 
 test('under a warm lamp at one end of the rack, the reader holds the tubes it cannot read and calls none wrong', async ({ page }) => {
@@ -968,7 +1005,7 @@ declare global {
 
 test("an old tab of an earlier app (schema 2) can't change a run this app has opened, and is offered Reload", async ({ page, context }) => {
   // The live app's store binds a tap to no photo. Left open on a result while this app retakes and reads
-  // another photo, its Yellow was written to the new photo's result. This app stores the run as schema 4 once
+  // another photo, its Yellow was written to the new photo's result. This app stores the run as schema 5 once
   // it opens it, and that store leaves alone a run of a schema over its own.
   await page.goto('/app.html')
   await toPhoto(page, 'Live tab')
@@ -994,7 +1031,7 @@ test("an old tab of an earlier app (schema 2) can't change a run this app has op
   // This app opens the run, retakes it and reads a photo with less light: two positives, sample 1 held.
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Run failed', exact: true })).toBeVisible()
-  expect(await storedRun(page, id)).toMatchObject({ schema: 4, take: 0 })
+  expect(await storedRun(page, id)).toMatchObject({ schema: 5, take: 0 })
   await page.getByRole('button', { name: 'Retake photo' }).click()
   await page.getByRole('button', { name: 'Back' }).click()
   await page.getByRole('button', { name: 'Done' }).click()

@@ -13,6 +13,9 @@ const MARK = { pos: '+', neg: '−', held: '?' }
 export const yourCalls = (tapped: number, positives: number) =>
   `${tapped} of the ${positives} positives ${tapped === 1 ? 'is your call' : 'are your calls'}.`
 
+/** In place of the advice on a run its test's spray rule doesn't cover. */
+export const noAdvice = (assay: Assay) => `The spray rule needs all ${assay.rule.samples} samples, so this run gets no spray advice.`
+
 /** Drawn from the stored run only. The reader doesn't run again. */
 export function Result({ run, assay, act, error }: { run: Run; assay: Assay; act: (write: () => Promise<unknown>) => Promise<void>; error: ReactNode }) {
   const url = usePhoto(run.photoKey)
@@ -51,8 +54,15 @@ export function Result({ run, assay, act, error }: { run: Run; assay: Assay; act
                 {positives} of {samples.length} positive
               </h1>
               <p className="lead">
-                {run.outcome === 'treat' ? assay.advice.treat : run.outcome === 'dont-treat' ? assay.advice.dontTreat : 'Call the held tubes below.'}
+                {!run.rule
+                  ? noAdvice(assay)
+                  : run.outcome === 'treat'
+                    ? assay.advice.treat
+                    : run.outcome === 'dont-treat'
+                      ? assay.advice.dontTreat
+                      : 'Call the held tubes below.'}
               </p>
+              {!run.rule && !run.outcome && <p className="note">Call the held tubes below.</p>}
               {tapsDecided(run) && (
                 <p className="note">
                   {run.outcome === 'treat' ? yourCalls(run.tappedPositives ?? 0, positives) : 'Your calls decided this.'}

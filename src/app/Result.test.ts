@@ -22,17 +22,18 @@ const tube = (labHue: number, clipped = false): Features => {
   return { raw: [200, 150, 80], rawHue: labHue, corrected: [0.8, 0.6, 0.3], lab, labHue, hueRange: [labHue, labHue], clipped, clear: 500, glare: 0, paperBeside: true }
 }
 
-/** The result screen's markup for a run read from these tubes and counted at treatAt. */
-function markup(feats: (Features | null)[], treatAt = sclerotinia.treatAt): string {
-  const read = readCalibrated(feats, ROLES, MODEL, BAND)
-  const taps = Array(10).fill(null)
-  const regions = ROLES.map(() => ({ x0: 0, y0: 0, x1: 9, y1: 9, cx: 5, cy: 5 }))
-  const run: Run = { ...newRun(sclerotinia, { field: 'North 40', notes: '' }, 0, 'run-1'), read, roles: ROLES, regions, taps, ...tally(read, ROLES, taps, treatAt) }
+/** The result screen's markup for a run of as many tubes as given, read and counted at treatAt (null: no rule). */
+function markup(feats: (Features | null)[], treatAt: number | null = sclerotinia.rule.treatAt): string {
+  const roles = ROLES.slice(0, feats.length)
+  const read = readCalibrated(feats, roles, MODEL, BAND)
+  const taps = roles.map(() => null)
+  const regions = roles.map(() => ({ x0: 0, y0: 0, x1: 9, y1: 9, cx: 5, cy: 5 }))
+  const run: Run = { ...newRun(sclerotinia, { field: 'North 40', notes: '' }, 0, 'run-1'), read, roles, regions, taps, ...tally(read, roles, taps, treatAt ?? undefined) }
   return renderToStaticMarkup(createElement(Result, { run, assay: sclerotinia, act: async () => {}, error: null })).replace(/&#x27;/g, "'")
 }
 
 /** The result screen's text. */
-const screen = (feats: (Features | null)[], treatAt?: number) =>
+const screen = (feats: (Features | null)[], treatAt?: number | null) =>
   markup(feats, treatAt)
     .replace(/<[^>]+>/g, ' ')
     .replace(/\s+/g, ' ')
@@ -93,10 +94,25 @@ describe('the lines above a read run', () => {
   })
 })
 
+describe('a run of fewer samples than the spray rule is for', () => {
+  const six = [tube(90), tube(10), tube(95), ...Array.from({ length: 5 }, () => tube(12))]
+  it('counts its own samples and gives no spray advice, saying why', () => {
+    const text = screen(six, null)
+    expect(text).toContain('1 of 6 positive The spray rule needs all 8 samples, so this run gets no spray advice.')
+    expect(text).not.toMatch(/to treat/)
+    expect(text).not.toContain('Call the held tubes below.')
+    expect(text).toContain('6 Negative')
+    expect(text).not.toMatch(/\b7 (Positive|Negative)/)
+  })
+  it('still asks for the held tubes to be called', () => {
+    expect(screen([...six.slice(0, 7), tube(50)], null)).toContain('1 of 6 positive The spray rule needs all 8 samples, so this run gets no spray advice. Call the held tubes below.')
+  })
+})
+
 describe('a run saved under an older rule', () => {
   it('shows the outcome it was counted with, not a recount at the rule now', () => {
     const twoAndHeld = [tube(90), tube(10), tube(95), tube(95), tube(50), ...Array.from({ length: 5 }, () => tube(12))]
-    expect(sclerotinia.treatAt).toBe(2)
+    expect(sclerotinia.rule.treatAt).toBe(2)
     expect(screen(twoAndHeld)).toContain('2 of 8 positive Enough positives to treat.')
     expect(screen(twoAndHeld, 3)).toContain('2 of 8 positive Call the held tubes below.')
   })

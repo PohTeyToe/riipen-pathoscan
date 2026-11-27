@@ -13,10 +13,12 @@ export interface Step {
 export interface Assay {
   id: 'sclerotinia'
   name: string
-  tubes: 10
   steps: Step[]
-  /** Positives needed for "treat". A run keeps the one it was read under, in its `rule`. */
-  treatAt: number
+  /**
+   * PathoScan's spray rule: treat at `treatAt` positives out of exactly `samples` samples. A run with another
+   * number of samples gets no advice. A run keeps the treatAt it was read under, in its `rule`.
+   */
+  rule: { treatAt: number; samples: number }
   /** Minutes to cool before the photo. Open question 2 for Ethan. */
   coolMin: number
   advice: { treat: string; dontTreat: string; disclaimer: string }

@@ -113,9 +113,16 @@ export async function takePhoto(seen: Seen, jpeg: Blob): Promise<string | null> 
   return taken ? key : null
 }
 
-/** Stores the confirmed rings, the control taps and the read of the run's photo, with what they come to. Refused (false) if the run is already read. */
-export const saveRead = (seen: Seen, regions: Region[], roles: Role[], read: RunRead, treatAt: number) =>
-  change(seen, (run) => (run.read || !run.photoKey ? null : { ...run, regions, roles, read, readerVersion: READER_VERSION, ...tally(read, roles, run.taps, treatAt) }))
+/**
+ * Stores the confirmed rings, their roles and the read of the run's photo, with an empty call per tube and
+ * what the read comes to under treatAt (none: no advice). Refused (false) if the run is already read.
+ */
+export const saveRead = (seen: Seen, regions: Region[], roles: Role[], read: RunRead, treatAt: number | undefined) =>
+  change(seen, (run) => {
+    if (run.read || !run.photoKey) return null
+    const taps = roles.map(() => null)
+    return { ...run, regions, roles, read, taps, readerVersion: READER_VERSION, ...tally(read, roles, taps, treatAt) }
+  })
 
 /**
  * Back to the photo step for a new photo, a new take: the photo is deleted, with its rings, its read and the
@@ -127,7 +134,7 @@ export async function retakePhoto(seen: Seen): Promise<boolean> {
     if (!run.photoKey) return null
     old = run.photoKey
     const { photoKey: _photo, regions: _regions, roles: _roles, read: _read, readerPositives: _rp, tappedPositives: _tp, rule: _rule, outcome: _outcome, ...rest } = run
-    return { ...rest, take: run.take + 1, taps: run.taps.map(() => null) }
+    return { ...rest, take: run.take + 1, taps: [] }
   })
   if (done && old) await del(old, photos())
   return done
@@ -136,9 +143,9 @@ export async function retakePhoto(seen: Seen): Promise<boolean> {
 /** The grower's eye call on tube i of the read, kept apart from the reader's. Recounts the outcome under the rule the run was read under. Refused (false) if the reader didn't hold that tube. */
 export const setTap = (seen: Seen, i: number, tap: Tap) =>
   change(seen, (run) => {
-    if (!run.read || !run.roles || !run.rule || run.read.tubes[i]?.call !== 'held') return null
+    if (!run.read || !run.roles || run.read.tubes[i]?.call !== 'held') return null
     const taps = run.taps.map((t, j) => (j === i ? tap : t))
-    return { ...run, taps, ...tally(run.read, run.roles, taps, run.rule.treatAt) }
+    return { ...run, taps, ...tally(run.read, run.roles, taps, run.rule?.treatAt) }
   })
 
 /** Ask the browser not to clear our data under storage pressure. Safe to call on every run. */
