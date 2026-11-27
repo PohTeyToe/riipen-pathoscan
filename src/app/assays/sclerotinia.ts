@@ -42,7 +42,7 @@ export const sclerotinia: Assay = {
     {
       id: 'label',
       title: 'Label the reaction tubes',
-      body: 'Use the kit stickers to label the eight numbered reaction tubes and the two control tubes, POS and NEG. Keep the numbers matched to the samples you collected.',
+      body: 'The reaction tubes are the ten tubes with a pink bead inside. Use the kit stickers to label two of them POS and NEG, and the other eight 1 to 8 to match your samples.',
       image: { src: label, alt: 'Stickers peeled off a sticker sheet label the ten tubes in the rack POS, NEG, and 1 to 8.' },
     },
     {
