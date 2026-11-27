@@ -99,6 +99,17 @@ describe('fixing rings by taps: a tap on a ring as painted removes it, anywhere 
     const tap = [e.cx + ex + (out * ex) / e.rx ** 2 / n, e.cy + ey + (out * ey) / e.ry ** 2 / n]
     expect(tapRings(rings, tap[0], tap[1], W, k)).toEqual(removeRing(rings, 0))
   })
+  it("rings a missed tube just past the end of an oval ring's line, and removes the ring on a tap on that line", () => {
+    // Upright ovals, liquid 20 x 50 CSS px. A missed tube sits under the first ring; a tap near the top of its
+    // liquid is 1.5 CSS px past the first ring's line. The line's end itself is still the ring.
+    const oval = (x: number, y: number): Region => ({ cx: x * P, cy: y * P, x0: (x - 10) * P, x1: (x + 10) * P, y0: (y - 25) * P, y1: (y + 25) * P })
+    const rings = [oval(40, 60), ...[115, 190, 265, 340].flatMap((x) => [oval(x, 60), oval(x, 150)])]
+    const e = ringShape(rings[0], W)
+    const out = tapRings(rings, 40 * P, 91.25 * P, W, P)
+    expect(out).toHaveLength(10)
+    expect(out.slice(0, 9)).toEqual(rings)
+    expect(tapRings(rings, 40 * P, e.cy + e.ry + line - 0.2 * P, W, P)).toEqual(removeRing(rings, 0))
+  })
   it.each([360, 720, 960])('rings a separate tube the finder missed, beside a ringed one, on a %i px wide screen', (screen) => {
     // Ten tubes in two rows of five, 75 CSS px apart, liquid 33.45 CSS px wide; the second sits only 48 px from
     // the first and has no ring.

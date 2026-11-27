@@ -77,12 +77,20 @@ export function tapRings(rings: Region[], x: number, y: number, width: number, p
 }
 
 /**
- * True when (x, y) is on a ring's ellipse or the outer half of its line. The line's outer edge is not an
- * ellipse, so this tests the ellipse grown evenly until its narrow side reaches that edge: all of the paint,
- * and a little past it at the ends of an oval.
+ * True when (x, y) is inside a ring's ellipse or on the outer half of its line: within `line` of the ellipse.
+ * The line's outer edge is not an ellipse, so this measures to the ellipse itself, as 64 chords round the
+ * quarter the point is in (under a hundredth of a CSS pixel from the curve for any ring the app draws).
  */
 function onPaint(e: ReturnType<typeof ringShape>, x: number, y: number, line: number) {
-  return ((x - e.cx) / e.rx) ** 2 + ((y - e.cy) / e.ry) ** 2 <= (1 + line / Math.min(e.rx, e.ry)) ** 2
+  const [u, v] = [Math.abs(x - e.cx), Math.abs(y - e.cy)]
+  if ((u / e.rx) ** 2 + (v / e.ry) ** 2 <= 1) return true
+  const at = (k: number) => [e.rx * Math.cos((k * Math.PI) / 128), e.ry * Math.sin((k * Math.PI) / 128)]
+  for (let k = 0; k < 64; k++) {
+    const [[ax, ay], [bx, by]] = [at(k), at(k + 1)]
+    const t = Math.min(1, Math.max(0, ((u - ax) * (bx - ax) + (v - ay) * (by - ay)) / ((bx - ax) ** 2 + (by - ay) ** 2)))
+    if (Math.hypot(u - ax - t * (bx - ax), v - ay - t * (by - ay)) <= line) return true
+  }
+  return false
 }
 
 export const removeRing = (rings: Region[], i: number) => rings.filter((_, j) => j !== i)
