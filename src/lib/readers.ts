@@ -140,7 +140,7 @@ export function readCalibrated(feats: (Features | null)[], roles: Role[], model:
   if (hPc - hNc < QC.minControlGap)
     return notRead(
       hPc <= hNc
-        ? 'The positive control is pinker than the negative one. Run not read; check the controls.'
+        ? 'The controls are too close in colour or the wrong way round. The positive control should be yellow and the negative pink. Run not read; check the controls.'
         : `The controls are only ${(hPc - hNc).toFixed(0)}° apart, too close to read against. Run not read; rerun with fresh reagents.`,
     )
 

@@ -52,6 +52,11 @@ describe('a failed run on the result screen', () => {
     expect(text).toContain('Retake the photo')
     expect(text).not.toContain('reagents')
   })
+  it('blames neither control when they are the wrong way round, as when the negative turned yellow', () => {
+    const text = screen([tube(80), tube(90), ...samples])
+    expect(text).toContain('Run failed The controls are too close in colour or the wrong way round. The positive control should be yellow and the negative pink. Run not read; check the controls.')
+    expect(text).not.toContain('pinker')
+  })
   it('asks for fresh reagents when the controls are too close', () => {
     const text = screen([tube(30), tube(20), ...samples])
     expect(text).toContain('too close to read against')

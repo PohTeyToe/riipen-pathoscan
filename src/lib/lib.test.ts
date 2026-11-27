@@ -37,8 +37,10 @@ describe('calibrated reader', () => {
     expect(r.tubes[2].call).toBe('held')
     expect(r.flags[0]).toMatch(/too close/)
   })
-  it('holds the run when the positive control is pinker than the negative', () => {
-    expect(readCalibrated([tube(10), tube(90), tube(50)], roles(1), model, band).flags[0]).toMatch(/pinker/)
+  it('holds the run when the controls are the wrong way round, blaming neither: + stayed pink, or − turned yellow', () => {
+    const wrongWay = 'The controls are too close in colour or the wrong way round. The positive control should be yellow and the negative pink. Run not read; check the controls.'
+    expect(readCalibrated([tube(10), tube(90), tube(50)], roles(1), model, band).flags).toEqual([wrongWay]) // + failed
+    expect(readCalibrated([tube(80), tube(90), tube(50)], roles(1), model, band).flags).toEqual([wrongWay]) // both yellow
   })
   it('holds a sample whose region is far bigger than the other tubes', () => {
     // A region that spread into paper lit by a lamp: its colour is the paper's, not the liquid's.
@@ -111,7 +113,7 @@ describe('calibrated reader', () => {
   it('marks a run failed exactly where it refuses to read it, so callers need not match flag text', () => {
     const status = (hues: number[], rl: Role[]) => readCalibrated(hues.map((h) => tube(h)), rl, model, band).status
     expect(status([30, 20, 90], roles(1))).toBe('failed') // controls too close
-    expect(status([10, 90, 50], roles(1))).toBe('failed') // positive control pinker
+    expect(status([10, 90, 50], roles(1))).toBe('failed') // controls the wrong way round
     expect(status([90, 10, 90, 50], ['pc', 'nc', 'nc', 'sample'])).toBe('failed') // negative controls disagree
     expect(status([90, 80], ['sample', 'sample'])).toBe('failed') // no controls
     expect(status([90, 10, 95, 12, 50], roles(3))).toBe('ok')
