@@ -73,14 +73,14 @@ export const sclerotinia: Assay = {
     {
       id: 'shade',
       title: 'Shade the tubes before the photo',
-      body: 'When the 30 minutes are up, take the tubes out of the PathoBox and stand them in the rack. Put the rack out of direct sun, in even shade, with all ten tubes in view, POS and NEG too.',
-      image: { src: shade, alt: 'A hand held over the tubes keeps the sun off them.' },
+      body: 'When the 30 minutes are up, take the tubes out of the PathoBox. Lay all ten in a row on white paper, POS and NEG too, out of direct sun and in even shade.',
+      image: { src: shade, alt: 'A hand keeps the sun off the tubes lying on white paper, labelled +, − and 1.' },
     },
     {
       id: 'cool',
       title: 'Cool the tubes',
       body: 'Let the tubes cool to room temperature before taking the photo. The timer is a reminder to check them. Yellow is positive, pink is negative.',
-      image: { src: cool, alt: 'Yellow and pink tubes cooling in the rack: a thermometer going down, next to a clock.' },
+      image: { src: cool, alt: 'Yellow and pink tubes cooling on white paper: a thermometer going down, next to a clock.' },
       timerMin: coolMin,
     },
   ],
