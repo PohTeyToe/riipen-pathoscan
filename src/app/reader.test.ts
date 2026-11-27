@@ -97,14 +97,21 @@ describe('fixing rings by taps: a tap on a ring as painted removes it, anywhere 
     expect(out).toHaveLength(10)
     expect(out.slice(0, 9)).toEqual(rings)
   })
-  it('where two painted rings overlap, removes the one the tap is deepest inside, never one it is not on', () => {
+  it('where two painted rings overlap, removes the one the tap is on, never one it is not on', () => {
     const rings = [box(200, 0, 6), box(232, 0, 6)]
     const [a, b] = rings
     expect(tapRings(rings, 190, 0, W, P)).toEqual([b]) // on A only
     expect(tapRings(rings, 240, 0, W, P)).toEqual([a]) // on B only
-    expect(tapRings(rings, 214, 0, W, P)).toEqual([b]) // on both, deeper in A
-    expect(tapRings(rings, 217, 0, W, P)).toEqual([a]) // on both, deeper in B
+    // Inside both painted rings: each ring's claim ends halfway to the other.
+    expect(tapRings(rings, 214, 0, W, P)).toEqual([b])
+    expect(tapRings(rings, 217, 0, W, P)).toEqual([a])
     expect(tapRings(rings, 270, 0, W, P)).toHaveLength(3) // on neither
+  })
+  it("rings again a tube in a close row whose ring was removed, though its neighbours' painted rings cover it", () => {
+    // Tubes 6 CSS px apart, liquid 3.6 px wide, each ring painted about 16 px across.
+    const rings = Array.from({ length: 10 }, (_, i) => box(100 + 6 * P * i, 100, 1.8 * P))
+    const gone = removeRing(rings, 4)
+    expect(tapRings(gone, rings[4].cx, rings[4].cy, W, P)).toEqual([...gone, discRegion(rings[4].cx, rings[4].cy, 1.8 * P)])
   })
   it('rings a tube touching a ringed one with a plain tap on it, so both are ringed, each labelled by its own tap', () => {
     // One pair touches, 32 px apart: the finder ringed the first; a finger's reach (79 px) takes in the second.

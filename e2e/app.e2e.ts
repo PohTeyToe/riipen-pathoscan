@@ -1128,10 +1128,7 @@ test("a stale Photo screen's Back can't reopen the guide of a run retaken in ano
   expect(await storedRun(page, id)).toMatchObject({ take: 2, steps: { cool: { done: false } } })
 })
 
-// Not met while a tap removes any ring it lands on as painted: here tubes sit about 6 CSS px apart and each
-// painted ring is about 16 px across, so the neighbours' rings cover the whole of a removed tube's liquid and the
-// tap takes off a neighbour instead. Open until the rings' smallest painted size or the tap rule changes.
-test.fixme("a finger on a tube whose ring was removed adds it back, though a neighbour's ring button covers it", async ({ page }) => {
+test("a finger on a tube whose ring was removed adds it back, though a neighbour's ring button covers it", async ({ page }) => {
   await page.goto('/app.html')
   await toPhoto(page, 'Close tubes')
   const photo = syntheticPhoto('small')

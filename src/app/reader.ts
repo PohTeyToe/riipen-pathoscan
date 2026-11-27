@@ -58,19 +58,23 @@ export function ringShape(r: Region, width: number) {
 }
 
 /**
- * A tap while fixing rings, on a photo `width` pixels wide shown at `px` photo pixels to a CSS pixel. What
- * the grower sees is what they tap: a tap on a ring as painted, its line included, removes it (a finger, a
- * petal, a pen mark); where painted rings overlap, the one the tap is deepest inside. Anywhere else the tap
- * adds a ring for a tube the finder missed, as wide as the median ring's narrow side so it sits inside the
- * liquid (sized by the long side, as scripts/read-runs.ts does, it reads paper as glare). An added ring goes
- * last. A tap just off a ring adds one; the count says so, and a tap on the new ring takes it off.
+ * A tap while fixing rings, on a photo `width` pixels wide shown at `px` photo pixels to a CSS pixel. A tap is
+ * on a ring when it lands on the ring as painted, its line included, and under half the way from the ring's
+ * centre to its nearest neighbour or to the usual spacing, whichever is less: in a close row a ring's claim
+ * ends halfway to the next, so a tube between two rings can be ringed again. A tap on a ring removes it (a
+ * finger, a petal, a pen mark), the one it is deepest inside if more than one. Anywhere else it adds a ring for
+ * a tube the finder missed, as wide as the median ring's narrow side so it sits inside the liquid (sized by the
+ * long side, as scripts/read-runs.ts does, it reads paper as glare). An added ring goes last. A tap just off a
+ * ring adds one; the count says so, and a tap on the new ring takes it off.
  */
 export function tapRings(rings: Region[], x: number, y: number, width: number, px: number): Region[] {
   const line = (RING_STROKE_PX / 2) * px
-  const depth = rings.map((r) => {
-    const e = ringShape(r, width)
-    return ((x - e.cx) / (e.rx + line)) ** 2 + ((y - e.cy) / (e.ry + line)) ** 2
-  })
+  const shapes = rings.map((r) => ringShape(r, width))
+  const nearest = shapes.map((e, k) => Math.min(...shapes.map((o, j) => (j === k ? Infinity : Math.hypot(o.cx - e.cx, o.cy - e.cy)))))
+  const claim = shapes.map((_, k) => Math.min(nearest[k], median(nearest)) / 2)
+  const depth = shapes.map((e, k) =>
+    Math.hypot(x - e.cx, y - e.cy) < claim[k] ? ((x - e.cx) / (e.rx + line)) ** 2 + ((y - e.cy) / (e.ry + line)) ** 2 : Infinity,
+  )
   const i = depth.indexOf(Math.min(...depth))
   return depth[i] <= 1 ? removeRing(rings, i) : [...rings, discRegion(x, y, median(rings.map(inner)) || 12)]
 }
