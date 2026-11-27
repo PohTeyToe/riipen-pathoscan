@@ -35,7 +35,7 @@ export const sclerotinia: Assay = {
     {
       id: 'preheat',
       title: 'Warm up the PathoBox',
-      body: "Turn on the PathoBox and start the 20-minute timer. Wait until the PathoBox tells you it's ready to load.",
+      body: "Turn on the PathoBox and start the 20-minute timer. Go on with the next steps while it warms up. Don't load it until its screen says it's ready.",
       image: { src: preheat, alt: 'The PathoBox warming up, with its blue screen, button and six-sided lid, next to a clock with 20 minutes marked.' },
       timerMin: 20,
     },
@@ -66,7 +66,7 @@ export const sclerotinia: Assay = {
     {
       id: 'oil',
       title: 'Run the test',
-      body: 'Add kit oil to all ten reaction tubes. Load the tubes into the PathoBox, close the lid and press the button. Start the 30-minute timer.',
+      body: "Add kit oil to all ten reaction tubes. When the PathoBox screen says it's ready, lift off the lid, put the tubes in, close the lid and press the button. Start the 30-minute timer.",
       image: { src: oil, alt: 'Oil goes into each reaction tube. The tubes go into the top of the PathoBox, the lid goes back on and the button is pressed.' },
       timerMin: 30,
     },
