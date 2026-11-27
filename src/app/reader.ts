@@ -61,22 +61,28 @@ export function ringShape(r: Region, width: number) {
  * A tap while fixing rings, on a photo `width` pixels wide shown at `px` photo pixels to a CSS pixel. A tap is
  * on a ring when it lands on the ring as painted, its line included, and under half the way from the ring's
  * centre to its nearest neighbour or to the usual spacing, whichever is less: in a close row a ring's claim
- * ends halfway to the next, so a tube between two rings can be ringed again. A tap on a ring removes it (a
- * finger, a petal, a pen mark), the one it is deepest inside if more than one. Anywhere else it adds a ring for
- * a tube the finder missed, as wide as the median ring's narrow side so it sits inside the liquid (sized by the
- * long side, as scripts/read-runs.ts does, it reads paper as glare). An added ring goes last. A tap just off a
- * ring adds one; the count says so, and a tap on the new ring takes it off.
+ * ends halfway to the next, so a tube between two rings can be ringed again, and a tap is never on two rings.
+ * A tap on a ring removes it (a finger, a petal, a pen mark). Anywhere else it adds a ring for a tube the
+ * finder missed, as wide as the median ring's narrow side so it sits inside the liquid (sized by the long
+ * side, as scripts/read-runs.ts does, it reads paper as glare). An added ring goes last. A tap just off a ring
+ * adds one; the count says so, and a tap on the new ring takes it off.
  */
 export function tapRings(rings: Region[], x: number, y: number, width: number, px: number): Region[] {
   const line = (RING_STROKE_PX / 2) * px
   const shapes = rings.map((r) => ringShape(r, width))
   const nearest = shapes.map((e, k) => Math.min(...shapes.map((o, j) => (j === k ? Infinity : Math.hypot(o.cx - e.cx, o.cy - e.cy)))))
-  const claim = shapes.map((_, k) => Math.min(nearest[k], median(nearest)) / 2)
-  const depth = shapes.map((e, k) =>
-    Math.hypot(x - e.cx, y - e.cy) < claim[k] ? ((x - e.cx) / (e.rx + line)) ** 2 + ((y - e.cy) / (e.ry + line)) ** 2 : Infinity,
-  )
-  const i = depth.indexOf(Math.min(...depth))
-  return depth[i] <= 1 ? removeRing(rings, i) : [...rings, discRegion(x, y, median(rings.map(inner)) || 12)]
+  const usual = median(nearest)
+  const i = shapes.findIndex((e, k) => Math.hypot(x - e.cx, y - e.cy) < Math.min(nearest[k], usual) / 2 && onPaint(e, x, y, line))
+  return i >= 0 ? removeRing(rings, i) : [...rings, discRegion(x, y, median(rings.map(inner)) || 12)]
+}
+
+/**
+ * True when (x, y) is on a ring's ellipse or the outer half of its line. The line's outer edge is not an
+ * ellipse, so this tests the ellipse grown evenly until its narrow side reaches that edge: all of the paint,
+ * and a little past it at the ends of an oval.
+ */
+function onPaint(e: ReturnType<typeof ringShape>, x: number, y: number, line: number) {
+  return ((x - e.cx) / e.rx) ** 2 + ((y - e.cy) / e.ry) ** 2 <= (1 + line / Math.min(e.rx, e.ry)) ** 2
 }
 
 export const removeRing = (rings: Region[], i: number) => rings.filter((_, j) => j !== i)

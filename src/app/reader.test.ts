@@ -86,6 +86,19 @@ describe('fixing rings by taps: a tap on a ring as painted removes it, anywhere 
     const outside = 200 + e.rx + line + 2 * P
     expect(tapRings(rings, outside, 0, W, P)).toEqual([...rings, discRegion(outside, 0, 6)])
   })
+  it.each([360, 720, 960])("removes an oval ring on a tap on the slanted part of its line, on a %i px wide screen", (screen) => {
+    // Upright ovals, spaced well apart. The tap is 45 degrees round the ellipse and 1.45 CSS px out along the
+    // normal: inside the 1.5 px of line outside the ellipse, where an ellipse with both radii grown misses.
+    const k = W / screen
+    const oval = (x: number, y: number): Region => ({ cx: x * k, cy: y * k, x0: (x - 10) * k, x1: (x + 10) * k, y0: (y - 25) * k, y1: (y + 25) * k })
+    const rings = [40, 105, 170, 235, 300].flatMap((x) => [oval(x, 60), oval(x, 150)])
+    const e = ringShape(rings[0], W)
+    const [ex, ey] = [e.rx * Math.SQRT1_2, e.ry * Math.SQRT1_2]
+    const n = Math.hypot(ex / e.rx ** 2, ey / e.ry ** 2)
+    const out = 1.45 * k
+    const tap = [e.cx + ex + (out * ex) / e.rx ** 2 / n, e.cy + ey + (out * ey) / e.ry ** 2 / n]
+    expect(tapRings(rings, tap[0], tap[1], W, k)).toEqual(removeRing(rings, 0))
+  })
   it.each([360, 720, 960])('rings a separate tube the finder missed, beside a ringed one, on a %i px wide screen', (screen) => {
     // Ten tubes in two rows of five, 75 CSS px apart, liquid 33.45 CSS px wide; the second sits only 48 px from
     // the first and has no ring.
