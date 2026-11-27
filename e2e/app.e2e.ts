@@ -753,6 +753,8 @@ test('a run of another PathoBox test goes straight to the photo, is read the sam
   await page.goto('/app.html')
   await page.getByRole('link', { name: 'New run' }).click()
   await expect(page.getByRole('radio', { name: 'Sclerotinia on canola' })).toBeChecked()
+  // The choice says what it changes, as part of its name.
+  await expect(page.getByRole('radio', { name: 'Another PathoBox test Colour reading only. No guide or spray advice.' })).toBeVisible()
   await page.getByRole('radio', { name: 'Another PathoBox test' }).check()
   await page.getByLabel('Field name').fill('Other test')
   await page.getByRole('button', { name: 'Start run' }).click()

@@ -15,6 +15,8 @@ export interface Assay {
   id: string
   /** The test as New run, the run list and the CSV name it. */
   name: string
+  /** A line under the name on New run, where the name alone doesn't say what picking the test changes. */
+  note?: string
   steps: Step[]
   /**
    * PathoScan's spray rule for this test, if it has given one: treat at `treatAt` positives out of exactly

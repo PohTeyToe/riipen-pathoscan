@@ -55,7 +55,10 @@ export function NewRun() {
           {Object.values(assays).map((a) => (
             <label key={a.id}>
               <input type="radio" name="test" value={a.id} checked={test === a.id} onChange={() => setTest(a.id)} />
-              {a.name}
+              <span>
+                {a.name}
+                {a.note && <small>{a.note}</small>}
+              </span>
             </label>
           ))}
         </fieldset>
