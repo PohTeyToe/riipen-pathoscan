@@ -3,7 +3,7 @@ import { discRegion, type Region } from '../lib/find'
 import type { RunRead, TubeRead } from '../lib/readers'
 import { liquidCentre, makeRun, render, type Img, type Role } from '../lib/synth'
 import { sclerotinia } from './assays/sclerotinia'
-import { findRings, LABELS, radius, readTubes, removeRing, ringAt, ROLES, tapInOrder, tapRings } from './reader'
+import { findRings, LABELS, radius, readTubes, removeRing, ringAt, ringShape, ROLES, tapInOrder, tapRings } from './reader'
 import { newRun, tally, tapsDecided, treatAtFor, type Run, type Tap } from './run'
 
 const box = (cx: number, cy: number, half: number): Region => ({ x0: cx - half, y0: cy - half, x1: cx + half, y1: cy + half, cx, cy })
@@ -32,11 +32,13 @@ describe('labelling by taps in order', () => {
 })
 
 describe('fixing rings', () => {
+  /** The width of a photo as the app saves it: 1400 px, about 3.9 image pixels to a CSS pixel on a 360 px phone. */
+  const W = 1400
   it('removes the ring a tap lands on, nearest first', () => {
     const rings = row(3)
     expect(ringAt(rings, 160, 100, 30)).toBe(1)
     expect(ringAt(rings, 100, 100, 30)).toBe(-1)
-    expect(tapRings(rings, 155, 104, 30).map((r) => r.cx)).toEqual([50, 250])
+    expect(tapRings(rings, 155, 104, W).map((r) => r.cx)).toEqual([50, 250])
   })
   it('picks the nearest ring centre, never a neighbour whose box happens to be closer', () => {
     // Tubes 27 px apart; the first ring's box is wide (a glare streak joined to it), the second narrow.
@@ -51,27 +53,48 @@ describe('fixing rings', () => {
     expect(ringAt(rings, 13, 0, 40)).toBe(0)
     expect(ringAt(rings, 41, 0, 40)).toBe(2)
     // A missed tube midway between two found rings gets a new ring, not a removal.
-    expect(tapRings([box(0, 0, 3), box(54, 0, 3)], 27, 0, 40)).toHaveLength(3)
+    expect(tapRings([box(0, 0, 3), box(54, 0, 3)], 27, 0, W)).toHaveLength(3)
   })
   it("adds a ring for a missed tube that sat close to its neighbour, instead of removing the neighbour's ring", () => {
     // Tubes 30 px apart, the last two only 15 px apart (a real kit photo). The finder missed the one at 120.
     const rings = [0, 30, 60, 90, 135].map((x) => box(x, 0, 3))
     expect(ringAt(rings, 120, 0, 40)).toBe(-1)
-    expect(tapRings(rings, 120, 0, 40)).toHaveLength(6)
+    expect(tapRings(rings, 120, 0, W)).toHaveLength(6)
   })
+  // Small tubes in a wide shot: liquid 12 px wide, most tubes 100 px apart. Each ring is drawn at least 51 px
+  // across (about 13 CSS px on a 360 px phone), far wider than its tube.
+  const small = () => [box(0, 0, 6), box(100, 0, 6), box(200, 0, 6), box(400, 0, 6)]
   it('rings a tube touching a ringed one with a plain tap on it, so both are ringed, each labelled by its own tap', () => {
-    // Small tubes in a wide shot: liquid 12 px wide, most tubes 100 px apart, one pair touching 32 px apart.
-    // The finder ringed the first of the pair; a finger's reach (79 px) takes in the second.
+    // One pair touches, 32 px apart: the finder ringed the first; a finger's reach (79 px) takes in the second.
     const reach = 79
-    const rings = [box(0, 0, 6), box(100, 0, 6), box(200, 0, 6), box(400, 0, 6)]
-    const both = tapRings(rings, 232, 0, reach)
+    const rings = small()
+    const both = tapRings(rings, 232, 0, W)
     expect(both).toHaveLength(5)
     expect(both.slice(0, 4)).toEqual(rings)
     expect(ringAt(both, 200, 0, reach)).toBe(2)
     expect(ringAt(both, 232, 0, reach)).toBe(4)
     // A tap on either ring, or just off its edge, still removes that ring and no other.
-    expect(tapRings(both, 209, 2, reach)).toEqual(removeRing(both, 2))
-    expect(tapRings(both, 233, 1, reach)).toEqual(rings)
+    expect(tapRings(both, 209, 2, W)).toEqual(removeRing(both, 2))
+    expect(tapRings(both, 233, 1, W)).toEqual(rings)
+  })
+  it('removes a small ring on a tap anywhere inside it as drawn', () => {
+    const rings = small()
+    const e = ringShape(rings[2], W)
+    expect(e.rx).toBeGreaterThan(25)
+    // 3.3 CSS px from the centre on a 360 px phone, off the liquid but well inside the ring the grower sees.
+    expect(tapRings(rings, 213, 0, W)).toEqual(removeRing(rings, 2))
+    expect(tapRings(rings, 200, -e.ry + 1, W)).toEqual(removeRing(rings, 2))
+    expect(tapRings(rings, 200 - e.rx + 1, 0, W)).toEqual(removeRing(rings, 2))
+  })
+  it('removes a ring on a tap just outside it on its own tube, and adds one past a small ring', () => {
+    // An isolated big tube: a tap past the drawn ring, where a new ring would overlap the liquid, is on it.
+    const big = [box(500, 500, 40)]
+    const e = ringShape(big[0], W)
+    expect(tapRings(big, 500 + e.rx + 4, 500, W)).toEqual([])
+    expect(tapRings(big, 500, 500 - e.ry - 4, W)).toEqual([])
+    // Past a small ring there is no telling a missed thumb from a tube the finder missed: it adds a ring.
+    const rings = small()
+    expect(tapRings(rings, 200 + ringShape(rings[2], W).rx + 4, 0, W)).toHaveLength(5)
   })
   it('counts a tap inside a big ring as on it, whatever the reach', () => {
     expect(ringAt([box(100, 100, 40)], 135, 100, 5)).toBe(0)
@@ -79,16 +102,16 @@ describe('fixing rings', () => {
   it("adds a ring on empty paper inside the liquid: the median ring's narrow side", () => {
     const tall = (cx: number, w: number, h: number): Region => ({ x0: cx - w, y0: 100 - h, x1: cx + w, y1: 100 + h, cx, cy: 100 })
     const rings = [tall(50, 8, 20), tall(250, 10, 30), tall(350, 30, 40)]
-    const out = tapRings(rings, 150, 100, 20)
+    const out = tapRings(rings, 150, 100, W)
     expect(out.slice(0, 3)).toEqual(rings)
     expect(out[3]).toEqual(discRegion(150, 100, 10))
     expect(radius(out[3])).toBe(10)
   })
   it('puts an added ring back on the same spot when tapped again', () => {
     const rings = row(9)
-    const added = tapRings(rings, 950, 100, 20)
+    const added = tapRings(rings, 950, 100, W)
     expect(added).toHaveLength(10)
-    expect(tapRings(added, 951, 99, 20)).toEqual(rings)
+    expect(tapRings(added, 951, 99, W)).toEqual(rings)
   })
 })
 
@@ -129,7 +152,7 @@ describe('the photo path on a synthetic run', () => {
       const found = calls(rings)
       for (let i = 2; i < 10; i++) {
         const ring = rings[ringAt(rings, ...centre(i), 20)]
-        const readded = tapRings(tapRings(rings, ring.cx, ring.cy, 20), ...centre(i), 20)
+        const readded = tapRings(tapRings(rings, ring.cx, ring.cy, photo.width), ...centre(i), photo.width)
         expect(readded.find((r) => r.r !== undefined)).toBeDefined()
         expect([seed, i, calls(readded)[i]]).toEqual([seed, i, found[i]])
       }

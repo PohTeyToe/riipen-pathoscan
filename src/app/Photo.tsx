@@ -88,7 +88,7 @@ export function Photo({ run, assay, act, back, error }: Props) {
     void act(() => saveRead(run, tubes, roles, readTubes(shot!.img, tubes, roles), treatAtFor(assay, tubes.length - 2)))
   }
   const tap = (x: number, y: number, reach: number) => {
-    if (stage === 'rings') return setRings(tapRings(rings, x, y, reach))
+    if (stage === 'rings') return setRings(tapRings(rings, x, y, shot!.img.width))
     const i = ringAt(rings, x, y, reach)
     if (i >= 0) pick(i)
   }

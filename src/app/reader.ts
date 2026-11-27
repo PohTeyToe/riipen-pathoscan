@@ -36,31 +36,50 @@ export function ringAt(rings: Region[], x: number, y: number, reach: number): nu
   return d[i] < Math.min(nearest[i], median(nearest)) / 2 && d[i] <= Math.max(reach, radius(rings[i])) ? i : -1
 }
 
+/** A label's size on a photo `width` pixels wide: about 18 CSS pixels however many pixels the photo has. */
+export const labelSize = (width: number) => width / 22
+
 /**
- * A tap while fixing rings. On a ring it removes it (a finger, a petal, a pen mark). Anywhere else it adds a
- * ring for a tube the finder missed, as wide as the median ring's narrow side so it sits inside the liquid
- * (sized by the long side, as scripts/read-runs.ts does, it reads paper as glare). An added ring goes last.
+ * The ring drawn round a tube on a photo `width` pixels wide: an ellipse just outside the liquid's box, never
+ * smaller than a label so a ring on a small tube can still be seen and tapped. The Photo screen draws it and
+ * tapRings hits it, so a tap on a ring as drawn is a tap on that ring.
  */
-export function tapRings(rings: Region[], x: number, y: number, reach: number): Region[] {
-  const i = ringAt(rings, x, y, reach)
-  return i >= 0 && onRing(rings[i], x, y) ? removeRing(rings, i) : addRing(rings, x, y)
+export function ringShape(r: Region, width: number) {
+  const f = labelSize(width)
+  return {
+    cx: (r.x0 + r.x1) / 2,
+    cy: (r.y0 + r.y1) / 2,
+    rx: Math.max((r.x1 - r.x0) / 2 + f * 0.2, f * 0.4),
+    ry: Math.max((r.y1 - r.y0) / 2 + f * 0.2, f * 0.4),
+  }
 }
 
 /**
- * True when (x, y) is on the ring: inside its box grown on every side by half the box's narrow side, about where
- * the ring is drawn. A tube touching this one has its middle past that, so a tap there is a tap on that tube,
- * not on this ring. ringAt alone reaches a finger's width from the centre, which on small tubes in a wide photo
- * covers the tube beside it.
+ * A tap while fixing rings, on a photo `width` pixels wide. It removes the nearest ring (a finger, a petal, a
+ * pen mark) when it lands on that ring as drawn, or so near its tube that a ring added there would overlap
+ * the tube's liquid, and is under half the way to the next ring (ringAt). Anywhere else it adds a ring for a
+ * tube the finder missed, as wide as the median ring's narrow side so it sits inside the liquid (sized by the
+ * long side, as scripts/read-runs.ts does, it reads paper as glare). An added ring goes last.
+ *
+ * So a tap on a tube touching a ringed one rings that tube, though a finger's reach takes in both: past the
+ * drawn ring, a tap is only on a ring if it is on the ring's own tube. On a small tube the drawn ring is all
+ * the margin there is: beside it, a tap may be on a tube the reader can't see, so it adds a ring, which the
+ * count and a second tap undo.
  */
-function onRing(r: Region, x: number, y: number): boolean {
-  const grow = inner(r)
-  const rx = (r.x1 - r.x0) / 2 + grow
-  const ry = (r.y1 - r.y0) / 2 + grow
-  return ((x - (r.x0 + r.x1) / 2) / rx) ** 2 + ((y - (r.y0 + r.y1) / 2) / ry) ** 2 < 1
+export function tapRings(rings: Region[], x: number, y: number, width: number): Region[] {
+  const added = newRing(rings, x, y)
+  const i = ringAt(rings, x, y, Infinity)
+  const on = i >= 0 && (inShape(ringShape(rings[i], width), x, y) || overlaps(added, rings[i]))
+  return on ? removeRing(rings, i) : [...rings, added]
 }
+
+const inShape = (e: ReturnType<typeof ringShape>, x: number, y: number) => ((x - e.cx) / e.rx) ** 2 + ((y - e.cy) / e.ry) ** 2 <= 1
+/** True when a disc reaches into a ring's box. */
+const overlaps = (disc: Region, r: Region) =>
+  Math.hypot(disc.cx - Math.min(Math.max(disc.cx, r.x0), r.x1), disc.cy - Math.min(Math.max(disc.cy, r.y0), r.y1)) < radius(disc)
+const newRing = (rings: Region[], x: number, y: number) => discRegion(x, y, median(rings.map(inner)) || 12)
 
 export const removeRing = (rings: Region[], i: number) => rings.filter((_, j) => j !== i)
-export const addRing = (rings: Region[], x: number, y: number) => [...rings, discRegion(x, y, median(rings.map(inner)) || 12)]
 
 /**
  * The labels on a full kit's paper, in the order the grower taps the tubes: +, −, then samples 1 to 8. A run

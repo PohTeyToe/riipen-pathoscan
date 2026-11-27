@@ -82,14 +82,14 @@ try {
             const bad = rings.findIndex((_, i) => h.filter((x) => x === i).length !== 1)
             if (bad < 0) break
             const before = rings.length
-            rings = reader.tapRings(rings, rings[bad].cx, rings[bad].cy, reach)
+            rings = reader.tapRings(rings, rings[bad].cx, rings[bad].cy, img.width)
             if (rings.length !== before - 1) return { error: `a tap on ring ${bad + 1} didn't remove it` }
             removed++
           }
           // Ring every tube the finder missed.
           for (const n of names)
             if (reader.ringAt(rings, ...pt(n), reach) < 0) {
-              rings = reader.tapRings(rings, ...pt(n), reach)
+              rings = reader.tapRings(rings, ...pt(n), img.width)
               added++
             }
           // Every tube tapped in label order, as the grower labels them; the read takes the rings in that order.
@@ -105,7 +105,7 @@ try {
           // Each sample's ring removed and added back by a tap on its point: the call a placed ring gives.
           const readded = (j: number) => {
             const ring = rings[h[j]]
-            return label(reader.tapRings(reader.tapRings(rings, ring.cx, ring.cy, reach), ...pt(names[j]), reach))?.tubes[j].call
+            return label(reader.tapRings(reader.tapRings(rings, ring.cx, ring.cy, img.width), ...pt(names[j]), img.width))?.tubes[j].call
           }
           let overlay: string | undefined
           if (draw) {

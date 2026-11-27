@@ -1,6 +1,6 @@
 import { useId, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
 import type { Region } from '../lib/find'
-import { REACH_PX } from './reader'
+import { labelSize, REACH_PX, ringShape } from './reader'
 
 export interface Ring {
   region: Region
@@ -42,18 +42,8 @@ export function Shot({ src, rings, onTap, onRing, hint }: Props) {
     const k = size!.w / box.width
     onTap!((e.clientX - box.left) * k, (e.clientY - box.top) * k, REACH_PX * k)
   }
-  // Sized to the photo's width, so labels stay about 18 CSS pixels whatever the photo's resolution.
-  const font = size && size.src === src ? size.w / 22 : undefined
-  const ellipse = (r: Region) => {
-    const f = font!
-    return {
-      cx: (r.x0 + r.x1) / 2,
-      cy: (r.y0 + r.y1) / 2,
-      // Just outside the liquid's box, so rings on neighbouring tubes don't overlap.
-      rx: Math.max((r.x1 - r.x0) / 2 + f * 0.2, f * 0.4),
-      ry: Math.max((r.y1 - r.y0) / 2 + f * 0.2, f * 0.4),
-    }
-  }
+  const font = size && size.src === src ? labelSize(size.w) : undefined
+  const ellipse = (r: Region) => ringShape(r, size!.w)
   const pct = (v: number, of: number) => `${(100 * v) / of}%`
   return (
     <div className="shot" style={font ? ({ '--ratio': size!.w / size!.h } as CSSProperties) : undefined}>

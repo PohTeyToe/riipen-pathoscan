@@ -148,10 +148,10 @@ async function worker(queue: Job[]) {
           const bad = rings.findIndex((_, i) => hit.filter((x) => x === i).length !== 1)
           if (bad < 0) break
           const before = rings.length
-          rings = reader.tapRings(rings, rings[bad].cx, rings[bad].cy, reach)
+          rings = reader.tapRings(rings, rings[bad].cx, rings[bad].cy, img.width)
           if (rings.length !== before - 1) return { error: 'a tap did not remove a ring' }
         }
-        for (const p of pts) if (reader.ringAt(rings, ...p, reach) < 0) rings = reader.tapRings(rings, ...p, reach)
+        for (const p of pts) if (reader.ringAt(rings, ...p, reach) < 0) rings = reader.tapRings(rings, ...p, img.width)
         const order = pts.reduce<number[]>((o, p) => reader.tapInOrder(o, reader.ringAt(rings, ...p, reach)), [])
         if (rings.length !== pts.length || order.includes(-1)) return { error: 'taps did not give one ring per tube' }
         const r = reader.readTubes(img, order.map((i) => rings[i]), reader.ROLES)
