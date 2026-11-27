@@ -10,6 +10,14 @@ import { Shot } from './Shot'
 import { getPhoto, saveRead, takePhoto } from './store'
 import { Bar, useArmed } from './ui'
 
+/** The line under the ring count: while the count can't be read, why and what to do; else how rings are fixed. */
+export const ringsNote = (n: number) =>
+  n > LABELS.length
+    ? 'Too many rings. Tap the extra ones to remove them.'
+    : n < MIN_TUBES
+      ? 'Too few rings. Tap each tube that has no ring.'
+      : 'Tap a tube to ring it. Tap a ring to remove it.'
+
 interface Props {
   run: Run
   assay: Assay
@@ -151,7 +159,7 @@ export function Photo({ run, assay, act, back, error }: Props) {
         <div className="side">
           <h1>{stage === 'label' ? `${order.length} of ${n} labelled` : n === kit ? `${n} tubes` : `${n} of ${kit} tubes`}</h1>
           <p className="note">
-            {stage === 'rings' ? 'Tap a tube to ring it. Tap a ring to remove it.' : `Tap the tubes in order: +, −, then ${samples === 1 ? '1' : `1 to ${samples}`}.`}
+            {stage === 'rings' ? ringsNote(n) : `Tap the tubes in order: +, −, then ${samples === 1 ? '1' : `1 to ${samples}`}.`}
           </p>
           {status}
           {error}

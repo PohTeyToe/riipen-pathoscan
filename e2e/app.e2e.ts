@@ -197,6 +197,7 @@ test('a run goes from the guide to a photo, rings, labels tapped in order and a 
   await tapPhoto(page, photo.size, paper)
   await expect(page.getByRole('heading', { name: '11 of 10 tubes', exact: true })).toBeVisible()
   await expect(continueBtn).toBeDisabled()
+  await expect(page.getByText('Too many rings. Tap the extra ones to remove them.')).toBeVisible()
   await tapPhoto(page, photo.size, paper)
   await expect(page.getByRole('heading', { name: '10 tubes', exact: true })).toBeVisible()
   // A ring taken off a tube: a run of fewer samples, which the button counts.
