@@ -73,7 +73,7 @@ export const sclerotinia: Assay = {
     {
       id: 'shade',
       title: 'Shade the tubes before the photo',
-      body: 'Move the rack out of direct sun and leave it in even shade for the photo. Keep all ten tubes, including POS and NEG, in view.',
+      body: 'When the 30 minutes are up, take the tubes out of the PathoBox and stand them in the rack. Put the rack out of direct sun, in even shade, with all ten tubes in view, POS and NEG too.',
       image: { src: shade, alt: 'A hand held over the tubes keeps the sun off them.' },
     },
     {
