@@ -408,7 +408,6 @@ h1 {
 .ring ellipse {
   fill: none;
   stroke: var(--ultra);
-  stroke-width: 3px;
   vector-effect: non-scaling-stroke;
 }
 .ring text {

@@ -4,7 +4,7 @@ import { loadImage } from '../lib/photo'
 import type { Img } from '../lib/synth'
 import type { Assay } from './assays/assay'
 import { encodePhoto } from './camera'
-import { findRings, LABELS, MIN_TUBES, readTubes, removeRing, ringAt, ROLES, tapInOrder, tapRings } from './reader'
+import { findRings, LABELS, MIN_TUBES, REACH_PX, readTubes, removeRing, ringAt, ROLES, tapInOrder, tapRings } from './reader'
 import { treatAtFor, type Run } from './run'
 import { Shot } from './Shot'
 import { getPhoto, saveRead, takePhoto } from './store'
@@ -87,9 +87,9 @@ export function Photo({ run, assay, act, back, error }: Props) {
     // Refused if the run was read or its photo changed in another tab meanwhile; the refresh shows what's stored.
     void act(() => saveRead(run, tubes, roles, readTubes(shot!.img, tubes, roles), treatAtFor(assay, tubes.length - 2)))
   }
-  const tap = (x: number, y: number, reach: number) => {
-    if (stage === 'rings') return setRings(tapRings(rings, x, y, shot!.img.width))
-    const i = ringAt(rings, x, y, reach)
+  const tap = (x: number, y: number, px: number) => {
+    if (stage === 'rings') return setRings(tapRings(rings, x, y, shot!.img.width, px))
+    const i = ringAt(rings, x, y, REACH_PX * px)
     if (i >= 0) pick(i)
   }
 

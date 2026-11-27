@@ -39,10 +39,13 @@ export function ringAt(rings: Region[], x: number, y: number, reach: number): nu
 /** A label's size on a photo `width` pixels wide: about 18 CSS pixels however many pixels the photo has. */
 export const labelSize = (width: number) => width / 22
 
+/** The width of a ring's line, in CSS pixels, while the rings are fixed. */
+export const RING_STROKE_PX = 3
+
 /**
  * The ring drawn round a tube on a photo `width` pixels wide: an ellipse just outside the liquid's box, never
- * smaller than a label so a ring on a small tube can still be seen and tapped. The Photo screen draws it and
- * tapRings hits it, so a tap on a ring as drawn is a tap on that ring.
+ * smaller than a label so a ring on a small tube can still be seen. Its line is RING_STROKE_PX wide, centred
+ * on the ellipse. The Photo screen draws this and tapRings hits it.
  */
 export function ringShape(r: Region, width: number) {
   const f = labelSize(width)
@@ -55,29 +58,22 @@ export function ringShape(r: Region, width: number) {
 }
 
 /**
- * A tap while fixing rings, on a photo `width` pixels wide. It removes the nearest ring (a finger, a petal, a
- * pen mark) when it lands on that ring as drawn, or so near its tube that a ring added there would overlap
- * the tube's liquid, and is under half the way to the next ring (ringAt). Anywhere else it adds a ring for a
- * tube the finder missed, as wide as the median ring's narrow side so it sits inside the liquid (sized by the
- * long side, as scripts/read-runs.ts does, it reads paper as glare). An added ring goes last.
- *
- * So a tap on a tube touching a ringed one rings that tube, though a finger's reach takes in both: past the
- * drawn ring, a tap is only on a ring if it is on the ring's own tube. On a small tube the drawn ring is all
- * the margin there is: beside it, a tap may be on a tube the reader can't see, so it adds a ring, which the
- * count and a second tap undo.
+ * A tap while fixing rings, on a photo `width` pixels wide shown at `px` photo pixels to a CSS pixel. What
+ * the grower sees is what they tap: a tap on a ring as painted, its line included, removes it (a finger, a
+ * petal, a pen mark); where painted rings overlap, the one the tap is deepest inside. Anywhere else the tap
+ * adds a ring for a tube the finder missed, as wide as the median ring's narrow side so it sits inside the
+ * liquid (sized by the long side, as scripts/read-runs.ts does, it reads paper as glare). An added ring goes
+ * last. A tap just off a ring adds one; the count says so, and a tap on the new ring takes it off.
  */
-export function tapRings(rings: Region[], x: number, y: number, width: number): Region[] {
-  const added = newRing(rings, x, y)
-  const i = ringAt(rings, x, y, Infinity)
-  const on = i >= 0 && (inShape(ringShape(rings[i], width), x, y) || overlaps(added, rings[i]))
-  return on ? removeRing(rings, i) : [...rings, added]
+export function tapRings(rings: Region[], x: number, y: number, width: number, px: number): Region[] {
+  const line = (RING_STROKE_PX / 2) * px
+  const depth = rings.map((r) => {
+    const e = ringShape(r, width)
+    return ((x - e.cx) / (e.rx + line)) ** 2 + ((y - e.cy) / (e.ry + line)) ** 2
+  })
+  const i = depth.indexOf(Math.min(...depth))
+  return depth[i] <= 1 ? removeRing(rings, i) : [...rings, discRegion(x, y, median(rings.map(inner)) || 12)]
 }
-
-const inShape = (e: ReturnType<typeof ringShape>, x: number, y: number) => ((x - e.cx) / e.rx) ** 2 + ((y - e.cy) / e.ry) ** 2 <= 1
-/** True when a disc reaches into a ring's box. */
-const overlaps = (disc: Region, r: Region) =>
-  Math.hypot(disc.cx - Math.min(Math.max(disc.cx, r.x0), r.x1), disc.cy - Math.min(Math.max(disc.cy, r.y0), r.y1)) < radius(disc)
-const newRing = (rings: Region[], x: number, y: number) => discRegion(x, y, median(rings.map(inner)) || 12)
 
 export const removeRing = (rings: Region[], i: number) => rings.filter((_, j) => j !== i)
 

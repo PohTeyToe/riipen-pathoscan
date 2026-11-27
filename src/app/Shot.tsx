@@ -1,6 +1,6 @@
 import { useId, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
 import type { Region } from '../lib/find'
-import { labelSize, REACH_PX, ringShape } from './reader'
+import { labelSize, RING_STROKE_PX, ringShape } from './reader'
 
 export interface Ring {
   region: Region
@@ -13,8 +13,8 @@ export interface Ring {
 interface Props {
   src?: string
   rings: Ring[]
-  /** A tap on the photo, in image pixels, with a finger's reach in image pixels. */
-  onTap?: (x: number, y: number, reach: number) => void
+  /** A tap on the photo, in image pixels, and how many image pixels make a CSS pixel. */
+  onTap?: (x: number, y: number, px: number) => void
   /** A ring chosen: each ring is then a button, for a finger, a key or assistive tech. */
   onRing?: (i: number) => void
   /** What a keyboard can't do here, for screen readers. */
@@ -40,7 +40,7 @@ export function Shot({ src, rings, onTap, onRing, hint }: Props) {
   const tap = (e: MouseEvent<SVGSVGElement>) => {
     const box = e.currentTarget.getBoundingClientRect()
     const k = size!.w / box.width
-    onTap!((e.clientX - box.left) * k, (e.clientY - box.top) * k, REACH_PX * k)
+    onTap!((e.clientX - box.left) * k, (e.clientY - box.top) * k, k)
   }
   const font = size && size.src === src ? labelSize(size.w) : undefined
   const ellipse = (r: Region) => ringShape(r, size!.w)
@@ -60,7 +60,7 @@ export function Shot({ src, rings, onTap, onRing, hint }: Props) {
               const e = ellipse(region)
               return (
                 <g key={i} className={tone ? `ring ${tone}` : 'ring'}>
-                  <ellipse {...e} />
+                  <ellipse {...e} strokeWidth={RING_STROKE_PX} />
                   <text x={e.cx} y={e.cy - e.ry - font * 0.2}>
                     {label}
                   </text>
