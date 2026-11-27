@@ -60,7 +60,7 @@ export const sclerotinia: Assay = {
     {
       id: 'dip',
       title: 'Transfer each sample',
-      body: 'Dip a dipstick 15 times in the sample tube, 5 times in the wash tube, then 15 times in the matching reaction tube. Keep the dipstick tip off the bottom of the tubes. Discard it and use a fresh dipstick for the next sample.',
+      body: 'For each sample, take a fresh dipstick. Dip it 15 times in the sample tube, 5 times in the wash tube, then 15 times in the reaction tube with the same number. Keep the tip off the bottom of the tubes, then throw the dipstick away.',
       image: { src: dip, alt: 'A dipstick dipped 15 times in the sample tube, 5 times in the wash tube, then 15 times in the reaction tube.' },
     },
     {
