@@ -4,7 +4,7 @@
 import type { Call } from '../lib/readers'
 import { assays } from './assays'
 import { LABELS } from './reader'
-import { finalCalls, heldReason, OUTCOME_LABEL, type Run, type Tap } from './run'
+import { finalCalls, heldReason, outcomeLabel, type Run, type Tap } from './run'
 
 type Cell = string | number | undefined
 
@@ -44,7 +44,7 @@ export function runCsv(run: Run): string {
       assays[run.assay]?.name ?? run.assay,
       day(at),
       time(at),
-      OUTCOME_LABEL[run.outcome ?? 'open'],
+      outcomeLabel(run),
       positives,
       samples,
       run.rule?.treatAt,

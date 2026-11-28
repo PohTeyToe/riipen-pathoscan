@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import type { Assay } from './assays/assay'
 import { exportRun } from './csv'
 import { LABELS } from './reader'
-import { asksRetake, finalCalls, heldReason, saysRetake, tapsDecided, type Run, type Tap } from './run'
+import { asksRetake, finalCalls, heldReason, outcomeLabel, saysRetake, tapsDecided, type Run, type Tap } from './run'
 import { Shot } from './Shot'
 import { getPhoto, getRun, retakePhoto, setTap } from './store'
 import { Action, Bar } from './ui'
@@ -43,7 +43,7 @@ export function Result({ run, assay, act, error }: { run: Run; assay: Assay; act
         <div className="summary">
           {failed ? (
             <>
-              <h1>Run failed</h1>
+              <h1>{outcomeLabel(run)}</h1>
               {/* The reader's own reason, which says what to do: retake the photo, check the controls, or rerun. */}
               {(read.flags.length ? read.flags : ["The controls didn't separate. Rerun with fresh reagents."]).map((f) => (
                 <p key={f} className="lead">

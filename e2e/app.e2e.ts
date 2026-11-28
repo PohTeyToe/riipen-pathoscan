@@ -889,7 +889,7 @@ test('a run failed for a clipped control is retaken from the result, keeping the
   await toPhoto(page, 'Retake')
   const bright = syntheticPhoto('row', { seed: 3, ev: 0.5 })
   await readPhoto(page, bright)
-  await expect(page.getByRole('heading', { name: 'Run failed', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Photo not read', exact: true })).toBeVisible()
   await expect(page.getByText(/^Too bright at the (positive|negative) control\. Retake with less light\.$/)).toBeVisible()
   const { warnings } = await wrongCalls(page, bright)
   expect(new Set(warnings).size).toBe(1)
@@ -948,7 +948,7 @@ test('a positive control whose paper is blown out on its upper side fails the ru
     },
   })
   await readPhoto(page, photo)
-  await expect(page.getByRole('heading', { name: 'Run failed', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Photo not read', exact: true })).toBeVisible()
   await expect(page.getByText('Too bright at the positive control. Retake with less light.')).toBeVisible()
 })
 
@@ -958,10 +958,10 @@ test("a tap on a stale tab's old result can't change the result of the photo tak
   await page.goto('/app.html')
   await toPhoto(page, 'Two tabs')
   await readPhoto(page, syntheticPhoto('row', { seed: 3, ev: 0.5 }))
-  await expect(page.getByRole('heading', { name: 'Run failed', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Photo not read', exact: true })).toBeVisible()
   const stale = await context.newPage()
   await stale.goto(page.url())
-  await expect(stale.getByRole('heading', { name: 'Run failed', exact: true })).toBeVisible()
+  await expect(stale.getByRole('heading', { name: 'Photo not read', exact: true })).toBeVisible()
 
   await page.getByRole('button', { name: 'Retake photo' }).click()
   await page.getByRole('button', { name: 'Back' }).click()
@@ -1039,7 +1039,7 @@ test("an old tab of an earlier app (schema 2) can't change a run this app has op
   await page.goto('/app.html')
   await toPhoto(page, 'Live tab')
   await readPhoto(page, syntheticPhoto('row', { seed: 3, ev: 0.5 }))
-  await expect(page.getByRole('heading', { name: 'Run failed', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Photo not read', exact: true })).toBeVisible()
   const id = runId(page)
   // As the live app saved it: schema 2, no take.
   const { take, ...saved } = await storedRun(page, id)
@@ -1059,7 +1059,7 @@ test("an old tab of an earlier app (schema 2) can't change a run this app has op
 
   // This app opens the run, retakes it and reads a photo with less light: two positives, sample 1 held.
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Run failed', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Photo not read', exact: true })).toBeVisible()
   expect(await storedRun(page, id)).toMatchObject({ schema: 5, take: 0 })
   await page.getByRole('button', { name: 'Retake photo' }).click()
   await page.getByRole('button', { name: 'Back' }).click()

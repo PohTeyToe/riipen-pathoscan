@@ -136,12 +136,12 @@ export function readCalibrated(feats: (Features | null)[], roles: Role[], model:
   if (tooBright) return notRead(`Too bright at the ${pcs.includes(tooBright) ? 'positive' : 'negative'} control. Retake with less light.`)
   const ncSpread = Math.max(...ncHues) - Math.min(...ncHues)
   if (ncs.length > 1 && ncSpread >= (hPc - Math.min(...ncHues)) / 2)
-    return notRead(`The negative controls disagree (${ncSpread.toFixed(0)}° apart); one may be contaminated. Run not read; check them.`)
+    return notRead(`The negative controls disagree (${ncSpread.toFixed(0)}° apart); one may be contaminated. This run is invalid, so don't use its results.`)
   if (hPc - hNc < QC.minControlGap)
     return notRead(
       hPc <= hNc
-        ? 'The controls are too close in colour or the wrong way round. The positive control should be yellow and the negative pink. Run not read; check the controls.'
-        : `The controls are only ${(hPc - hNc).toFixed(0)}° apart, too close to read against. Run not read; rerun with fresh reagents.`,
+        ? "The controls are too close in colour or the wrong way round. The positive control should be yellow and the negative pink. This run is invalid, so don't use its results."
+        : `The controls are only ${(hPc - hNc).toFixed(0)}° apart, too close to read against. This run is invalid. Rerun with fresh reagents.`,
     )
 
   if ([...pcs, ...ncs].some((f) => f.clear < QC.minClear)) flags.push('A control has very few clear pixels, so the scale itself is uncertain.')

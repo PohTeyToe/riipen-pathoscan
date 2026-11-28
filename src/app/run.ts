@@ -116,13 +116,19 @@ export function upgrade(run: StoredRun): Run {
   return { ...run, schema: SCHEMA, take: 0, steps }
 }
 
-export const OUTCOME_LABEL: Record<Outcome | 'open', string> = {
+const OUTCOME_LABEL: Record<Exclude<Outcome, 'failed'> | 'open', string> = {
   treat: 'Treat',
   'dont-treat': "Don't treat",
   'no-advice': 'No advice',
-  failed: 'Failed',
   open: 'In progress',
 }
+
+/**
+ * What a run came to, in the words the result screen, the runs list and the CSV share. Controls that came out
+ * unexpected make the run invalid. A read the reader wants a new photo for failed on the photo, not on the run.
+ */
+export const outcomeLabel = (run: Pick<Run, 'outcome' | 'read'>): string =>
+  run.outcome === 'failed' ? (run.read && asksRetake(run.read) ? 'Photo not read' : 'Invalid run') : OUTCOME_LABEL[run.outcome ?? 'open']
 
 /** Why the reader held tube i, unless a run flag already says so (a failed run holds every sample for its flag). */
 export function heldReason(read: RunRead, i: number): string | undefined {

@@ -147,7 +147,7 @@ describe('the run CSV', () => {
 
   it("marks a failed run, counts nothing and keeps the grower's taps as notes that don't count", () => {
     const rows = table(readRun(Array(8).fill('held'), { 2: 'pos', 3: 'neg' }, 'failed'))
-    expect(rows[0]).toMatchObject({ Result: 'Failed', Positives: '', 'Reader warnings': 'The controls are too close to call.' })
+    expect(rows[0]).toMatchObject({ Result: 'Invalid run', Positives: '', 'Reader warnings': 'The controls are too close to call.' })
     expect(column(rows, 'Grower call').slice(2, 4)).toEqual(['Positive', 'Negative'])
     expect(column(rows, 'Final call').slice(2)).toEqual(Array(8).fill('Held'))
   })

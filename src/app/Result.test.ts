@@ -47,20 +47,22 @@ describe('a failed run on the result screen', () => {
   const samples = Array.from({ length: 8 }, () => tube(40))
   it('says which control it could not find and asks for a retake, not fresh reagents', () => {
     const text = screen([tube(80), null, ...samples])
-    expect(text).toContain('Run failed')
+    expect(text).toContain('Photo not read')
+    expect(text).not.toContain('Invalid')
     expect(text).toContain("Can't find a negative control")
     expect(text).toContain('Retake the photo')
     expect(text).not.toContain('reagents')
   })
   it('blames neither control when they are the wrong way round, as when the negative turned yellow', () => {
     const text = screen([tube(80), tube(90), ...samples])
-    expect(text).toContain('Run failed The controls are too close in colour or the wrong way round. The positive control should be yellow and the negative pink. Run not read; check the controls.')
+    expect(text).toContain("Invalid run The controls are too close in colour or the wrong way round. The positive control should be yellow and the negative pink. This run is invalid, so don't use its results.")
     expect(text).not.toContain('pinker')
   })
   it('asks for fresh reagents when the controls are too close', () => {
     const text = screen([tube(30), tube(20), ...samples])
     expect(text).toContain('too close to read against')
-    expect(text).toContain('rerun with fresh reagents')
+    expect(text).toContain('Invalid run')
+    expect(text).toContain('This run is invalid. Rerun with fresh reagents.')
   })
 })
 
@@ -79,7 +81,7 @@ describe('held tubes on the result screen', () => {
   })
   it('fails a run whose control is too bright, says so once, and offers a retake', () => {
     const text = screen([tube(90, true), tube(10), ...Array.from({ length: 8 }, () => tube(40))])
-    expect(text).toContain('Run failed')
+    expect(text).toContain('Photo not read')
     expect(text.split('Too bright at the positive control. Retake with less light.')).toHaveLength(2)
     expect(text).toContain('Retake photo')
   })

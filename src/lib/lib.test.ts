@@ -38,7 +38,7 @@ describe('calibrated reader', () => {
     expect(r.flags[0]).toMatch(/too close/)
   })
   it('holds the run when the controls are the wrong way round, blaming neither: + stayed pink, or − turned yellow', () => {
-    const wrongWay = 'The controls are too close in colour or the wrong way round. The positive control should be yellow and the negative pink. Run not read; check the controls.'
+    const wrongWay = "The controls are too close in colour or the wrong way round. The positive control should be yellow and the negative pink. This run is invalid, so don't use its results."
     expect(readCalibrated([tube(10), tube(90), tube(50)], roles(1), model, band).flags).toEqual([wrongWay]) // + failed
     expect(readCalibrated([tube(80), tube(90), tube(50)], roles(1), model, band).flags).toEqual([wrongWay]) // both yellow
   })

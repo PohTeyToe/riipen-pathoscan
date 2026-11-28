@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { assays } from './assays'
 import { useInstall } from './install'
-import { OUTCOME_LABEL, type Run } from './run'
+import { outcomeLabel, type Run } from './run'
 import { listRuns } from './store'
 import { useOnVisible } from './visible'
 
@@ -40,7 +40,7 @@ export function Runs() {
                     <span className="field">{r.field}</span>
                     <span className="test">{assays[r.assay]?.name ?? r.assay}</span>
                     <span className="date">{when.format(r.createdAt)}</span>
-                    <span className={`chip ${outcome}`}>{OUTCOME_LABEL[outcome]}</span>
+                    <span className={`chip ${outcome}`}>{outcomeLabel(r)}</span>
                   </a>
                 </li>
               )
