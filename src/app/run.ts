@@ -136,8 +136,11 @@ export function heldReason(read: RunRead, i: number): string | undefined {
   return t.call === 'held' && t.reason && !read.flags.includes(t.reason) ? t.reason : undefined
 }
 
-/** True when this line from the reader asks for a new photo. */
-export const saysRetake = (s: string) => /\bretake\b/i.test(s)
+/**
+ * True when this line from the reader asks for a new photo. A run stored by build 8ea660e says only that it
+ * can't find a control, with no "retake"; that is a fault of the photo too.
+ */
+export const saysRetake = (s: string) => /\bretake\b|\bcan't find\b/i.test(s)
 
 /** True when the reader asks for a new photo: a run flag or a held tube's reason says to retake it. */
 export const asksRetake = (read: RunRead) => [...read.flags, ...read.tubes.flatMap((_, i) => heldReason(read, i) ?? [])].some(saysRetake)

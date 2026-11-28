@@ -4,7 +4,7 @@ import { other } from './assays/other'
 import { sclerotinia } from './assays/sclerotinia'
 import { cell, csvName, runCsv } from './csv'
 import { ROLES } from './reader'
-import { newRun, READER_VERSION, tally, type Run, type Tap } from './run'
+import { asksRetake, newRun, READER_VERSION, tally, type Run, type Tap } from './run'
 
 const BOM = String.fromCharCode(0xfeff)
 const at = new Date(2026, 10, 19, 7, 5).getTime() // local time, so the expected date and time hold in any zone
@@ -150,6 +150,14 @@ describe('the run CSV', () => {
     expect(rows[0]).toMatchObject({ Result: 'Invalid run', Positives: '', 'Reader warnings': 'The controls are too close to call.' })
     expect(column(rows, 'Grower call').slice(2, 4)).toEqual(['Positive', 'Negative'])
     expect(column(rows, 'Final call').slice(2)).toEqual(Array(8).fill('Held'))
+  })
+
+  it("calls a failed run a photo fault, not an invalid run, when its stored warning is an earlier build's missing control", () => {
+    const run = readRun(Array(8).fill('held'), {}, 'failed')
+    const legacy = "Can't find a negative control, so there's no scale to read against."
+    const read = { ...run.read!, flags: [legacy], tubes: run.read!.tubes.map((t) => (t.call === 'held' ? { ...t, reason: legacy } : t)) }
+    expect(table({ ...run, read })[0]).toMatchObject({ Result: 'Photo not read', 'Reader warnings': legacy })
+    expect(asksRetake(read)).toBe(true)
   })
 
   it("puts a held tube's reason in its own row's warnings, ahead of the run's, and a failed run's flag once", () => {
